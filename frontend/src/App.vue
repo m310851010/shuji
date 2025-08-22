@@ -25,10 +25,13 @@
   import 'dayjs/locale/zh-cn';
 
   import { EventsOn } from '@wailsapp/runtime';
-  import { ExitApp } from '@wailsjs/go';
+  import { ExitApp, GetAreaConfig, GetCurrentOSUser } from '@wailsjs/go';
 
   dayjs.locale('zh-cn');
 
+  GetCurrentOSUser().then(res => {
+    console.log(res);
+  });
   EventsOn('onBeforeClose', async () => {
     await ExitApp();
   });

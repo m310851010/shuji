@@ -24,38 +24,38 @@
     ImportTable2,
     ImportTable3,
     ImportAttachment2,
-    // ValidateTable1File,
-    // ValidateTable2File,
-    // ValidateTable3File,
-    // ValidateAttachment2File
+    ValidateTable1File,
+    ValidateTable2File,
+    ValidateTable3File,
+    ValidateAttachment2File
   } from '@wailsjs/go';
 
   const tableTab = ref<TableType>(TableType.table1);
   const data_1 = reactive({
     selectedFiles: [],
     name: '表1',
-    // checkFunc: ValidateTable1File,
+    checkFunc: ValidateTable1File,
     importFunc: ImportTable1
   });
 
   const data_2 = reactive({
     selectedFiles: [],
     name: '表2',
-    // checkFunc: ValidateTable2File,
+    checkFunc: ValidateTable2File,
     importFunc: ImportTable2
   });
 
   const data_3 = reactive({
     selectedFiles: [],
     name: '表3',
-    // checkFunc: ValidateTable3File,
+    checkFunc: ValidateTable3File,
     importFunc: ImportTable3
   });
 
   const data_4 = reactive({
     selectedFiles: [],
     name: '附件2',
-    // checkFunc: ValidateAttachment2File,
+    checkFunc: ValidateAttachment2File,
     importFunc: ImportAttachment2
   });
 
