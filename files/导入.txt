@@ -1,0 +1,28 @@
+强制校验函数（参返回 QueryResult）, data属性返回该表是否有数据
+ValidateTable1File(filePath string) - 校验附表1文件
+ValidateTable2File(filePath string) - 校验附表2文件
+ValidateTable3File(filePath string) - 校验附表3文件
+ValidateAttachment2File(filePath string) - 校验附件2文件
+
+以上函数的实现步骤:
+1. 读取Excel文件,失败时插入一条导入记录
+2. 解析Excel文件,失败时插入一条导入记录
+3. 校验数据,参考文件files/校验提示词_V5_0821.mhtml内的强制校验规则, 失败时插入一条导入记录
+4. 校验通过,查询该表是否有数据放进data属性
+5. 返回QueryResult
+
+
+ImportTable1(filePath string) - 导入附表1数据
+ImportTable2(filePath string) - 导入附表2数据
+ImportTable3(filePath string) - 导入附表3数据
+ImportAttachment2(filePath string) - 导入附件2数据
+
+以上导入函数（不做校验, 直接导入, 返回 QueryResult）
+实现步骤
+1. 读取Excel文件,失败时插入一条导入记录
+2. 解析Excel文件,失败时插入一条导入记录
+3. 校验数据,失败时插入一条导入记录
+4. 清空原表数据
+5. 导入数据到数据库, 插入一条导入记录
+6. 返回导入结果
+

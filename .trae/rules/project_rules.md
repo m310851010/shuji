@@ -1,0 +1,222 @@
+# 煤炭摸底数据校验软件开发规则
+
+## 项目概述
+这是一个基于Wails框架的桌面应用程序，使用Go作为后端，Vue 3 + TypeScript作为前端。
+
+## Go后端开发规范
+
+### 代码风格
+- 使用Go 1.23+语法特性
+- 遵循Go官方代码规范
+- 使用gofmt进行代码格式化
+- 包名使用小写字母，避免下划线
+- 函数名使用驼峰命名法
+- 常量使用大写字母和下划线
+
+### 文件组织
+- 主程序入口：`main.go`
+- 应用逻辑：`app.go`
+- 服务层/业务层：`service.go`
+- 数据库操作：`db/`目录
+- 工具函数：`utils.go`
+- 类型定义：`types.go`
+- 常量定义：`constants.go`
+
+### 数据库操作
+- 使用SQLite数据库（modernc.org/sqlite）
+- 数据库文件位于`frontend/public/`目录
+- 实现数据库连接池管理
+- 使用事务处理批量操作
+- 实现数据备份和恢复功能
+-  数据库相关操作在`db/`目录下
+
+
+### 数据库表定义
+- 数据库DDL存在文件`files/main.sql`
+
+- 说明: 数据库中每个表有2个标签字段，字段is_confirm为是否已确认，0未确认，1已确认；另一个字段is_check为是否已校核，0未校核，1已校核，2校核未通过，只有已确认、已校核的数据才是有效数据，否则是无效数据
+- 每个表使用多个字段来确保一条数据唯一,每个表对应的联合字段如下;
+  1.规上企业清单（enterprise_list）: unit_name、credit_code
+  2.重点装置清单（key_equipment_list）: credit_code、stat_date、equip_type、equip_no
+  3.规上企业煤炭消费信息主表（enterprise_coal_consumption_main）: credit_code、stat_date
+  4.规上企业煤炭消费信息-主要用途情况（enterprise_coal_consumption_usage）: fk_id、stat_date、main_usage、specific_usage、input_variety、output_energy_types
+  5.规上企业煤炭消费信息-重点耗煤装置情况（enterprise_coal_consumption_equip）:fk_id、stat_date、equip_type、energy_efficiency、coal_type
+  6.重点耗煤装置（设备）煤炭消耗信息表（critical_coal_equipment_consumption）:stat_date、credit_code、coal_type、enecrgy_efficienct_bmk、use_info、status
+  7.固定资产投资项目节能审查煤炭消费情况汇总表（fixed_assets_investment_project）:stat_date、project_name、project_code、construction_unit
+  8.XX省（自治区、直辖市）202X年煤炭消费状况表（coal_consumption_report）:stat_date、unit_name、unit_level、province_name、city_name、country_name
+  规则：unit_level单位等级：01:国家 02:省 03:市 04:县
+  省、地市、县三者都为空时，为01国家
+  省不为空，地市、县两者为空时，为02省
+  省、地市两者不为空、县为空时，为03市
+  省、地市、县三者都不为空时，为04县
+
+
+- 表中的obj_id字段使用使用uuid生成,插入时由程序自动填充
+
+
+### 导入的excel数据校验规则
+- files/0819数据校验规则-表内校验.docx
+- files/校验提示词_V3_0819.docx
+
+excel导入步骤:
+检查导入的文件是否和模板匹配即表头对应 -> 检查文件内容是否和符合规则文件里要求的规则 -> 写入数据库
+
+导入规则:
+- excel导入支持批量导入,要考虑到性能问题
+- excel文件类型校验：excel导入都要和excel模板中单元格对应，不对应要提示用户,提示词在`files/校验提示词_V3_0819.docx`中，例如:《附表1 202X年规模以上企业煤炭消费信息表》与当前所需上传表不一致，请核对并重新上传。流程结束。
+- excel文件内容校验：校验的规则在`files/0819数据校验规则-表内校验.docx`文件内。如果检查不通过反馈给用户提示，终止操作。如果校验通过，校验是否有重复数据，如果存在重复数据,给用户提供两个按钮选择:替换已有数据、跳过已有数据，选择不同对应的写库的数据不同。
+- 写入库时记得查看main.sql文件中的描述, 有的字段需要使用SM4加密存储, 读取时要使用SM4解密
+- 写入数据后复制把上传的excel文件复制一份到当前目录下的`data/.chche/files/`目录, 和这个目录在程序启动时会自动创建, 重新命名文件,命名规则:原文件名 + ___ + 随机数+原文件扩展名。
+- 写入数据成功后, 在导入记录表插入一条数据, 文件名用复制后的文件名
+- 写入数据库成功后，给出用户反馈，成功多少条，替换多少条/跳过多少条
+
+### 导入的excel样例文件
+- 附表1 202X年规模以上企业煤炭消费信息表.xlsx
+- 附表2 202X年其他耗煤单位重点耗煤装置（设备）煤炭消耗信息表.xlsx
+- 附表3 固定资产投资项目节能审查煤炭消费情况汇总表.xlsx
+- 附件2 XX省（自治区、直辖市）202X年煤炭消费状况表.xlsx
+- 【终版】0811企业清单表.xlsx
+- 【终版】0811装置清单表.xlsx
+
+### excel文件和数据库表对应关系
+- 【终版】0811企业清单表.xlsx -> 规上企业清单（enterprise_list）
+- 【终版】0811装置清单表.xlsx -> 重点装置清单（key_equipment_list）
+
+- 附表1 202X年规模以上企业煤炭消费信息表.xlsx -> 文件内的表格按不同的表格区域拆分到不同的数据库表,对应关系如下:
+  综合能源消费情况和规模以上企业煤炭消费信息表 -> enterprise_coal_consumption_main
+  煤炭消费主要用途情况 -> enterprise_coal_consumption_usage
+  重点耗煤装置情况 -> enterprise_coal_consumption_equip
+
+- 附表2 202X年其他耗煤单位重点耗煤装置（设备）煤炭消耗信息表.xlsx -> 重点耗煤装置（设备）煤炭消耗信息表（critical_coal_equipment_consumption）
+- 附表3 固定资产投资项目节能审查煤炭消费情况汇总表.xlsx -> 固定资产投资项目节能审查煤炭消费情况汇总表（fixed_assets_investment_project）
+- 附件2 XX省（自治区、直辖市）202X年煤炭消费状况表.xlsx -> XX省（自治区、直辖市）202X年煤炭消费状况表（coal_consumption_report）
+
+### 软件UI界面
+- files/煤炭系统_0816.pptx
+
+### Excel处理
+- 使用`github.com/xuri/excelize/v2`处理Excel文件
+- 支持.xlsx格式文件读写
+- 实现数据导入导出功能
+- 处理大文件时使用流式读取
+
+### 安全规范
+- 使用`github.com/tjfoc/gmsm`进行数据加密
+- 实现数据校验和完整性检查
+- 敏感数据不直接暴露给前端
+- 使用UUID生成唯一标识符
+
+## Vue前端开发规范
+
+### 技术栈
+- Vue 3.5+ (Composition API)
+- TypeScript 5.9+
+- Ant Design Vue 4.2+
+- Vue Router 4.5+
+- Vite 7.1+ (构建工具)
+- Less (样式预处理器)
+
+### 项目结构
+```
+frontend/
+├── src/
+│   ├── components/     # 公共组件
+│   ├── views/         # 页面组件
+│   ├── router/        # 路由配置
+│   ├── hook/          # 自定义钩子
+│   ├── util/          # 工具函数
+│   ├── assets/        # 静态资源
+│   └── main.ts        # 应用入口
+├── public/            # 公共资源
+└── package.json       # 依赖配置
+```
+
+### 组件开发
+- 使用Composition API编写组件
+- 组件名使用PascalCase
+- 文件名使用kebab-case
+- 使用TypeScript定义props和emits类型
+- 实现组件的响应式设计
+
+### 样式规范
+- 使用Less预处理器
+- 采用BEM命名规范
+- 使用CSS变量管理主题色彩
+- 实现响应式布局
+
+### 状态管理
+- 使用Vue 3的响应式API
+- 复杂状态使用Pinia（如需要）
+- 实现数据持久化
+- 使用provide/inject进行跨组件通信
+
+### 路由管理
+- 使用Vue Router 4
+- 实现路由懒加载
+- 配置路由守卫
+- 支持路由参数传递
+
+## 开发工作流
+
+### 开发环境
+- 使用`wails dev`启动开发服务器
+- 前端热重载端口：默认Vite端口
+- 后端API端口：34115
+- 支持浏览器调试
+
+### 构建部署
+- 使用`wails build`构建生产版本
+- 支持Windows、麒麟、统信和鸿蒙平台打包运行
+- 配置应用图标和元数据
+
+### 代码质量
+- 使用ESLint进行代码检查
+- 使用Prettier进行代码格式化
+- 实现TypeScript类型检查
+- 编写单元测试和集成测试
+
+## 功能模块
+
+### 数据管理
+- 数据导入：支持Excel文件导入
+- 数据校验：实现数据完整性检查
+- 数据导出：支持多种格式导出
+- 数据合并：支持多数据库合并
+
+### 用户界面
+- 现代化UI设计
+- 响应式布局
+
+### 性能优化
+- 实现虚拟滚动
+- 使用懒加载
+- 优化图片资源
+- 实现缓存机制
+
+## 注意事项
+
+### 安全性
+- 验证所有用户输入
+- 防止SQL注入攻击
+- 实现文件上传安全检查
+- 保护敏感数据
+
+### 兼容性
+- 支持Windows 10+
+- 确保在不同分辨率下正常显示
+- 测试不同DPI设置
+- 支持高对比度模式
+
+### 错误处理
+- 实现全局错误捕获
+- 提供用户友好的错误信息
+- 记录错误日志
+- 实现错误恢复机制
+
+
+重要要求:
+- 优先使用项目中提供的函数、比如生成UUID工具、db操作等,项目中有的函数不要自己重写
+- 在开发中,常用的函数可以提取出来作为公共函数, 比如解析excel、提取单元格、文件操作等
+- 缓存文件的目录启动时自动创建，缓存目录为`data/.cache/`,不必每次检查
+- 开发时优先一定要先查看`files`下的文档要求以及`files/main.sql`中的定义, 要先看下`files`文件夹下的需求、校验规则和DDL,，比如检查数据唯一规则、需要加解密的字段、数据之间的关系校验， 还有需要用户二次确认的逻辑
+- 由于你不能查看二进制文件, 所以把`files`下的`excel`,`word`文件转成了同名的`.mht`文件,`ppt`转成同名的`.mhtml`文件

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "shuji",
+  "outputfilename": "煤炭摸底数据校验软件",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "assetdir": "frontend/src/assets",
+  "author": {
+    "name": "'mdc'",
+    "email": "310851010@qq.com"
+  },
+  "info": {
+    "productName": "煤炭摸底数据校验软件",
+    "productVersion": "1.0.0",
+    "copyright": "2025 北京数极智能科技有限公司",
+    "companyName": "北京数极智能科技有限公司"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": true,
+    "jsx": "preserve",
+    "jsxImportSource": "vue",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@wailsapp/runtime": ["./wailsjs/runtime/runtime"],
+      "@wailsjs/go": ["./wailsjs/go/main/App"],
+      "@wailsjs/models": ["./wailsjs/go/models"],
+    },
+    "typeRoots": ["wailsjs/go/main", "wailsjs/runtime"],
+    "types": ["vite/client"]
+  },
+
+  "include": [
+    "env.d.ts",
+    "vite-plugin/**/*",
+    "src/**/*.vue",
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "wailsjs/**/*.ts",
+    "wailsjs/**/*.d.ts",
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+package main
+
+import (
+	"context"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"os/user"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/tjfoc/gmsm/sm4"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+func GetPath(path string) string {
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(Env.BasePath, path)
+	}
+	return filepath.Clean(path)
+}
+
+// SM4Encrypt SM4加密函数
+func SM4Encrypt(plaintext string) (string, error) {
+	key := DEFAULT_ENCRYPTION_KEY
+	// 将密钥转换为字节数组
+	keyBytes := []byte(key)
+	if len(keyBytes) != SM4_KEY_LENGTH {
+		// 如果密钥长度不是16字节，进行填充或截断
+		if len(keyBytes) < SM4_KEY_LENGTH {
+			// 填充到16字节
+			for len(keyBytes) < SM4_KEY_LENGTH {
+				keyBytes = append(keyBytes, 0)
+			}
+		} else {
+			// 截断到16字节
+			keyBytes = keyBytes[:SM4_KEY_LENGTH]
+		}
+	}
+
+	// 创建SM4加密器
+	cipher, err := sm4.NewCipher(keyBytes)
+	if err != nil {
+		return "", fmt.Errorf("创建SM4加密器失败: %v", err)
+	}
+
+	// 将明文转换为字节数组
+	plaintextBytes := []byte(plaintext)
+
+	// 计算需要填充的字节数
+	padding := SM4_BLOCK_SIZE - (len(plaintextBytes) % SM4_BLOCK_SIZE)
+	if padding == SM4_BLOCK_SIZE {
+		padding = 0
+	}
+
+	// 填充明文
+	for i := 0; i < padding; i++ {
+		plaintextBytes = append(plaintextBytes, byte(padding))
+	}
+
+	// 加密
+	ciphertext := make([]byte, len(plaintextBytes))
+	for i := 0; i < len(plaintextBytes); i += SM4_BLOCK_SIZE {
+		cipher.Encrypt(ciphertext[i:i+SM4_BLOCK_SIZE], plaintextBytes[i:i+SM4_BLOCK_SIZE])
+	}
+
+	// 返回十六进制字符串
+	return hex.EncodeToString(ciphertext), nil
+}
+
+// SM4Decrypt SM4解密函数
+func SM4Decrypt(ciphertextHex string) (string, error) {
+	key := DEFAULT_ENCRYPTION_KEY
+	// 将密钥转换为字节数组
+	keyBytes := []byte(key)
+	if len(keyBytes) != SM4_KEY_LENGTH {
+		// 如果密钥长度不是16字节，进行填充或截断
+		if len(keyBytes) < SM4_KEY_LENGTH {
+			// 填充到16字节
+			for len(keyBytes) < SM4_KEY_LENGTH {
+				keyBytes = append(keyBytes, 0)
+			}
+		} else {
+			// 截断到16字节
+			keyBytes = keyBytes[:SM4_KEY_LENGTH]
+		}
+	}
+
+	// 创建SM4解密器
+	cipher, err := sm4.NewCipher(keyBytes)
+	if err != nil {
+		return "", fmt.Errorf("创建SM4解密器失败: %v", err)
+	}
+
+	// 将十六进制字符串转换为字节数组
+	ciphertextBytes, err := hex.DecodeString(ciphertextHex)
+	if err != nil {
+		return "", fmt.Errorf("解析十六进制字符串失败: %v", err)
+	}
+
+	// 解密
+	plaintext := make([]byte, len(ciphertextBytes))
+	for i := 0; i < len(ciphertextBytes); i += SM4_BLOCK_SIZE {
+		cipher.Decrypt(plaintext[i:i+SM4_BLOCK_SIZE], ciphertextBytes[i:i+SM4_BLOCK_SIZE])
+	}
+
+	// 去除填充
+	if len(plaintext) > 0 {
+		padding := int(plaintext[len(plaintext)-1])
+		if padding > 0 && padding <= SM4_BLOCK_SIZE {
+			plaintext = plaintext[:len(plaintext)-padding]
+		}
+	}
+
+	// 返回明文
+	return string(plaintext), nil
+}
+
+// GetCurrentOSUser 获取当前操作系统登录账号
+func GetCurrentOSUser() string {
+	currentUser, err := user.Current()
+	if err != nil {
+		return "系统"
+	}
+	return currentUser.Username
+}
+
+// CopyCacheFile 复制缓存文件
+func CopyCacheFile(filePath string) (string, error) {
+	fileName := filepath.Base(filePath)
+	// 生成缓存文件名，规则：原文件名 + ___ + 时间戳 + 原扩展名
+	ext := filepath.Ext(fileName)
+	nameWithoutExt := strings.TrimSuffix(fileName, ext)
+	newFileName := fmt.Sprintf("%s___%d%s", nameWithoutExt, time.Now().UnixNano(), ext)
+	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, newFileName))
+
+	log.Printf("复制文件: %s -> %s", filePath, cachePath)
+	if err := copyFile(filePath, cachePath); err != nil {
+		return "", err
+	}
+
+	return newFileName, nil
+}
+
+// copyFile 复制文件
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	return err
+}
+
+// SendImportResultNotification 发送导入结果通知
+func SendImportResultNotification(ctx context.Context, result map[string]interface{}, messageID string) {
+	result["messageId"] = messageID
+	runtime.EventsEmit(ctx, "import_result", result)
+}
