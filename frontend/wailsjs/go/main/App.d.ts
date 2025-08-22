@@ -11,10 +11,6 @@ export function CancelImport(arg1:string):Promise<any>;
 
 export function CheckAndExportToExcel(arg1:string):Promise<boolean>;
 
-export function CheckDuplicateRecords(arg1:string):Promise<boolean>;
-
-export function ClearTableData(arg1:string):Promise<void>;
-
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
 
 export function ExitApp():Promise<void>;
@@ -53,6 +49,8 @@ export function GetImportHistory(arg1:number,arg2:number):Promise<any>;
 
 export function GetImportProcess(arg1:string):Promise<main.ImportProcess>;
 
+export function GetImportRecordsByFileType(arg1:string):Promise<main.QueryResult>;
+
 export function GetMergeHistory(arg1:number,arg2:number):Promise<any>;
 
 export function GetPasswordInfo():Promise<db.QueryResult>;
@@ -61,17 +59,19 @@ export function GetSystemInfo():Promise<any>;
 
 export function GetSystemSettings():Promise<Array<main.SystemSetting>>;
 
-export function ImportAttachment2(arg1:string,arg2:string):Promise<main.DataImportResult>;
+export function ImportAttachment2(arg1:string):Promise<main.QueryResult>;
 
 export function ImportEnterpriseList(arg1:string):Promise<main.QueryResult>;
 
 export function ImportKeyEquipmentList(arg1:string):Promise<main.QueryResult>;
 
-export function ImportTable1(arg1:string,arg2:string):Promise<main.DataImportResult>;
+export function ImportTable1(arg1:string):Promise<main.QueryResult>;
 
-export function ImportTable2(arg1:string,arg2:string):Promise<main.DataImportResult>;
+export function ImportTable2(arg1:string):Promise<main.QueryResult>;
 
-export function ImportTable3(arg1:string,arg2:string):Promise<main.DataImportResult>;
+export function ImportTable3(arg1:string):Promise<main.QueryResult>;
+
+export function InsertImportRecord(arg1:main.DataImportRecord):Promise<main.QueryResult>;
 
 export function Login(arg1:string):Promise<db.QueryResult>;
 
@@ -123,8 +123,16 @@ export function ShowMessageBox(arg1:main.MessageBoxOptions):Promise<main.Message
 
 export function UpdateSystemSetting(arg1:string,arg2:string):Promise<any>;
 
+export function ValidateAttachment2File(arg1:string):Promise<main.QueryResult>;
+
 export function ValidateEnterpriseListFile(arg1:string):Promise<main.QueryResult>;
 
 export function ValidateKeyEquipmentListFile(arg1:string):Promise<main.QueryResult>;
 
 export function ValidateMergeSource(arg1:string):Promise<any>;
+
+export function ValidateTable1File(arg1:string):Promise<main.QueryResult>;
+
+export function ValidateTable2File(arg1:string):Promise<main.QueryResult>;
+
+export function ValidateTable3File(arg1:string):Promise<main.QueryResult>;

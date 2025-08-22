@@ -49,7 +49,7 @@
   const router = useRouter();
   const formState = reactive<FormState>({
     password: '',
-    firstLogin: true
+    firstLogin: false
   });
 
   const onFinish = () => {

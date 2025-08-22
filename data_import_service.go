@@ -6,26 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
 )
 
-// DataImportService 数据导入服务
-type DataImportService struct {
-	db *db.Database
-}
-
-// NewDataImportService 创建数据导入服务实例
-func NewDataImportService(db *db.Database) *DataImportService {
-	return &DataImportService{
-		db: db,
-	}
-}
-
 // ValidateTable1File 校验附表1文件
-func (s *DataImportService) ValidateTable1File(filePath string) QueryResult {
+func (s * App) ValidateTable1File(filePath string) QueryResult {
 	fileName := filepath.Base(filePath)
-	
+
 	// 1. 读取Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
@@ -72,9 +59,9 @@ func (s *DataImportService) ValidateTable1File(filePath string) QueryResult {
 }
 
 // ValidateTable2File 校验附表2文件
-func (s *DataImportService) ValidateTable2File(filePath string) QueryResult {
+func (s * App) ValidateTable2File(filePath string) QueryResult {
 	fileName := filepath.Base(filePath)
-	
+
 	// 1. 读取Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
@@ -118,9 +105,9 @@ func (s *DataImportService) ValidateTable2File(filePath string) QueryResult {
 }
 
 // ValidateTable3File 校验附表3文件
-func (s *DataImportService) ValidateTable3File(filePath string) QueryResult {
+func (s * App) ValidateTable3File(filePath string) QueryResult {
 	fileName := filepath.Base(filePath)
-	
+
 	// 1. 读取Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
@@ -149,7 +136,6 @@ func (s *DataImportService) ValidateTable3File(filePath string) QueryResult {
 		return QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")),
-		},
 		}
 	}
 
@@ -165,9 +151,9 @@ func (s *DataImportService) ValidateTable3File(filePath string) QueryResult {
 }
 
 // ValidateAttachment2File 校验附件2文件
-func (s *DataImportService) ValidateAttachment2File(filePath string) QueryResult {
+func (s * App) ValidateAttachment2File(filePath string) QueryResult {
 	fileName := filepath.Base(filePath)
-	
+
 	// 1. 读取Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
@@ -211,9 +197,9 @@ func (s *DataImportService) ValidateAttachment2File(filePath string) QueryResult
 }
 
 // ImportTable1 导入附表1数据
-func (s *DataImportService) ImportTable1(filePath string) QueryResult {
+func (s * App) ImportTable1(filePath string) QueryResult {
 	fileName := filepath.Base(filePath)
-	
+
 	// 1. 读取Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
@@ -287,9 +273,9 @@ func (s *DataImportService) ImportTable1(filePath string) QueryResult {
 }
 
 // ImportTable2 导入附表2数据
-func (s *DataImportService) ImportTable2(filePath string) QueryResult {
+func (s * App) ImportTable2(filePath string) QueryResult {
 	fileName := filepath.Base(filePath)
-	
+
 	// 1. 读取Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
@@ -358,9 +344,9 @@ func (s *DataImportService) ImportTable2(filePath string) QueryResult {
 }
 
 // ImportTable3 导入附表3数据
-func (s *DataImportService) ImportTable3(filePath string) QueryResult {
+func (s * App) ImportTable3(filePath string) QueryResult {
 	fileName := filepath.Base(filePath)
-	
+
 	// 1. 读取Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
@@ -389,7 +375,6 @@ func (s *DataImportService) ImportTable3(filePath string) QueryResult {
 		return QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")),
-		},
 		}
 	}
 
@@ -430,9 +415,9 @@ func (s *DataImportService) ImportTable3(filePath string) QueryResult {
 }
 
 // ImportAttachment2 导入附件2数据
-func (s *DataImportService) ImportAttachment2(filePath string) QueryResult {
+func (s * App) ImportAttachment2(filePath string) QueryResult {
 	fileName := filepath.Base(filePath)
-	
+
 	// 1. 读取Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
@@ -501,7 +486,7 @@ func (s *DataImportService) ImportAttachment2(filePath string) QueryResult {
 }
 
 // insertImportRecord 插入导入记录
-func (s *DataImportService) insertImportRecord(fileName, fileType, importState, describe string) {
+func (s * App) insertImportRecord(fileName, fileType, importState, describe string) {
 	record := &DataImportRecord{
 		FileName:    fileName,
 		FileType:    fileType,
@@ -521,73 +506,73 @@ func (s *DataImportService) insertImportRecord(fileName, fileType, importState, 
 // 以下是具体的解析、校验和导入方法的实现
 // 由于篇幅限制，这里只展示框架，具体实现需要根据Excel文件格式和校验规则来完成
 
-func (s *DataImportService) parseTable1Excel(f *excelize.File) ([]map[string]interface{}, []map[string]interface{}, []map[string]interface{}, error) {
+func (s * App) parseTable1Excel(f *excelize.File) ([]map[string]interface{}, []map[string]interface{}, []map[string]interface{}, error) {
 	// TODO: 实现附表1 Excel解析逻辑
 	// 需要解析三个表格区域：
 	// 1. 综合能源消费情况和规模以上企业煤炭消费信息表 -> enterprise_coal_consumption_main
-	// 2. 煤炭消费主要用途情况 -> enterprise_coal_consumption_usage  
+	// 2. 煤炭消费主要用途情况 -> enterprise_coal_consumption_usage
 	// 3. 重点耗煤装置情况 -> enterprise_coal_consumption_equip
 	return nil, nil, nil, fmt.Errorf("parseTable1Excel 方法待实现")
 }
 
-func (s *DataImportService) parseTable2Excel(f *excelize.File) ([]map[string]interface{}, error) {
+func (s * App) parseTable2Excel(f *excelize.File) ([]map[string]interface{}, error) {
 	// TODO: 实现附表2 Excel解析逻辑
 	// 附表2 202X年其他耗煤单位重点耗煤装置（设备）煤炭消耗信息表 -> critical_coal_equipment_consumption
 	return nil, fmt.Errorf("parseTable2Excel 方法待实现")
 }
 
-func (s *DataImportService) parseTable3Excel(f *excelize.File) ([]map[string]interface{}, error) {
+func (s * App) parseTable3Excel(f *excelize.File) ([]map[string]interface{}, error) {
 	// TODO: 实现附表3 Excel解析逻辑
 	// 附表3 固定资产投资项目节能审查煤炭消费情况汇总表 -> fixed_assets_investment_project
 	return nil, fmt.Errorf("parseTable3Excel 方法待实现")
 }
 
-func (s *DataImportService) parseAttachment2Excel(f *excelize.File) ([]map[string]interface{}, error) {
+func (s * App) parseAttachment2Excel(f *excelize.File) ([]map[string]interface{}, error) {
 	// TODO: 实现附件2 Excel解析逻辑
 	// 附件2 XX省（自治区、直辖市）202X年煤炭消费状况表 -> coal_consumption_report
 	return nil, fmt.Errorf("parseAttachment2Excel 方法待实现")
 }
 
-func (s *DataImportService) validateTable1Data(mainData, usageData, equipData []map[string]interface{}) []string {
+func (s * App) validateTable1Data(mainData, usageData, equipData []map[string]interface{}) []string {
 	// TODO: 实现附表1数据校验逻辑
 	// 根据校验提示词_V5_0821.mhtml中的强制校验规则进行校验
 	errors := []string{}
-	
+
 	// 1. 检查年份和单位是否为空
 	// 2. 检查企业是否在企业清单中（如果有清单的话）
 	// 3. 检查企业名称和统一信用代码是否对应（如果有清单的话）
 	// 4. 检查数据单位与当前单位是否相符
 	// 5. 检查文件格式是否正确
-	
+
 	return errors
 }
 
-func (s *DataImportService) validateTable2Data(data []map[string]interface{}) []string {
+func (s * App) validateTable2Data(data []map[string]interface{}) []string {
 	// TODO: 实现附表2数据校验逻辑
 	errors := []string{}
 	return errors
 }
 
-func (s *DataImportService) validateTable3Data(data []map[string]interface{}) []string {
+func (s * App) validateTable3Data(data []map[string]interface{}) []string {
 	// TODO: 实现附表3数据校验逻辑
 	errors := []string{}
 	return errors
 }
 
-func (s *DataImportService) validateAttachment2Data(data []map[string]interface{}) []string {
+func (s * App) validateAttachment2Data(data []map[string]interface{}) []string {
 	// TODO: 实现附件2数据校验逻辑
 	errors := []string{}
 	return errors
 }
 
-func (s *DataImportService) checkTable1HasData() bool {
+func (s * App) checkTable1HasData() bool {
 	// 检查附表1相关表是否有数据
 	query := "SELECT COUNT(*) as count FROM enterprise_coal_consumption_main"
 	result, err := s.db.Query(query)
 	if err != nil {
 		return false
 	}
-	
+
 	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
 		if count, ok := data[0]["count"].(int64); ok {
 			return count > 0
@@ -596,13 +581,13 @@ func (s *DataImportService) checkTable1HasData() bool {
 	return false
 }
 
-func (s *DataImportService) checkTable2HasData() bool {
+func (s * App) checkTable2HasData() bool {
 	query := "SELECT COUNT(*) as count FROM critical_coal_equipment_consumption"
 	result, err := s.db.Query(query)
 	if err != nil {
 		return false
 	}
-	
+
 	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
 		if count, ok := data[0]["count"].(int64); ok {
 			return count > 0
@@ -611,13 +596,13 @@ func (s *DataImportService) checkTable2HasData() bool {
 	return false
 }
 
-func (s *DataImportService) checkTable3HasData() bool {
+func (s * App) checkTable3HasData() bool {
 	query := "SELECT COUNT(*) as count FROM fixed_assets_investment_project"
 	result, err := s.db.Query(query)
 	if err != nil {
 		return false
 	}
-	
+
 	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
 		if count, ok := data[0]["count"].(int64); ok {
 			return count > 0
@@ -626,13 +611,13 @@ func (s *DataImportService) checkTable3HasData() bool {
 	return false
 }
 
-func (s *DataImportService) checkAttachment2HasData() bool {
+func (s * App) checkAttachment2HasData() bool {
 	query := "SELECT COUNT(*) as count FROM coal_consumption_report"
 	result, err := s.db.Query(query)
 	if err != nil {
 		return false
 	}
-	
+
 	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
 		if count, ok := data[0]["count"].(int64); ok {
 			return count > 0
@@ -641,14 +626,14 @@ func (s *DataImportService) checkAttachment2HasData() bool {
 	return false
 }
 
-func (s *DataImportService) clearTable1Data() error {
+func (s * App) clearTable1Data() error {
 	// 清空附表1相关表数据
 	queries := []string{
 		"DELETE FROM enterprise_coal_consumption_main",
-		"DELETE FROM enterprise_coal_consumption_usage", 
+		"DELETE FROM enterprise_coal_consumption_usage",
 		"DELETE FROM enterprise_coal_consumption_equip",
 	}
-	
+
 	for _, query := range queries {
 		_, err := s.db.Exec(query)
 		if err != nil {
@@ -658,25 +643,25 @@ func (s *DataImportService) clearTable1Data() error {
 	return nil
 }
 
-func (s *DataImportService) clearTable2Data() error {
+func (s * App) clearTable2Data() error {
 	query := "DELETE FROM critical_coal_equipment_consumption"
 	_, err := s.db.Exec(query)
 	return err
 }
 
-func (s *DataImportService) clearTable3Data() error {
+func (s * App) clearTable3Data() error {
 	query := "DELETE FROM fixed_assets_investment_project"
 	_, err := s.db.Exec(query)
 	return err
 }
 
-func (s *DataImportService) clearAttachment2Data() error {
+func (s * App) clearAttachment2Data() error {
 	query := "DELETE FROM coal_consumption_report"
 	_, err := s.db.Exec(query)
 	return err
 }
 
-func (s *DataImportService) importTable1Data(mainData, usageData, equipData []map[string]interface{}) error {
+func (s * App) importTable1Data(mainData, usageData, equipData []map[string]interface{}) error {
 	// TODO: 实现附表1数据导入逻辑
 	// 需要导入到三个表：
 	// 1. enterprise_coal_consumption_main
@@ -685,17 +670,17 @@ func (s *DataImportService) importTable1Data(mainData, usageData, equipData []ma
 	return fmt.Errorf("importTable1Data 方法待实现")
 }
 
-func (s *DataImportService) importTable2Data(data []map[string]interface{}) error {
+func (s * App) importTable2Data(data []map[string]interface{}) error {
 	// TODO: 实现附表2数据导入逻辑
 	return fmt.Errorf("importTable2Data 方法待实现")
 }
 
-func (s *DataImportService) importTable3Data(data []map[string]interface{}) error {
+func (s * App) importTable3Data(data []map[string]interface{}) error {
 	// TODO: 实现附表3数据导入逻辑
 	return fmt.Errorf("importTable3Data 方法待实现")
 }
 
-func (s *DataImportService) importAttachment2Data(data []map[string]interface{}) error {
+func (s * App) importAttachment2Data(data []map[string]interface{}) error {
 	// TODO: 实现附件2数据导入逻辑
 	return fmt.Errorf("importAttachment2Data 方法待实现")
 }

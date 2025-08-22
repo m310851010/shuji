@@ -18,14 +18,6 @@ export function CheckAndExportToExcel(arg1) {
   return window['go']['main']['App']['CheckAndExportToExcel'](arg1);
 }
 
-export function CheckDuplicateRecords(arg1) {
-  return window['go']['main']['App']['CheckDuplicateRecords'](arg1);
-}
-
-export function ClearTableData(arg1) {
-  return window['go']['main']['App']['ClearTableData'](arg1);
-}
-
 export function Copyfile(arg1, arg2) {
   return window['go']['main']['App']['Copyfile'](arg1, arg2);
 }
@@ -102,6 +94,10 @@ export function GetImportProcess(arg1) {
   return window['go']['main']['App']['GetImportProcess'](arg1);
 }
 
+export function GetImportRecordsByFileType(arg1) {
+  return window['go']['main']['App']['GetImportRecordsByFileType'](arg1);
+}
+
 export function GetMergeHistory(arg1, arg2) {
   return window['go']['main']['App']['GetMergeHistory'](arg1, arg2);
 }
@@ -118,8 +114,8 @@ export function GetSystemSettings() {
   return window['go']['main']['App']['GetSystemSettings']();
 }
 
-export function ImportAttachment2(arg1, arg2) {
-  return window['go']['main']['App']['ImportAttachment2'](arg1, arg2);
+export function ImportAttachment2(arg1) {
+  return window['go']['main']['App']['ImportAttachment2'](arg1);
 }
 
 export function ImportEnterpriseList(arg1) {
@@ -130,16 +126,20 @@ export function ImportKeyEquipmentList(arg1) {
   return window['go']['main']['App']['ImportKeyEquipmentList'](arg1);
 }
 
-export function ImportTable1(arg1, arg2) {
-  return window['go']['main']['App']['ImportTable1'](arg1, arg2);
+export function ImportTable1(arg1) {
+  return window['go']['main']['App']['ImportTable1'](arg1);
 }
 
-export function ImportTable2(arg1, arg2) {
-  return window['go']['main']['App']['ImportTable2'](arg1, arg2);
+export function ImportTable2(arg1) {
+  return window['go']['main']['App']['ImportTable2'](arg1);
 }
 
-export function ImportTable3(arg1, arg2) {
-  return window['go']['main']['App']['ImportTable3'](arg1, arg2);
+export function ImportTable3(arg1) {
+  return window['go']['main']['App']['ImportTable3'](arg1);
+}
+
+export function InsertImportRecord(arg1) {
+  return window['go']['main']['App']['InsertImportRecord'](arg1);
 }
 
 export function Login(arg1) {
@@ -242,6 +242,10 @@ export function UpdateSystemSetting(arg1, arg2) {
   return window['go']['main']['App']['UpdateSystemSetting'](arg1, arg2);
 }
 
+export function ValidateAttachment2File(arg1) {
+  return window['go']['main']['App']['ValidateAttachment2File'](arg1);
+}
+
 export function ValidateEnterpriseListFile(arg1) {
   return window['go']['main']['App']['ValidateEnterpriseListFile'](arg1);
 }
@@ -252,4 +256,16 @@ export function ValidateKeyEquipmentListFile(arg1) {
 
 export function ValidateMergeSource(arg1) {
   return window['go']['main']['App']['ValidateMergeSource'](arg1);
+}
+
+export function ValidateTable1File(arg1) {
+  return window['go']['main']['App']['ValidateTable1File'](arg1);
+}
+
+export function ValidateTable2File(arg1) {
+  return window['go']['main']['App']['ValidateTable2File'](arg1);
+}
+
+export function ValidateTable3File(arg1) {
+  return window['go']['main']['App']['ValidateTable3File'](arg1);
 }

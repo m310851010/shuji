@@ -254,7 +254,7 @@ func (a *App) ImportEnterpriseList(filePath string) QueryResult {
 		// 全量数据导入：直接插入数据
 		objID := uuid.New().String()
 		_, err = tx.Exec(`
-			INSERT INTO enterprise_list (obj_id, province_name, city_name, country_name, unit_name, credit_code) 
+			INSERT INTO enterprise_list (obj_id, province_name, city_name, country_name, unit_name, credit_code)
 			VALUES (?, ?, ?, ?, ?, ?)
 		`, objID, data.ProvinceName, data.CityName, data.CountryName, data.UnitName, data.CreditCode)
 
@@ -273,7 +273,7 @@ func (a *App) ImportEnterpriseList(filePath string) QueryResult {
 
 	// 记录导入历史
 	record := &DataImportRecord{
-		FileName:    filepath.Base(filePath),
+		FileName:    newFileName,
 		FileType:    "企业清单",
 		ImportState: "上传成功",
 		Describe:    fmt.Sprintf("成功导入%d条记录", count),
@@ -352,7 +352,7 @@ func (a *App) ImportKeyEquipmentList(filePath string) QueryResult {
 		// 全量数据导入：直接插入数据
 		objID := uuid.New().String()
 		_, err = tx.Exec(`
-			INSERT INTO key_equipment_list (obj_id, province_name, city_name, country_name, unit_name, credit_code, equip_type, equip_model_number, equip_no) 
+			INSERT INTO key_equipment_list (obj_id, province_name, city_name, country_name, unit_name, credit_code, equip_type, equip_model_number, equip_no)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, objID, data.ProvinceName, data.CityName, data.CountryName, data.UnitName, data.CreditCode, data.EquipType, data.EquipModelNumber, data.EquipNo)
 

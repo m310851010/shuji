@@ -349,7 +349,7 @@ func (a *App) AbsolutePath(path string) FlagResult {
 
 // OpenExternal 执行外部命令
 func (a *App) OpenExternal(path string) error {
-	log.Printf("Exec: %s %s %v", path)
+	log.Printf("OpenExternal: %s", path)
 
 	exePath := GetPath(path)
 

@@ -84,8 +84,21 @@ type FileDialogResult struct {
 	FilePaths []string `json:"filePaths"`
 }
 
+// KeyEquipmentListData 装置清单数据结构
+type KeyEquipmentListData struct {
+	ObjID            string `json:"obj_id" db:"obj_id"`                         // 主键
+	ProvinceName     string `json:"province_name" db:"province_name"`           // 单位省级名称
+	CityName         string `json:"city_name" db:"city_name"`                   // 单位市级名称
+	CountryName      string `json:"country_name" db:"country_name"`             // 单位县级名称
+	UnitName         string `json:"unit_name" db:"unit_name"`                   // 单位详细名称
+	CreditCode       string `json:"credit_code" db:"credit_code"`               // 统一社会信用代码
+	EquipType        string `json:"equip_type" db:"equip_type"`                 // 设备类型
+	EquipModelNumber string `json:"equip_model_number" db:"equip_model_number"` // 设备型号
+	EquipNo          string `json:"equip_no" db:"equip_no"`                     // 设备编号
+}
+
 // EnterpriseList 企业清单数据结构
-type EnterpriseList struct {
+type EnterpriseListData struct {
 	ObjID        string `json:"obj_id" db:"obj_id"`               // 主键
 	ProvinceName string `json:"province_name" db:"province_name"` // 单位省级名称
 	CityName     string `json:"city_name" db:"city_name"`         // 单位市级名称
