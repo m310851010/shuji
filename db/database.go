@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -71,8 +72,8 @@ func NewDatabase(dbPath string, password string) (*Database, error) {
 
 		fmt.Printf("配置 %d 连接成功\n", i+1)
 		// 连接成功，设置连接池参数
-		db.SetMaxOpenConns(1)
-		db.SetMaxIdleConns(1)
+		db.SetMaxOpenConns(50)
+		db.SetMaxIdleConns(5)
 		db.SetConnMaxLifetime(time.Hour)
 
 		return &Database{db: db}, nil
@@ -85,8 +86,8 @@ func NewDatabase(dbPath string, password string) (*Database, error) {
 	}
 
 	// 设置连接池参数
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(time.Hour)
 
 	// 测试连接
@@ -115,11 +116,14 @@ func (d *Database) Exec(query string, args ...interface{}) (QueryResult, error) 
 
 	result, err := d.db.Exec(query, args...)
 	if err != nil {
+		log.Printf("SQL执行失败: %v", err)
 		return QueryResult{Ok: false, Message: err.Error()}, err
 	}
 
 	lastID, _ := result.LastInsertId()
 	rowsAffected, _ := result.RowsAffected()
+
+	log.Printf("SQL执行成功: lastID=%d, rowsAffected=%d", lastID, rowsAffected)
 
 	return QueryResult{
 		Ok: true,
