@@ -61,7 +61,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 	// 获取表头
 	headers := rows[startRow]
 
-	// 期望的表头（企业基本信息表格）
+	// 企业基本信息表格表头
 	expectedHeaders := []string{
 		"年份", "单位名称", "统一社会信用代码", "行业门类", "行业大类", "行业中类",
 		"单位所在省/市/区", "单位所在地市", "单位所在区县", "联系电话",
@@ -98,7 +98,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 		}
 	}
 
-	// 查找综合能源消费情况和煤炭消费情况表格的开始位置（它们在同一行，只是合并了单元格）
+	// 查找综合能源消费情况和煤炭消费情况表格的开始位置（它们在同一行）
 	energyCoalStartRow := -1
 	for i := startRow + 3; i < len(rows); i++ {
 		row := rows[i]

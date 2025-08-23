@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"shuji/db"
 	"strings"
@@ -36,8 +37,8 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 		return nil, err
 	}
 
-	// 查找表格的开始位置（第6行是表头）
-	startRow := 5 // 从第6行开始（0索引为5）
+	// 查找表格的开始位置
+	startRow := 2
 	if startRow >= len(rows) {
 		return nil, fmt.Errorf("表格行数不足")
 	}
@@ -47,12 +48,35 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 
 	// 期望的表头
 	expectedHeaders := []string{
-		"序号", "项目名称", "项目代码", "建设单位", "主要建设内容", "项目所在省、自治区、直辖市",
-		"项目所在地市", "项目所在区县", "所属行业大类（2位代码）", "所属行业小类（4位代码）",
-		"节能审查批复时间", "拟投产时间", "实际投产时间", "节能审查机关", "审查意见文号",
-		"当量值", "等价值", "煤品消费总量", "煤炭消费量", "焦炭消费量", "兰炭消费量",
-		"煤品消费总量", "煤炭消费量", "焦炭消费量", "兰炭消费量", "是否煤炭消费替代",
-		"煤炭消费替代来源", "煤炭消费替代量（万吨，实物量）", "年原料用煤量（万吨，实物量）", "年原料用煤量（万吨标准煤，折标量）",
+		"序号",
+		"项目名称",
+		"项目代码",
+		"建设单位",
+		"主要建设内容",
+		"项目所在省、自治区、直辖市",
+		"项目所在地市",
+		"项目所在区县",
+		"所属行业大类（2位代码）",
+		"所属行业小类",
+		"节能审查批复时间",
+		"拟投产时间",
+		"实际投产时间",
+		"节能审查机关",
+		"审查意见文号",
+		"年综合能源消费量（万吨标准煤，含原料用能和可再生能源）",
+		"",
+		"年煤品消费量（万吨，实物量）",
+		"",
+		"",
+		"",
+		"年煤品消费量（万吨标准煤，折标量）",
+		"",
+		"",
+		"",
+		"煤炭消费替代情况",
+		"",
+		"",
+		"原料用煤情况",
 	}
 
 	// 检查表头一致性
@@ -60,8 +84,6 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 		return nil, fmt.Errorf("表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
 	}
 
-	// 构建表头映射（基于位置）
-	headerMap := make(map[int]string)
 	for i, expected := range expectedHeaders {
 		if i >= len(headers) {
 			return nil, fmt.Errorf("缺少表头：%s", expected)
@@ -71,27 +93,57 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 		if actual != expected {
 			return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
 		}
-		headerMap[i] = s.mapTable3HeaderToFieldByPosition(expected, i)
 	}
 
-	// 解析数据行（从第7行开始，表头下第一行作为数据）
+	// 构建表头映射
+	headerArr := []string{
+		"sequence_no",
+		"project_name",
+		"project_code",
+		"construction_unit",
+		"main_construction_content",
+		"province_name",
+		"city_name",
+		"country_name",
+		"trade_a",
+		"trade_c",
+		"examination_approval_time",
+		"scheduled_time",
+		"actual_time",
+		"examination_authority",
+		"document_number",
+		"equivalent_value",
+		"equivalent_cost",
+		"pq_total_coal_consumption",
+		"pq_coke_consumption",
+		"pq_blue_coke_consumption",
+		"sce_total_coal_consumption",
+		"sce_coal_consumption",
+		"sce_coke_consumption",
+		"sce_blue_coke_consumption",
+		"is_substitution",
+		"substitution_source",
+		"substitution_quantity",
+		"pq_annual_coal_quantity",
+		"sce_annual_coal_quantity",
+	}
+
+	// 解析数据行（跳过表头下的第一行）
 	for i := startRow + 1; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) == 0 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
+		if len(row) < 2 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
 			continue // 跳过空行
 		}
 
 		// 构建数据行
 		dataRow := make(map[string]interface{})
 		for j, cell := range row {
-			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
+			if j < len(headerArr) && headerArr[j] != "" {
+				fieldName := headerArr[j]
 				cleanedValue := s.cleanCellValue(cell)
-				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "value") || strings.Contains(fieldName, "cost") {
-					// 数值字段
+				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "value") || strings.Contains(fieldName, "cost") || strings.Contains(fieldName, "time") {
+					// 数值字段或日期字段
 					dataRow[fieldName] = s.parseNumericValue(cleanedValue)
-				} else if strings.Contains(fieldName, "date") || strings.Contains(fieldName, "time") {
-					// 日期字段
-					dataRow[fieldName] = s.parseDateValue(cleanedValue)
 				} else {
 					// 文本字段
 					dataRow[fieldName] = cleanedValue
@@ -106,72 +158,6 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 	}
 
 	return mainData, nil
-}
-
-// mapTable3HeaderToFieldByPosition 基于位置映射附表3表头到字段名
-func (s *DataImportService) mapTable3HeaderToFieldByPosition(header string, position int) string {
-	header = strings.TrimSpace(header)
-
-	// 基础字段映射
-	baseFieldMap := map[string]string{
-		"序号":     "sequence_no",
-		"项目名称":   "project_name",
-		"项目代码":   "project_code",
-		"建设单位":   "construction_unit",
-		"主要建设内容": "main_construction_content",
-		"项目所在省、自治区、直辖市":     "province_name",
-		"项目所在地市":            "city_name",
-		"项目所在区县":            "country_name",
-		"所属行业大类（2位代码）":      "trade_a",
-		"所属行业小类（4位代码）":      "trade_c",
-		"节能审查批复时间":          "examination_approval_time",
-		"拟投产时间":             "scheduled_time",
-		"实际投产时间":            "actual_time",
-		"节能审查机关":            "examination_authority",
-		"审查意见文号":            "document_number",
-		"当量值":               "equivalent_value",
-		"等价值":               "equivalent_cost",
-		"是否煤炭消费替代":          "is_substitution",
-		"煤炭消费替代来源":          "substitution_source",
-		"煤炭消费替代量（万吨，实物量）":   "substitution_quantity",
-		"年原料用煤量（万吨，实物量）":    "pq_annual_coal_quantity",
-		"年原料用煤量（万吨标准煤，折标量）": "sce_annual_coal_quantity",
-	}
-
-	// 检查是否是基础字段
-	if fieldName, exists := baseFieldMap[header]; exists {
-		return fieldName
-	}
-
-	// 处理重复字段（基于位置）
-	switch header {
-	case "煤品消费总量":
-		if position == 17 { // 第一个煤品消费总量（实物量）
-			return "pq_total_coal_consumption"
-		} else if position == 22 { // 第二个煤品消费总量（折标量）
-			return "sce_total_coal_consumption"
-		}
-	case "煤炭消费量":
-		if position == 18 { // 第一个煤炭消费量（实物量）
-			return "pq_coal_consumption"
-		} else if position == 23 { // 第二个煤炭消费量（折标量）
-			return "sce_coal_consumption"
-		}
-	case "焦炭消费量":
-		if position == 19 { // 第一个焦炭消费量（实物量）
-			return "pq_coke_consumption"
-		} else if position == 24 { // 第二个焦炭消费量（折标量）
-			return "sce_coke_consumption"
-		}
-	case "兰炭消费量":
-		if position == 20 { // 第一个兰炭消费量（实物量）
-			return "pq_blue_coke_consumption"
-		} else if position == 25 { // 第二个兰炭消费量（折标量）
-			return "sce_blue_coke_consumption"
-		}
-	}
-
-	return ""
 }
 
 // ValidateTable3File 校验附表3文件
@@ -192,6 +178,7 @@ func (s *DataImportService) ValidateTable3File(filePath string) db.QueryResult {
 
 	// 2. 解析Excel文件
 	mainData, err := s.parseTable3Excel(f)
+	log.Println("mainData", mainData)
 	if err != nil {
 		// 插入导入记录
 		s.insertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
