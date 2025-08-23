@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"shuji/db"
 	"strings"
@@ -36,26 +37,36 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 		return nil, err
 	}
 
-	// 查找表格的开始位置（第6行是表头）
-	startRow := 5 // 从第6行开始（0索引为5）
+	// 解析制表单位（第3行）
+	var reportUnit string
+	if len(rows) >= 3 {
+		row3 := rows[2] // 第3行（0索引为2）
+		if len(row3) >= 3 {
+			reportUnit = s.cleanCellValue(row3[2]) // 制表单位在第3列
+		}
+	}
+
+	// 查找表格的开始位置（第4行是表头）
+	startRow := 3 // 从第4行开始（0索引为3）
 	if startRow >= len(rows) {
 		return nil, fmt.Errorf("表格行数不足")
 	}
 
-	// 获取表头
+	// 获取表头（第4行）
 	headers := rows[startRow]
 
-	// 期望的表头
+	// 期望的表头（第4行的主要表头，包含合并单元格）
 	expectedHeaders := []string{
-		"省（市、区）", "地市（州）", "县（区）", "年份", "分品种煤炭消费摸底", "分用途煤炭消费摸底", "焦炭消费摸底",
+		"省（市、区）", "地市（州）", "县（区）", "年份", "分品种煤炭消费摸底", "", "", "", "分用途煤炭消费摸底", "", "", "", "", "", "", "", "", "焦炭消费摸底",
 	}
 
+	expectedHeadersCount := 18
 	// 检查表头一致性
-	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
+	if len(headers) < expectedHeadersCount {
+		return nil, fmt.Errorf("表头列数不足，模板要求%d列，实际%d列", expectedHeadersCount, len(headers))
 	}
 
-	// 构建表头映射
+	// 构建表头映射（基于位置）
 	headerMap := make(map[int]string)
 	for i, expected := range expectedHeaders {
 		if i >= len(headers) {
@@ -64,24 +75,30 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+			return nil, fmt.Errorf("第%d列表头不匹配，模板要求：%s，实际：%s", i+1, expected, actual)
 		}
-		headerMap[i] = s.mapAttachment2HeaderToField(expected)
+		headerMap[i] = s.mapAttachment2HeaderToFieldByPosition(expected, i)
 	}
 
-	// 解析数据行（从第7行开始，跳过表头下的第一行）
-	for i := startRow + 2; i < len(rows); i++ {
+	// 解析数据行（从第8行开始，跳过表头、子表头等）
+	for i := startRow + 4; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) == 0 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
+		if len(row) < 2 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
 			continue // 跳过空行
 		}
 
 		// 构建数据行
 		dataRow := make(map[string]interface{})
+
+		// 添加制表单位信息
+		if reportUnit != "" {
+			dataRow["report_unit"] = reportUnit
+		}
+
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
-				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "value") || strings.Contains(fieldName, "cost") {
+				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "coal") || strings.Contains(fieldName, "coke") {
 					// 数值字段
 					dataRow[fieldName] = s.parseNumericValue(cleanedValue)
 				} else {
@@ -91,8 +108,8 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 			}
 		}
 
-		// 只添加有省份的数据行
-		if province, ok := dataRow["province_name"].(string); ok && province != "" {
+		// 只添加有省份名称的数据行
+		if provinceName, ok := dataRow["province_name"].(string); ok && provinceName != "" {
 			mainData = append(mainData, dataRow)
 		}
 	}
@@ -100,22 +117,47 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 	return mainData, nil
 }
 
-// mapAttachment2HeaderToField 映射附件2表头到字段名
-func (s *DataImportService) mapAttachment2HeaderToField(header string) string {
+// mapAttachment2HeaderToFieldByPosition 基于位置映射附件2表头到字段名
+func (s *DataImportService) mapAttachment2HeaderToFieldByPosition(header string, position int) string {
 	header = strings.TrimSpace(header)
 
-	// 字段映射
-	fieldMap := map[string]string{
-		"省（市、区）":    "province_name",
-		"地市（州）":     "city_name",
-		"县（区）":      "country_name",
-		"年份":        "stat_date",
-		"分品种煤炭消费摸底": "total_coal",
-		"分用途煤炭消费摸底": "total_coal",
-		"焦炭消费摸底":    "coke",
+	// 基础字段映射
+	baseFieldMap := map[string]string{
+		"省（市、区）": "province_name",
+		"地市（州）":  "city_name",
+		"县（区）":   "country_name",
+		"年份":     "stat_date",
+		"焦炭消费摸底": "coke_consumption",
 	}
 
-	return fieldMap[header]
+	// 检查是否是基础字段
+	if fieldName, exists := baseFieldMap[header]; exists {
+		return fieldName
+	}
+
+	// 基于位置的字段映射
+	positionFieldMap := map[int]string{
+		4:  "total_coal",       // 第5列：煤合计
+		5:  "raw_coal",         // 第6列：原煤
+		6:  "washed_coal",      // 第7列：洗精煤
+		7:  "other_coal",       // 第8列：其他
+		8:  "power_generation", // 第9列：1.火力发电
+		9:  "heating",          // 第10列：2.供热
+		10: "coal_washing",     // 第11列：3.煤炭洗选
+		11: "coking",           // 第12列：4.炼焦
+		12: "oil_refining",     // 第13列：5.炼油及煤制油
+		13: "gas_production",   // 第14列：6.制气
+		14: "industrial",       // 第15列：1.工业
+		15: "raw_material",     // 第16列：#用作原料、材料
+		16: "other_use",        // 第17列：2.其他用途
+	}
+
+	// 检查基于位置的字段映射
+	if fieldName, exists := positionFieldMap[position]; exists {
+		return fieldName
+	}
+
+	return ""
 }
 
 // ValidateAttachment2File 校验附件2文件
@@ -136,6 +178,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string) db.QueryRes
 
 	// 2. 解析Excel文件
 	mainData, err := s.parseAttachment2Excel(f)
+	log.Println("mainData", mainData)
 	if err != nil {
 		// 插入导入记录
 		s.insertImportRecord(fileName, "附件2", "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
