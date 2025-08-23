@@ -2,7 +2,6 @@ package data_import
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"shuji/db"
 	"strings"
@@ -36,9 +35,6 @@ func (s *DataImportService) parseTable1Excel(f *excelize.File) ([]map[string]int
 		return nil, nil, nil, fmt.Errorf("和表1模板不匹配, 设备数据: %v", err)
 	}
 
-	log.Println("mainData", mainData)
-	log.Println("usageData", usageData)
-	log.Println("equipData", equipData)
 	return mainData, usageData, equipData, nil
 }
 
