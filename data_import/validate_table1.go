@@ -86,10 +86,10 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 		headerMap[i] = s.mapTable1HeaderToField(expected)
 	}
 
-	// 解析企业基本信息数据行（第9行是数据行，跳过第8行提示行）
+	// 解析企业基本信息数据行
 	dataRow := make(map[string]interface{})
 	if startRow+2 < len(rows) {
-		row := rows[startRow+2] // 第9行是数据行
+		row := rows[startRow+2]
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)

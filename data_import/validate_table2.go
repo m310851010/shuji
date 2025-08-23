@@ -20,7 +20,7 @@ func (s *DataImportService) parseTable2Excel(f *excelize.File) ([]map[string]int
 	// 解析主表数据
 	mainData, err := s.parseTable2MainSheet(f, sheets[0])
 	if err != nil {
-		return nil, fmt.Errorf("解析表2数据失败: 和表2模板不匹配,  %v", err)
+		return nil, fmt.Errorf("和表2模板不匹配,  %v", err)
 	}
 
 	return mainData, nil
@@ -36,7 +36,13 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 		return nil, err
 	}
 
-	// 查找表格的开始位置（第5行是表头）
+	// 解析单位基本信息（第3-4行）
+	unitInfo, err := s.parseTable2UnitInfo(rows)
+	if err != nil {
+		return nil, fmt.Errorf("解析单位基本信息失败: %v", err)
+	}
+
+	// 查找设备表格的开始位置（第5行是表头）
 	startRow := 4 // 从第5行开始（0索引为4）
 	if startRow >= len(rows) {
 		return nil, fmt.Errorf("表格行数不足")
@@ -70,19 +76,24 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 		headerMap[i] = s.mapTable2HeaderToField(expected)
 	}
 
-	// 解析数据行（跳过表头下的第一行提示行）
+	// 解析数据行（跳过表头下的第一行说明行）
 	for i := startRow + 2; i < len(rows); i++ {
 		row := rows[i]
 		if len(row) < 2 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
 			continue // 跳过空行
 		}
 
-		// 构建数据行
+		// 构建数据行，先复制单位基本信息
 		dataRow := make(map[string]interface{})
+		for key, value := range unitInfo {
+			dataRow[key] = value
+		}
+
+		// 添加设备信息
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
-				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "capacity") {
+				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "capacity") || strings.Contains(fieldName, "runtime") || strings.Contains(fieldName, "life") {
 					// 数值字段
 					dataRow[fieldName] = s.parseNumericValue(cleanedValue)
 				} else {
@@ -99,6 +110,63 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 	}
 
 	return mainData, nil
+}
+
+// parseTable2UnitInfo 解析附表2单位基本信息
+func (s *DataImportService) parseTable2UnitInfo(rows [][]string) (map[string]interface{}, error) {
+	unitInfo := make(map[string]interface{})
+
+	// 第3行：单位名称和统一社会信用代码
+	if len(rows) < 4 {
+		return nil, fmt.Errorf("表格行数不足，无法解析单位基本信息")
+	}
+
+	row3 := rows[2] // 第3行（0索引为2）
+	if len(row3) >= 6 {
+		// 单位名称（第1列）
+		unitName := s.cleanCellValue(row3[1])
+		unitInfo["unit_name"] = unitName
+
+		// 统一社会信用代码（第6列）
+		creditCode := s.cleanCellValue(row3[6])
+		unitInfo["credit_code"] = creditCode
+	}
+
+	// 第4行：单位地址、所属行业、数据年份
+	if len(rows) < 4 {
+		return nil, fmt.Errorf("表格行数不足，无法解析单位基本信息")
+	}
+
+	row4 := rows[3] // 第4行（0索引为3）
+	if len(row4) >= 11 {
+		// 单位地址：省（第1列）、市（第2列）、区县（第3列）
+		province := s.cleanCellValue(row4[1])
+		city := s.cleanCellValue(row4[2])
+		country := s.cleanCellValue(row4[3])
+
+		unitInfo["province_name"] = province
+		unitInfo["city_name"] = city
+		unitInfo["country_name"] = country
+
+		// 所属行业：门类（第6列）、大类（第7列）、小类（第8列）
+		if len(row4) >= 8 {
+			industryDoor := s.cleanCellValue(row4[6])
+			industryBig := s.cleanCellValue(row4[7])
+			industrySmall := s.cleanCellValue(row4[8])
+
+			unitInfo["trade_a"] = industryDoor
+			unitInfo["trade_b"] = industryBig
+			unitInfo["trade_c"] = industrySmall
+		}
+
+		// 数据年份（第10列）
+		if len(row4) >= 10 {
+			statDate := s.cleanCellValue(row4[10])
+			unitInfo["stat_date"] = statDate
+		}
+	}
+
+	return unitInfo, nil
 }
 
 // mapTable2HeaderToField 映射附表2表头到字段名
