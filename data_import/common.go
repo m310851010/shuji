@@ -10,7 +10,7 @@ import (
 type App interface {
 	GetDB() *db.Database
 	GetAreaConfig() db.QueryResult
-	InsertImportRecord(fileName, fileType, importState, describe string) db.QueryResult
+	InsertImportRecord(fileName, fileType, importState, describe string)
 	CheckEnterpriseList() (bool, error)
 	GetEnterpriseNameByCreditCode(creditCode string) (string, error)
 	CacheFileExists(fileName string) db.QueryResult
@@ -259,9 +259,18 @@ const (
 var (
 	// 附表1必填字段
 	Table1RequiredFields = map[string]string{
-		"stat_date":   "年份",
-		"credit_code": "统一社会信用代码",
-		"unit_name":   "企业名称",
+		"stat_date":                      "年份",
+		"unit_name":                      "单位名称",
+		"credit_code":                    "统一社会信用代码",
+		"trade_a":                        "行业门类",
+		"trade_b":                        "行业大类",
+		"trade_c":                        "行业中类",
+		"province_name":                  "单位所在省/市/区",
+		"city_name":                      "单位所在地市",
+		"country_name":                   "单位所在区县",
+		"tel":                            "联系电话",
+		"annual_energy_equivalent_value": "年综合能耗当量值（万吨标准煤，含原料用能）",
+		"annual_energy_equivalent_cost":  "年综合能耗等价值（万吨标准煤，含原料用能）",
 	}
 
 	// 附表2必填字段
@@ -285,23 +294,23 @@ var (
 
 	// 附表3必填字段
 	Table3RequiredFields = map[string]string{
-		"project_name":                "项目名称",
-		"project_code":                "项目代码",
-		"document_number":             "审查意见文号",
-		"stat_date":                   "年份",
-		"construction_unit":           "建设单位",
-		"main_construction_content":   "主要建设内容",
-		"province_name":               "项目所在省",
-		"city_name":                   "项目所在市",
-		"country_name":                "项目所在县",
-		"trade_a":                     "所属行业大类",
-		"trade_c":                     "所属行业小类",
-		"examination_approval_time":   "节能审查批复时间",
-		"scheduled_time":              "拟投产时间",
-		"actual_time":                 "实际投产时间",
-		"examination_authority":       "节能审查机关",
-		"equivalent_value":            "当量值",
-		"equivalent_cost":             "等价值",
+		"project_name":              "项目名称",
+		"project_code":              "项目代码",
+		"document_number":           "审查意见文号",
+		"stat_date":                 "年份",
+		"construction_unit":         "建设单位",
+		"main_construction_content": "主要建设内容",
+		"province_name":             "项目所在省",
+		"city_name":                 "项目所在市",
+		"country_name":              "项目所在县",
+		"trade_a":                   "所属行业大类",
+		"trade_c":                   "所属行业小类",
+		"examination_approval_time": "节能审查批复时间",
+		"scheduled_time":            "拟投产时间",
+		"actual_time":               "实际投产时间",
+		"examination_authority":     "节能审查机关",
+		"equivalent_value":          "当量值",
+		"equivalent_cost":           "等价值",
 	}
 
 	// 附件2必填字段

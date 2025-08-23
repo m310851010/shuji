@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -268,10 +267,7 @@ func (a *App) ImportEnterpriseList(filePath string) db.QueryResult {
 	}
 
 	// 记录导入历史
-	importRecordResult := a.InsertImportRecord(fileName, "企业清单", "上传成功", fmt.Sprintf("成功导入%d条记录", count))
-	if !importRecordResult.Ok {
-		log.Printf("记录导入日志失败: %s", importRecordResult.Message)
-	}
+	a.InsertImportRecord(fileName, "企业清单", "上传成功", fmt.Sprintf("成功导入%d条记录", count))
 
 	result.Ok = true
 	result.Message = fmt.Sprintf(fileNameTip+"企业清单导入完成：成功%d条", count)
@@ -353,10 +349,7 @@ func (a *App) ImportKeyEquipmentList(filePath string) db.QueryResult {
 	}
 
 	// 记录导入历史
-	importRecordResult := a.InsertImportRecord(fileName, "装置清单", "上传成功", fmt.Sprintf("成功导入%d条记录", count))
-	if !importRecordResult.Ok {
-		log.Printf("记录导入日志失败: %s", importRecordResult.Message)
-	}
+	a.InsertImportRecord(fileName, "装置清单", "上传成功", fmt.Sprintf("成功导入%d条记录", count))
 
 	result.Ok = true
 	result.Message = fmt.Sprintf("装置清单导入完成：成功%d条", count)
@@ -377,14 +370,22 @@ func validateHeaders(headers []string, expectedHeaders []string) bool {
 	return true
 }
 
+// 缓存企业清单是否存在
+var hasEnterpriseList = false
+
 // 检查企业清单是否存在
 func (a *App) CheckEnterpriseList() (bool, error) {
+	if hasEnterpriseList {
+		return hasEnterpriseList, nil
+	}
+
 	rows, err := a.db.QueryRow("SELECT COUNT(1) as count FROM enterprise_list")
 	if err != nil {
 		return false, fmt.Errorf("查询企业清单失败: %v", err)
 	}
 
-	return rows.Data.(map[string]interface{})["count"].(int64) > 0, nil
+	hasEnterpriseList = rows.Data.(map[string]interface{})["count"].(int64) > 0
+	return hasEnterpriseList, nil
 }
 
 // GetEnterpriseNameByCreditCode 获取企业名称

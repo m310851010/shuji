@@ -57,3 +57,14 @@ export function omit<T>(obj: T, fields: (keyof T)[]) {
   }
   return shallowCopy;
 }
+
+/**
+ * 获取文件名
+ * @param filePath 文件路径
+ * @returns 文件名
+ */
+export function getFileName(filePath: string) {
+  //  兼容windows和linux
+  filePath = filePath.replace(/\\/g, '/');
+  return filePath.split('/').pop() || '';
+}

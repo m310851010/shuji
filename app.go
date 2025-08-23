@@ -403,44 +403,40 @@ func (a *App) GetDB() *db.Database {
 }
 
 // ValidateTable1File 校验附表1文件
-func (a *App) ValidateTable1File(filePath string) db.QueryResult {
+func (a *App) ValidateTable1File(filePath string, isCover bool) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
-	return dataImportService.ValidateTable1File(filePath)
+	return dataImportService.ValidateTable1File(filePath, isCover)
 }
 
 // ValidateTable2File 校验附表2文件
-func (a *App) ValidateTable2File(filePath string) db.QueryResult {
+func (a *App) ValidateTable2File(filePath string, isCover bool) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
-	return dataImportService.ValidateTable2File(filePath)
+	return dataImportService.ValidateTable2File(filePath, isCover)
 }
 
 // ValidateTable3File 校验附表3文件
-func (a *App) ValidateTable3File(filePath string) db.QueryResult {
+func (a *App) ValidateTable3File(filePath string, isCover bool) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
-	return dataImportService.ValidateTable3File(filePath)
+	return dataImportService.ValidateTable3File(filePath, isCover)
 }
 
 // ValidateAttachment2File 校验附件2文件
-func (a *App) ValidateAttachment2File(filePath string) db.QueryResult {
+func (a *App) ValidateAttachment2File(filePath string, isCover bool) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
-	return dataImportService.ValidateAttachment2File(filePath)
+	return dataImportService.ValidateAttachment2File(filePath, isCover)
 }
 
 // ==================== 导入记录服务 API ====================
 
 // InsertImportRecord 插入导入记录
-func (a *App) InsertImportRecord(fileName, fileType, importState, describe string) db.QueryResult {
+func (a *App) InsertImportRecord(fileName, fileType, importState, describe string) {
 	if a.dbError != nil {
-		return db.QueryResult{Ok: false, Message: "数据库连接失败"}
+		log.Printf("数据库连接失败，无法插入日志")
+		return
 	}
 
 	service := NewDataImportRecordService(a.db)
-	err := service.InsertImportRecord(fileName, fileType, importState, describe)
-	if err != nil {
-		return db.QueryResult{Ok: false, Message: err.Error()}
-	}
-
-	return db.QueryResult{Ok: true, Message: "导入记录插入成功"}
+	service.InsertImportRecord(fileName, fileType, importState, describe)
 }
 
 // GetImportRecordsByFileType 根据文件类型查询导入记录

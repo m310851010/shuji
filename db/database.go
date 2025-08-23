@@ -16,6 +16,34 @@ type Database struct {
 	db *sql.DB
 }
 
+// retryOnBusy 在数据库锁定错误时重试操作
+func (d *Database) retryOnBusy(operation func() error) error {
+	maxRetries := 5
+	retryDelay := time.Millisecond * 100
+
+	for i := 0; i < maxRetries; i++ {
+		err := operation()
+		if err == nil {
+			return nil
+		}
+
+		// 检查是否是锁定错误
+		if strings.Contains(err.Error(), "database is locked") || strings.Contains(err.Error(), "SQLITE_BUSY") {
+			if i < maxRetries-1 {
+				log.Printf("数据库锁定，重试第%d次: %v", i+1, err)
+				time.Sleep(retryDelay)
+				retryDelay *= 2 // 指数退避
+				continue
+			}
+		}
+
+		// 如果不是锁定错误，或者已经重试完所有次数，直接返回错误
+		return err
+	}
+
+	return fmt.Errorf("重试次数已用完")
+}
+
 // QueryResult 查询结果
 type QueryResult struct {
 	Ok      bool        `json:"ok"`
@@ -37,19 +65,19 @@ func NewDatabase(dbPath string, password string) (*Database, error) {
 
 	configs := []driverConfig{
 		// 使用 modernc.org/sqlite 驱动（注册为 sqlite）
-		{"sqlite", dbPath + "?_pragma=key('" + password + "')"},
-		{"sqlite", dbPath + "?_pragma=key=\"" + password + "\""},
-		{"sqlite", dbPath + "?_pragma=key=" + password},
-		{"sqlite", dbPath + "?_pragma=hexkey=" + password},
+		{"sqlite", dbPath + "?_pragma=key('" + password + "')&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?_pragma=key=\"" + password + "\"&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?_pragma=key=" + password + "&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?_pragma=hexkey=" + password + "&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
 		// 尝试不同的加密算法
-		{"sqlite", dbPath + "?_pragma=key('" + password + "')&_pragma=cipher=aes256cbc"},
-		{"sqlite", dbPath + "?_pragma=key('" + password + "')&_pragma=cipher=chacha20"},
-		{"sqlite", dbPath + "?_pragma=key('" + password + "')&_pragma=cipher=aes256ctr"},
-		{"sqlite", dbPath + "?_pragma_key=" + password + "&_pragma_cipher_page_size=4096"},
-		{"sqlite", dbPath + "?_pragma_key=" + password + "&_pragma_cipher_page_size=4096&_pragma_cipher=aes256ctr"},
-		{"sqlite", dbPath + "?_pragma_key=" + password + "&_pragma_cipher_page_size=4096&_pragma_cipher=aes256cbc"},
-		{"sqlite", dbPath + "?_pragma_key=" + password + "&_pragma_cipher_page_size=4096&_pragma_cipher=chacha20"},
-		{"sqlite", dbPath + "?mode=rw&_journal_mode=WAL&_busy_timeout=5000&key=" + password},
+		{"sqlite", dbPath + "?_pragma=key('" + password + "')&_pragma=cipher=aes256cbc&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?_pragma=key('" + password + "')&_pragma=cipher=chacha20&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?_pragma=key('" + password + "')&_pragma=cipher=aes256ctr&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?_pragma_key=" + password + "&_pragma_cipher_page_size=4096&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?_pragma_key=" + password + "&_pragma_cipher_page_size=4096&_pragma_cipher=aes256ctr&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?_pragma_key=" + password + "&_pragma_cipher_page_size=4096&_pragma_cipher=aes256cbc&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?_pragma_key=" + password + "&_pragma_cipher_page_size=4096&_pragma_cipher=chacha20&_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
+		{"sqlite", dbPath + "?mode=rw&_journal_mode=WAL&_busy_timeout=30000&key=" + password + "&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY"},
 	}
 
 	var lastErr error
@@ -80,7 +108,7 @@ func NewDatabase(dbPath string, password string) (*Database, error) {
 	}
 
 	// 如果所有格式都失败，尝试不加密的方式
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite", dbPath+"?_busy_timeout=30000&_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=MEMORY")
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库失败: %v", err)
 	}
@@ -114,7 +142,14 @@ func (d *Database) Exec(query string, args ...interface{}) (QueryResult, error) 
 		return QueryResult{Ok: false, Message: "数据库未初始化"}, fmt.Errorf("数据库未初始化")
 	}
 
-	result, err := d.db.Exec(query, args...)
+	var result sql.Result
+	var err error
+
+	err = d.retryOnBusy(func() error {
+		result, err = d.db.Exec(query, args...)
+		return err
+	})
+
 	if err != nil {
 		log.Printf("SQL执行失败: %v", err)
 		return QueryResult{Ok: false, Message: err.Error()}, err
@@ -141,7 +176,14 @@ func (d *Database) Query(query string, args ...interface{}) (QueryResult, error)
 		return QueryResult{Ok: false, Message: "数据库未初始化"}, fmt.Errorf("数据库未初始化")
 	}
 
-	rows, err := d.db.Query(query, args...)
+	var rows *sql.Rows
+	var err error
+
+	err = d.retryOnBusy(func() error {
+		rows, err = d.db.Query(query, args...)
+		return err
+	})
+
 	if err != nil {
 		return QueryResult{Ok: false, Message: err.Error()}, err
 	}
@@ -276,13 +318,29 @@ func (d *Database) Begin() (*sql.Tx, error) {
 	if d.db == nil {
 		return nil, fmt.Errorf("数据库未初始化")
 	}
-	return d.db.Begin()
+
+	var tx *sql.Tx
+	var err error
+
+	err = d.retryOnBusy(func() error {
+		tx, err = d.db.Begin()
+		return err
+	})
+
+	return tx, err
 }
 
 // QueryRow 查询单行数据
 func (d *Database) QueryRow(query string, args ...interface{}) (QueryResult, error) {
 	// 先执行查询获取列信息
-	rows, err := d.db.Query(query, args...)
+	var rows *sql.Rows
+	var err error
+
+	err = d.retryOnBusy(func() error {
+		rows, err = d.db.Query(query, args...)
+		return err
+	})
+
 	if err != nil {
 		return QueryResult{Ok: false, Message: err.Error()}, err
 	}

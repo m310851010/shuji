@@ -24,8 +24,10 @@
 
 <script setup lang="tsx">
   import UploadComponent from './Upload.vue';
+  import TodoCoverTable from './TodoCoverTable.vue';
+  import ShowImportResult from './ShowImportResult.vue';
   import { TableColumnType } from 'ant-design-vue';
-  import { newColumns } from '@/util';
+  import {getFileName, newColumns} from '@/util';
   import { openInfoModal, openModal } from '@/components/useModal';
   import { message, notification } from 'ant-design-vue';
 
@@ -41,6 +43,8 @@
 
   const showValidationResult = ref(false);
   const validationResult = ref('格式异常');
+  const confirmCoverList = ref<any[]>([]);
+  const todoCoverList = ref<string[]>([]);
 
   const items = ref([
     {
@@ -57,8 +61,11 @@
     }
   ]);
 
+
+
   // 处理导入按钮点击
   const handleUploadClick = async () => {
+    todoCoverList.value = [];
     if (!model.value.selectedFiles?.length) {
       openInfoModal({ content: '请选择文件' });
       return;
@@ -66,78 +73,89 @@
 
     model.value.isImporting = true;
 
-    const checkResults: any[] = [];
-    try {
-      // 批量处理文件, 把处理结果放到一个数组中
-
+    const checkResultList: Promise<any>[] = [];
+    confirmCoverList.value = [];
+         // 批量处理文件, 把处理结果放到一个数组中
+  
       for (let i = 0; i < model.value.selectedFiles.length; i++) {
         const file = model.value.selectedFiles[i];
-        model.value.checkFunc(file.fullPath).then((result: any) => {
-          checkResults.push(result);
-        });
-/*
-        const fn = async () => {
-          const importResult = await model.value.importFunc(file.fullPath);
-          if (importResult.ok) {
-            notification.success({
-              placement: 'top',
-              message: '导入成功',
-              description: importResult.message,
-              duration: 5
-            });
-          } else {
-            notification.info({
-              placement: 'top',
-              message: '导入失败',
-              description: importResult.message,
-              duration: 5
-            });
+        checkResultList.push(model.value.checkFunc(file.fullPath, true).then((result: any) => {
+          console.log(result);
+          result.fullPath = file.fullPath;
+          result.fileName = getFileName(file.fullPath);
+          // 需要覆盖的文件
+          if (!result.ok && result.data === 'FILE_EXISTS') {
+            result.isCover = true;
+            confirmCoverList.value.push(result);
           }
-        };
-
-        const checkResult = await model.value.checkFunc(file.fullPath);
-        if (checkResult.ok) {
-          validationResult.value = '校验通过';
-          //  已存在数据
-          if (checkResult.data) {
-            await new Promise(resolve => {
-              openModal({
-                content: `${model.value.name}数据已存在，是否替换？`,
-                onOk: async () => {
-                  await fn();
-                  resolve(true);
-                },
-                onCancel: async () => {
-                  resolve(true);
-                }
-              });
-            });
-          } else {
-            await fn();
-          }
-        } else {
-          notification.error({
-            placement: 'top',
-            message: '校验失败',
-            description: checkResult.message,
-            duration: 5
-          });
-        }*/
+          return result;
+        }));
       }
 
-      console.log(checkResults);
-      console.log('批量导入完成');
-      model.value.isImporting = false;
+      let checkResults = await Promise.all(checkResultList);
 
-      // 清空文件列表
-      model.value.selectedFiles = [];
-    } catch (error) {
-      console.error('批量导入失败:', error);
-      message.error('批量导入失败: ' + (error as Error).message);
-    } finally {
-      model.value.isImporting = false;
-    }
+      if (confirmCoverList.value.length) {
+        return openModal({
+          width: 800,
+          content: () => (
+            <>
+              <div>
+                以下文件已存在，是否覆盖？
+              </div>
+              <div style="height: 350px; overflow: auto">
+                <TodoCoverTable fileList={confirmCoverList.value} onUpdateFileList={(val: any) => {
+                  todoCoverList.value = val
+                }} />
+              </div>
+            </>
+          ),
+          onOk: async () => {
+            if (todoCoverList.value.length) {
+              await Promise.all(todoCoverList.value.map(item => {
+                return model.value.checkFunc(item, false).then((ret: any) => {
+                  checkResults.forEach((it, i) => {
+                    if (it.fullPath === item && it.isCover) {
+                      ret.fileName = it.fileName;
+                      checkResults.splice(i, 1, ret);
+                    }
+                  });
+                });
+              }));
+            }
+
+            // 清空文件列表
+            model.value.selectedFiles = [];
+            model.value.isImporting = false;
+            checkResults = checkResults.filter((it: any) => !it.isCover);
+            if (checkResults.length) {
+              showImportResult(checkResults);
+            }
+
+          },
+          onCancel: async () => {
+            checkResults = checkResults.filter((it: any) => !it.isCover);
+            // 清空文件列表
+            model.value.selectedFiles = [];
+            model.value.isImporting = false;
+            if (checkResults.length) {
+              showImportResult(checkResults);
+            }
+          }
+        });
+      }
+
+    // 清空文件列表
+    model.value.selectedFiles = [];
+    model.value.isImporting = false;
+    showImportResult(checkResults);
   };
+
+  function showImportResult(checkResults: any[]) {
+    openInfoModal({
+      width: 800,
+      content: () => <ShowImportResult style={{height: '400px', overflow: 'auto'}} resultList={checkResults} />
+    })
+  }
 
   const dataSource = Array.from({ length: 5 }).fill({
     key: '1',

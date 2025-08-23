@@ -67,7 +67,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 
 	// 检查表头一致性
 	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("企业基本信息表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
+		return nil, fmt.Errorf("企业基本信息表头列数不足，模板需要%d列，上传文件%d列", len(expectedHeaders), len(headers))
 	}
 
 	// 构建表头映射
@@ -79,7 +79,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传文件：%s", i+1, expected, actual)
 		}
 		headerMap[i] = s.mapTable1HeaderToField(expected)
 	}
@@ -136,6 +136,9 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 			// 解析数据行（第3行是数据行，跳过第1行提示行和第2行说明行）
 			if energyCoalStartRow+2 < len(rows) {
 				rowData := rows[energyCoalStartRow+2] // 表头下的第3行是数据行
+				// 记录第二部分表格的实际Excel行号
+				dataRow["_excel_row2"] = energyCoalStartRow + 3 // 0索引转换为1索引
+
 				for j, cell := range rowData {
 					if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 						cleanedValue := s.cleanCellValue(cell)
@@ -193,7 +196,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 
 	// 检查表头一致性
 	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("用途表表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
+		return nil, fmt.Errorf("用途表表头列数不足，模板需要%d列，上传文件%d列", len(expectedHeaders), len(headers))
 	}
 
 	// 构建表头映射
@@ -205,7 +208,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传文件：%s", i+1, expected, actual)
 		}
 		headerMap[i] = s.mapTable1UsageHeaderToField(expected)
 	}
@@ -284,7 +287,7 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 
 	// 检查表头一致性
 	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("设备表表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
+		return nil, fmt.Errorf("设备表表头列数不足，模板需要%d列，上传文件%d列", len(expectedHeaders), len(headers))
 	}
 
 	// 构建表头映射
@@ -296,7 +299,7 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传文件：%s", i+1, expected, actual)
 		}
 		headerMap[i] = s.mapTable1EquipHeaderToField(expected)
 	}
@@ -409,7 +412,7 @@ func (s *DataImportService) mapTable1EquipHeaderToField(header string) string {
 }
 
 // ValidateTable1File 校验附表1文件
-func (s *DataImportService) ValidateTable1File(filePath string) db.QueryResult {
+func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db.QueryResult {
 	fileName := filepath.Base(filePath)
 
 	// 第一步: 检查文件是否存在
@@ -417,6 +420,7 @@ func (s *DataImportService) ValidateTable1File(filePath string) db.QueryResult {
 		s.app.InsertImportRecord(fileName, "附表1", "上传失败", "文件不存在")
 		return db.QueryResult{
 			Ok:      false,
+			Data:    []string{fmt.Sprintf("文件不存在: %v", err)},
 			Message: "文件不存在",
 		}
 	}
@@ -427,6 +431,7 @@ func (s *DataImportService) ValidateTable1File(filePath string) db.QueryResult {
 		s.app.InsertImportRecord(fileName, "附表1", "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
+			Data:    []string{fmt.Sprintf("读取Excel文件失败: %v", err)},
 			Message: fmt.Sprintf("读取Excel文件失败: %v", err),
 		}
 	}
@@ -438,18 +443,21 @@ func (s *DataImportService) ValidateTable1File(filePath string) db.QueryResult {
 		s.app.InsertImportRecord(fileName, "附表1", "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
+			Data:    []string{fmt.Sprintf("解析Excel文件失败: %v", err)},
 			Message: fmt.Sprintf("解析Excel文件失败: %v", err),
 		}
 	}
 
-	// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
-	cacheResult := s.app.CacheFileExists(fileName)
-	if cacheResult.Ok {
-		// 文件已存在，直接返回，需要前端确认
-		return db.QueryResult{
-			Ok:      false,
-			Message: "文件已存在，需要确认是否覆盖",
-			Data:    "FILE_EXISTS",
+	if isCover {
+		// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+		cacheResult := s.app.CacheFileExists(fileName)
+		if cacheResult.Ok {
+			// 文件已存在，直接返回，需要前端确认
+			return db.QueryResult{
+				Ok:      false,
+				Message: "文件已存在，需要确认是否覆盖",
+				Data:    "FILE_EXISTS",
+			}
 		}
 	}
 
@@ -459,6 +467,7 @@ func (s *DataImportService) ValidateTable1File(filePath string) db.QueryResult {
 		s.app.InsertImportRecord(fileName, "附表1", "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
 		return db.QueryResult{
 			Ok:      false,
+			Data:    validationErrors,
 			Message: fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")),
 		}
 	}
@@ -471,6 +480,7 @@ func (s *DataImportService) ValidateTable1File(filePath string) db.QueryResult {
 			s.app.InsertImportRecord(fileName, "附表1", "上传失败", fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message))
 			return db.QueryResult{
 				Ok:      false,
+				Data:    []string{fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)},
 				Message: fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message),
 			}
 		}
@@ -490,21 +500,16 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 
 	// 0. 检查主表数据条数
 	if len(mainData) == 0 {
-		errors = append(errors, "主表数据为空，请检查企业基本信息")
+		errors = append(errors, "单位基本信息不能为空，请核对并重新上传数据")
 		return errors
 	}
 	if len(mainData) > 1 {
-		errors = append(errors, fmt.Sprintf("主表数据条数错误，期望1条，实际%d条", len(mainData)))
+		errors = append(errors, fmt.Sprintf("单位基本信息表格数据条数错误，模板需要1条，上传文件%d条", len(mainData)))
 		return errors
 	}
 
 	// 1. 检查企业基本信息表格的必填字段
 	for _, data := range mainData {
-		// 检查data是否为nil
-		if data == nil {
-			errors = append(errors, "主表数据为空")
-			continue
-		}
 
 		// 使用记录的实际Excel行号
 		excelRowNum := 7 // 企业基本信息固定在第7行
@@ -512,7 +517,14 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 			excelRowNum = rowNum
 		}
 
-		fieldErrors := s.validateRequiredFields(data, Table1RequiredFields, excelRowNum)
+		// 获取第二部分表格的行号
+		excelRowNum2 := excelRowNum // 默认使用第一部分的行号
+		if rowNum2, ok := data["_excel_row2"].(int); ok {
+			excelRowNum2 = rowNum2
+		}
+
+		// 分别校验第一部分和第二部分表格的字段
+		fieldErrors := s.validateTable1RequiredFieldsWithRowNumbers(data, excelRowNum, excelRowNum2)
 		errors = append(errors, fieldErrors...)
 
 		// 2. 企业名称和统一信用代码校验
@@ -540,6 +552,47 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 					errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和上传的企业名称不对应", excelRowNum, creditCode))
 				}
 			}
+		}
+	}
+
+	return errors
+}
+
+// validateTable1RequiredFieldsWithRowNumbers 校验附表1必填字段（支持两个不同行号）
+func (s *DataImportService) validateTable1RequiredFieldsWithRowNumbers(data map[string]interface{}, rowNum1, rowNum2 int) []string {
+	errors := []string{}
+
+	// 第一部分表格的字段（企业基本信息）
+	part1Fields := map[string]string{
+		"stat_date":     "年份",
+		"unit_name":     "单位名称",
+		"credit_code":   "统一社会信用代码",
+		"trade_a":       "行业门类",
+		"trade_b":       "行业大类",
+		"trade_c":       "行业中类",
+		"province_name": "单位所在省/市/区",
+		"city_name":     "单位所在地市",
+		"country_name":  "单位所在区县",
+		"tel":           "联系电话",
+	}
+
+	// 第二部分表格的字段（综合能源消费情况）
+	part2Fields := map[string]string{
+		"annual_energy_equivalent_value": "年综合能耗当量值（万吨标准煤，含原料用能）",
+		"annual_energy_equivalent_cost":  "年综合能耗等价值（万吨标准煤，含原料用能）",
+	}
+
+	// 校验第一部分字段
+	for fieldName, displayName := range part1Fields {
+		if value, ok := data[fieldName].(string); !ok || value == "" {
+			errors = append(errors, fmt.Sprintf("第%d行：%s不能为空，请核对并重新上传数据", rowNum1, displayName))
+		}
+	}
+
+	// 校验第二部分字段
+	for fieldName, displayName := range part2Fields {
+		if value, ok := data[fieldName].(string); !ok || value == "" {
+			errors = append(errors, fmt.Sprintf("第%d行：%s不能为空，请核对并重新上传数据", rowNum2, displayName))
 		}
 	}
 

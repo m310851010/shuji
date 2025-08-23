@@ -116,6 +116,6 @@ export function openInfoModal(config: UseModalProps) {
   if (!config.cancelText) {
     config.cancelText = null;
   }
-  config.width = 450;
+  config.width ??= 450;
   return openModal(config);
 }

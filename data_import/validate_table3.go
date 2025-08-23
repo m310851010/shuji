@@ -161,7 +161,7 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 }
 
 // ValidateTable3File 校验附表3文件
-func (s *DataImportService) ValidateTable3File(filePath string) db.QueryResult {
+func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db.QueryResult {
 	fileName := filepath.Base(filePath)
 
 	// 第一步: 检查文件是否存在
@@ -195,15 +195,18 @@ func (s *DataImportService) ValidateTable3File(filePath string) db.QueryResult {
 	}
 
 	// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
-	cacheResult := s.app.CacheFileExists(fileName)
-	if cacheResult.Ok {
-		// 文件已存在，直接返回，需要前端确认
-		return db.QueryResult{
-			Ok:      false,
-			Message: "文件已存在，需要确认是否覆盖",
-			Data:    "FILE_EXISTS",
-		}
-	}
+	if isCover {
+        // 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+        cacheResult := s.app.CacheFileExists(fileName)
+        if cacheResult.Ok {
+            // 文件已存在，直接返回，需要前端确认
+            return db.QueryResult{
+                Ok:      false,
+                Message: "文件已存在，需要确认是否覆盖",
+                Data:    "FILE_EXISTS",
+            }
+        }
+    }
 
 	// 第五步: 按行读取文件数据并校验
 	validationErrors := s.validateTable3Data(mainData)

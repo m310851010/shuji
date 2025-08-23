@@ -67,7 +67,7 @@ export function ImportEnterpriseList(arg1:string):Promise<db.QueryResult>;
 
 export function ImportKeyEquipmentList(arg1:string):Promise<db.QueryResult>;
 
-export function InsertImportRecord(arg1:string,arg2:string,arg3:string,arg4:string):Promise<db.QueryResult>;
+export function InsertImportRecord(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function Login(arg1:string):Promise<db.QueryResult>;
 
@@ -115,7 +115,7 @@ export function SetUserPassword(arg1:string):Promise<db.QueryResult>;
 
 export function ShowMessageBox(arg1:main.MessageBoxOptions):Promise<main.MessageBoxResult>;
 
-export function ValidateAttachment2File(arg1:string):Promise<db.QueryResult>;
+export function ValidateAttachment2File(arg1:string,arg2:boolean):Promise<db.QueryResult>;
 
 export function ValidateEnterpriseListFile(arg1:string):Promise<db.QueryResult>;
 
@@ -123,8 +123,8 @@ export function ValidateKeyEquipmentListFile(arg1:string):Promise<db.QueryResult
 
 export function ValidateMergeSource(arg1:string):Promise<any>;
 
-export function ValidateTable1File(arg1:string):Promise<db.QueryResult>;
+export function ValidateTable1File(arg1:string,arg2:boolean):Promise<db.QueryResult>;
 
-export function ValidateTable2File(arg1:string):Promise<db.QueryResult>;
+export function ValidateTable2File(arg1:string,arg2:boolean):Promise<db.QueryResult>;
 
-export function ValidateTable3File(arg1:string):Promise<db.QueryResult>;
+export function ValidateTable3File(arg1:string,arg2:boolean):Promise<db.QueryResult>;

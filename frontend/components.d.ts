@@ -28,6 +28,7 @@ declare module 'vue' {
     ASteps: typeof import('ant-design-vue/es')['Steps']
     AStyleProvider: typeof import('ant-design-vue/es')['StyleProvider']
     ATable: typeof import('ant-design-vue/es')['Table']
+    ATableColumn: typeof import('ant-design-vue/es')['TableColumn']
     ATag: typeof import('ant-design-vue/es')['Tag']
     Footer: typeof import('./src/components/Footer.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
