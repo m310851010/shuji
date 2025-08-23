@@ -2,7 +2,7 @@ package data_import
 
 import (
 	"fmt"
-	"log"
+	"os"
 	"path/filepath"
 	"shuji/db"
 	"strings"
@@ -127,7 +127,7 @@ func (s *DataImportService) mapAttachment2HeaderToFieldByPosition(header string,
 		"地市（州）":  "city_name",
 		"县（区）":   "country_name",
 		"年份":     "stat_date",
-		"焦炭消费摸底": "coke_consumption",
+		"焦炭消费摸底": "coke",
 	}
 
 	// 检查是否是基础字段
@@ -147,9 +147,9 @@ func (s *DataImportService) mapAttachment2HeaderToFieldByPosition(header string,
 		11: "coking",           // 第12列：4.炼焦
 		12: "oil_refining",     // 第13列：5.炼油及煤制油
 		13: "gas_production",   // 第14列：6.制气
-		14: "industrial",       // 第15列：1.工业
-		15: "raw_material",     // 第16列：#用作原料、材料
-		16: "other_use",        // 第17列：2.其他用途
+		14: "industry",         // 第15列：1.工业
+		15: "raw_materials",    // 第16列：#用作原料、材料
+		16: "other_uses",       // 第17列：2.其他用途
 	}
 
 	// 检查基于位置的字段映射
@@ -164,10 +164,18 @@ func (s *DataImportService) mapAttachment2HeaderToFieldByPosition(header string,
 func (s *DataImportService) ValidateAttachment2File(filePath string) db.QueryResult {
 	fileName := filepath.Base(filePath)
 
-	// 1. 读取Excel文件
+	// 第一步: 检查文件是否存在
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		s.app.InsertImportRecord(fileName, "附件2", "上传失败", "文件不存在")
+		return db.QueryResult{
+			Ok:      false,
+			Message: "文件不存在",
+		}
+	}
+
+	// 第二步: 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		// 插入导入记录
 		s.app.InsertImportRecord(fileName, "附件2", "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
@@ -176,11 +184,9 @@ func (s *DataImportService) ValidateAttachment2File(filePath string) db.QueryRes
 	}
 	defer f.Close()
 
-	// 2. 解析Excel文件
+	// 第三步: 文件是否和模板文件匹配
 	mainData, err := s.parseAttachment2Excel(f)
-	log.Println("mainData", mainData)
 	if err != nil {
-		// 插入导入记录
 		s.app.InsertImportRecord(fileName, "附件2", "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
@@ -188,10 +194,20 @@ func (s *DataImportService) ValidateAttachment2File(filePath string) db.QueryRes
 		}
 	}
 
-	// 3. 校验数据
+	// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+	cacheResult := s.app.CacheFileExists(fileName)
+	if cacheResult.Ok {
+		// 文件已存在，直接返回，需要前端确认
+		return db.QueryResult{
+			Ok:      false,
+			Message: "文件已存在，需要确认是否覆盖",
+			Data:    "FILE_EXISTS",
+		}
+	}
+
+	// 第五步: 按行读取文件数据并校验
 	validationErrors := s.validateAttachment2Data(mainData)
 	if len(validationErrors) > 0 {
-		// 插入导入记录
 		s.app.InsertImportRecord(fileName, "附件2", "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
 		return db.QueryResult{
 			Ok:      false,
@@ -199,13 +215,22 @@ func (s *DataImportService) ValidateAttachment2File(filePath string) db.QueryRes
 		}
 	}
 
-	// 4. 查询该表是否有数据放进data属性
-	hasData := s.checkAttachment2HasData()
+	if len(validationErrors) == 0 {
+		// 第六步: 复制文件到缓存目录（只有校验通过才复制）
+		copyResult := s.app.CopyFileToCache(filePath)
+		if !copyResult.Ok {
+			s.app.InsertImportRecord(fileName, "附件2", "上传失败", fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message))
+			return db.QueryResult{
+				Ok:      false,
+				Message: fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message),
+			}
+		}
 
-	// 5. 返回QueryResult
+		s.app.InsertImportRecord(fileName, "附件2", "上传成功", "数据校验通过")
+	}
+
 	return db.QueryResult{
 		Ok:      true,
-		Data:    hasData,
 		Message: "校验通过",
 	}
 }
@@ -216,7 +241,9 @@ func (s *DataImportService) validateAttachment2Data(mainData []map[string]interf
 
 	// 1. 检查省份和年份是否为空
 	for i, data := range mainData {
-		fieldErrors := s.validateRequiredFields(data, Attachment2RequiredFields, i)
+		// Excel中的实际行号：数据从第8行开始（表头第4行+3行说明+1行数据）
+		excelRowNum := 8 + i
+		fieldErrors := s.validateRequiredFields(data, Attachment2RequiredFields, excelRowNum)
 		errors = append(errors, fieldErrors...)
 	}
 
@@ -251,23 +278,25 @@ func (s *DataImportService) validateAttachment2Region(data []map[string]interfac
 	}
 
 	for i, row := range data {
+		// Excel中的实际行号：数据从第8行开始（表头第4行+3行说明+1行数据）
+		excelRowNum := 8 + i
 		provinceName := s.getStringValue(row["province_name"])
 		cityName := s.getStringValue(row["city_name"])
 		countryName := s.getStringValue(row["country_name"])
 
 		// 检查区域是否与当前单位相符
 		if provinceName != "" && currentProvince != "" && provinceName != currentProvince {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", i+1))
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
 			continue
 		}
 
 		if cityName != "" && currentCity != "" && cityName != currentCity {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", i+1))
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
 			continue
 		}
 
 		if countryName != "" && currentCountry != "" && countryName != currentCountry {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", i+1))
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
 			continue
 		}
 	}

@@ -394,9 +394,17 @@ func (a *App) GetEnterpriseNameByCreditCode(creditCode string) (string, error) {
 		return "", fmt.Errorf("查询企业名称失败: %v", err)
 	}
 
-	return rows.Data.(map[string]interface{})["unit_name"].(string), nil
-}
+	if rows.Data == nil {
+		return "", nil
+	}
 
+	unitName := rows.Data.(map[string]interface{})["unit_name"]
+	if unitName == nil {
+		return "", nil
+	}
+
+	return unitName.(string), nil
+}
 
 // 检查装置清单是否存在
 func (a *App) checkKeyEquipmentList() (bool, error) {
