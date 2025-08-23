@@ -85,7 +85,7 @@ func (a *App) ValidateEnterpriseListFile(filePath string) db.QueryResult {
 		}
 	}
 
-	ok, err := a.checkEnterpriseList()
+	ok, err := a.CheckEnterpriseList()
 	if err != nil {
 		result.Message = "查询企业清单失败: " + err.Error()
 		return result
@@ -390,7 +390,7 @@ func validateHeaders(headers []string, expectedHeaders []string) bool {
 }
 
 // 检查企业清单是否存在
-func (a *App) checkEnterpriseList() (bool, error) {
+func (a *App) CheckEnterpriseList() (bool, error) {
 	rows, err := a.db.QueryRow("SELECT COUNT(1) as count FROM enterprise_list")
 	if err != nil {
 		return false, fmt.Errorf("查询企业清单失败: %v", err)
