@@ -13,13 +13,14 @@ type App interface {
 	InsertImportRecord(fileName, fileType, importState, describe string) db.QueryResult
 	CheckEnterpriseList() (bool, error)
 	GetEnterpriseNameByCreditCode(creditCode string) (string, error)
+	CacheFileExists(fileName string) db.QueryResult
+	CopyFileToCache(src string) db.QueryResult
 }
 
 // DataImportService 数据导入服务
 type DataImportService struct {
 	app App
 }
-
 
 // NewDataImportService 创建数据导入服务
 func NewDataImportService(app App) *DataImportService {

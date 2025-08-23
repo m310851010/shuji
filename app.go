@@ -376,25 +376,25 @@ func (a *App) GetCurrentOSUser() string {
 }
 
 // CacheFileExists 检查缓存文件是否存在
-func (a *App) CacheFileExists(fileName string) FlagResult {
+func (a *App) CacheFileExists(fileName string) db.QueryResult {
 	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, fileName))
 	_, err := os.Stat(cachePath)
 	if err == nil {
-		return FlagResult{true, cachePath}
+		return db.QueryResult{Ok: true, Message: "缓存文件存在", Data: cachePath}
 	}
 	if os.IsNotExist(err) {
-		return FlagResult{false, "false"}
+		return db.QueryResult{Ok: false, Message: "缓存文件不存在"}
 	}
-	return FlagResult{false, err.Error()}
+	return db.QueryResult{Ok: false, Message: err.Error(), Data: err.Error()}
 }
 
 // CopyFileToCache 复制文件到缓存目录
-func (a *App) CopyFileToCache(src string) FlagResult {
+func (a *App) CopyFileToCache(src string) db.QueryResult {
 	cachePath, err := CopyCacheFile(src)
 	if err != nil {
-		return FlagResult{false, err.Error()}
+		return db.QueryResult{Ok: false, Message: err.Error()}
 	}
-	return FlagResult{true, cachePath}
+	return db.QueryResult{Ok: true, Message: "文件复制成功", Data: cachePath}
 }
 
 // GetDB 获取数据库实例
