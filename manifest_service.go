@@ -387,6 +387,17 @@ func (a *App) CheckEnterpriseList() (bool, error) {
 	return rows.Data.(map[string]interface{})["count"].(int64) > 0, nil
 }
 
+// GetEnterpriseNameByCreditCode 获取企业名称
+func (a *App) GetEnterpriseNameByCreditCode(creditCode string) (string, error) {
+	rows, err := a.db.QueryRow("SELECT unit_name FROM enterprise_list WHERE credit_code = ?", creditCode)
+	if err != nil {
+		return "", fmt.Errorf("查询企业名称失败: %v", err)
+	}
+
+	return rows.Data.(map[string]interface{})["unit_name"].(string), nil
+}
+
+
 // 检查装置清单是否存在
 func (a *App) checkKeyEquipmentList() (bool, error) {
 	rows, err := a.db.QueryRow("SELECT COUNT(1) as count FROM key_equipment_list")

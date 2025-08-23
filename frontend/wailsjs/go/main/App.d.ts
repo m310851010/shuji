@@ -45,6 +45,8 @@ export function GetDataCheckListTable2(arg1:number,arg2:number):Promise<any>;
 
 export function GetDataCheckListTable3(arg1:number,arg2:number):Promise<any>;
 
+export function GetEnterpriseNameByCreditCode(arg1:string):Promise<string>;
+
 export function GetEnv():Promise<main.EnvResult>;
 
 export function GetExportHistory(arg1:number,arg2:number):Promise<any>;

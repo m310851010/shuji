@@ -86,6 +86,10 @@ export function GetDataCheckListTable3(arg1, arg2) {
   return window['go']['main']['App']['GetDataCheckListTable3'](arg1, arg2);
 }
 
+export function GetEnterpriseNameByCreditCode(arg1) {
+  return window['go']['main']['App']['GetEnterpriseNameByCreditCode'](arg1);
+}
+
 export function GetEnv() {
   return window['go']['main']['App']['GetEnv']();
 }

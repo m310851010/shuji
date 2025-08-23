@@ -12,6 +12,7 @@ type App interface {
 	GetAreaConfig() db.QueryResult
 	InsertImportRecord(fileName, fileType, importState, describe string) db.QueryResult
 	CheckEnterpriseList() (bool, error)
+	GetEnterpriseNameByCreditCode(creditCode string) (string, error)
 }
 
 // DataImportService 数据导入服务
