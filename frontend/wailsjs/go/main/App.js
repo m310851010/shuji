@@ -122,8 +122,8 @@ export function ImportKeyEquipmentList(arg1) {
   return window['go']['main']['App']['ImportKeyEquipmentList'](arg1);
 }
 
-export function InsertImportRecord(arg1) {
-  return window['go']['main']['App']['InsertImportRecord'](arg1);
+export function InsertImportRecord(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['InsertImportRecord'](arg1, arg2, arg3, arg4);
 }
 
 export function Login(arg1) {

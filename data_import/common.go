@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"shuji/db"
 	"strings"
-	"time"
 )
 
 // App 应用接口，用于访问数据库和其他功能
 type App interface {
 	GetDB() *db.Database
 	GetAreaConfig() db.QueryResult
+	InsertImportRecord(fileName, fileType, importState, describe string) db.QueryResult
 }
 
 // DataImportService 数据导入服务
@@ -18,67 +18,10 @@ type DataImportService struct {
 	app App
 }
 
-// DataImportRecord 导入记录
-type DataImportRecord struct {
-	FileName    string
-	FileType    string
-	ImportTime  time.Time
-	ImportState string
-	Describe    string
-	CreateUser  string
-}
-
-// DataImportRecordService 导入记录服务
-type DataImportRecordService struct {
-	app App
-}
-
-// NewDataImportRecordService 创建导入记录服务
-func NewDataImportRecordService(app App) *DataImportRecordService {
-	return &DataImportRecordService{app: app}
-}
-
-// InsertImportRecord 插入导入记录
-func (s *DataImportRecordService) InsertImportRecord(record *DataImportRecord) error {
-	// 这里实现插入记录的逻辑
-	// 暂时返回nil，实际项目中需要实现具体的数据库插入逻辑
-	return nil
-}
-
-// GetImportRecordsByFileType 根据文件类型查询导入记录
-func (s *DataImportRecordService) GetImportRecordsByFileType(fileType string) ([]map[string]interface{}, error) {
-	// 这里实现根据文件类型查询导入记录的逻辑
-	// 暂时返回空数据，实际项目中需要实现具体的查询逻辑
-	return []map[string]interface{}{}, nil
-}
 
 // NewDataImportService 创建数据导入服务
 func NewDataImportService(app App) *DataImportService {
 	return &DataImportService{app: app}
-}
-
-// GetCurrentOSUser 获取当前操作系统用户
-func GetCurrentOSUser() string {
-	// 这里可以根据实际需求实现获取当前用户名的逻辑
-	return "system"
-}
-
-// insertImportRecord 插入导入记录 - 公共函数
-func (s *DataImportService) insertImportRecord(fileName, fileType, importState, describe string) {
-	record := &DataImportRecord{
-		FileName:    fileName,
-		FileType:    fileType,
-		ImportTime:  time.Now(),
-		ImportState: importState,
-		Describe:    describe,
-		CreateUser:  GetCurrentOSUser(),
-	}
-
-	recordService := NewDataImportRecordService(s.app)
-	err := recordService.InsertImportRecord(record)
-	if err != nil {
-		fmt.Printf("插入导入记录失败: %v", err)
-	}
 }
 
 // checkTableHasData 检查表是否有数据的通用函数
@@ -142,13 +85,13 @@ func (s *DataImportService) isValidDataRow(row []string) bool {
 	if len(row) == 0 {
 		return false
 	}
-	
+
 	// 检查第一列是否为空
 	firstCell := strings.TrimSpace(row[0])
 	if firstCell == "" {
 		return false
 	}
-	
+
 	// 检查是否为表格标题行
 	titleKeywords := []string{"表格", "情况", "汇总", "信息", "消费", "项目", "企业", "单位"}
 	for _, keyword := range titleKeywords {
@@ -156,7 +99,7 @@ func (s *DataImportService) isValidDataRow(row []string) bool {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -175,7 +118,7 @@ func (s *DataImportService) parseNumericValue(value string) string {
 	if value == "" {
 		return "0"
 	}
-	
+
 	// 移除常见的非数字字符，保留数字、小数点和负号
 	var result strings.Builder
 	for _, char := range value {
@@ -183,12 +126,12 @@ func (s *DataImportService) parseNumericValue(value string) string {
 			result.WriteRune(char)
 		}
 	}
-	
+
 	cleaned := result.String()
 	if cleaned == "" || cleaned == "-" {
 		return "0"
 	}
-	
+
 	return cleaned
 }
 
@@ -198,7 +141,7 @@ func (s *DataImportService) parseDateValue(value string) string {
 	if value == "" {
 		return ""
 	}
-	
+
 	// 尝试解析常见的日期格式
 	dateFormats := []string{
 		"2006-01-02",
@@ -207,7 +150,7 @@ func (s *DataImportService) parseDateValue(value string) string {
 		"2006年01月02日",
 		"2006年1月2日",
 	}
-	
+
 	for _, format := range dateFormats {
 		if len(value) >= len(format) {
 			// 简单匹配，实际项目中可能需要更复杂的日期解析
@@ -220,7 +163,7 @@ func (s *DataImportService) parseDateValue(value string) string {
 			}
 		}
 	}
-	
+
 	return value
 }
 
@@ -343,11 +286,21 @@ var (
 
 	// 附表2必填字段
 	Table2RequiredFields = map[string]string{
-		"credit_code": "统一社会信用代码",
-		"unit_name":   "单位名称",
-		"stat_date":   "数据年份",
-		"coal_type":   "耗煤类型",
-		"coal_no":     "编号",
+		"unit_name":     "单位名称",
+		"credit_code":   "统一社会信用代码",
+		"province_name": "单位地址",
+		"city_name":     "单位地址",
+		"country_name":  "单位地址",
+		"trade_a":       "所属行业",
+		"trade_b":       "所属行业",
+		"trade_c":       "所属行业",
+		"stat_date":     "数据年份",
+		"coal_type":     "类型",
+		"coal_no":       "编号",
+		"usage_time":    "累计使用时间",
+		"design_life":   "设计年限",
+		"capacity_unit": "容量单位",
+		"capacity":      "容量",
 	}
 
 	// 附表3必填字段
@@ -373,9 +326,9 @@ var (
 	// 附件2必填字段
 	Attachment2RequiredFields = map[string]string{
 		"stat_date":     "数据年份",
-		"province_name": "单位省级名称",
-		"city_name":     "单位市级名称",
-		"country_name":  "单位县级名称",
-		"unit_name":     "单位名称",
+		"province_name": "省（市、区）",
+		"city_name":     "地市（州）",
+		"country_name":  "县（区）",
+		"report_unit":   "制表单位",
 	}
 )

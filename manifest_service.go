@@ -5,13 +5,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"shuji/db"
 	"strconv"
 	"strings"
-	"shuji/db"
 
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
-	"shuji/data_import"
 )
 
 // ValidateEnterpriseListFile 校验企业清单文件并返回数据
@@ -199,12 +198,13 @@ func (a *App) ImportEnterpriseList(filePath string) db.QueryResult {
 		Message: "",
 	}
 
-	fileName := "文件:" + filepath.Base(filePath) + " "
+	fileName := filepath.Base(filePath)
+	fileNameTip := "文件:" + fileName + " "
 
 	// 打开Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		result.Message = fileName + "无效的Excel文件: " + err.Error()
+		result.Message = fileNameTip + "无效的Excel文件: " + err.Error()
 		return result
 	}
 	defer f.Close()
@@ -213,7 +213,7 @@ func (a *App) ImportEnterpriseList(filePath string) db.QueryResult {
 	sheetName := f.GetSheetName(0)
 	rows, err := f.GetRows(sheetName)
 	if err != nil {
-		result.Message = fileName + "读取Excel数据失败: " + err.Error()
+		result.Message = fileNameTip + "读取Excel数据失败: " + err.Error()
 		return result
 	}
 
@@ -267,40 +267,33 @@ func (a *App) ImportEnterpriseList(filePath string) db.QueryResult {
 		count++
 	}
 
-	newFileName, err := CopyCacheFile(filePath)
+	_, err = CopyCacheFile(filePath)
 	if err != nil {
 		result.Message = "复制缓存文件失败: " + err.Error()
 		return result
 	}
 
 	// 记录导入历史
-	record := &data_import.DataImportRecord{
-		FileName:    newFileName,
-		FileType:    "企业清单",
-		ImportState: "上传成功",
-		Describe:    fmt.Sprintf("成功导入%d条记录", count),
-		CreateUser:  a.GetCurrentOSUser(),
-	}
-
-	importRecordResult := a.InsertImportRecord(record)
+	importRecordResult := a.InsertImportRecord(fileName, "企业清单", "上传成功", fmt.Sprintf("成功导入%d条记录", count))
 	if !importRecordResult.Ok {
 		log.Printf("记录导入日志失败: %s", importRecordResult.Message)
 	}
 
 	result.Ok = true
-	result.Message = fmt.Sprintf(fileName+"企业清单导入完成：成功%d条", count)
+	result.Message = fmt.Sprintf(fileNameTip+"企业清单导入完成：成功%d条", count)
 	return result
 }
 
 // ImportKeyEquipmentList 导入装置清单
 func (a *App) ImportKeyEquipmentList(filePath string) db.QueryResult {
 	var result db.QueryResult
-	fileName := "文件:" + filepath.Base(filePath) + " "
+	fileName := filepath.Base(filePath)
+	fileNameTip := "文件:" + fileName + " "
 
 	// 打开Excel文件
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		result.Message = fileName + "无效的Excel文件: " + err.Error()
+		result.Message = fileNameTip + "无效的Excel文件: " + err.Error()
 		return result
 	}
 	defer f.Close()
@@ -309,7 +302,7 @@ func (a *App) ImportKeyEquipmentList(filePath string) db.QueryResult {
 	sheetName := f.GetSheetName(0)
 	rows, err := f.GetRows(sheetName)
 	if err != nil {
-		result.Message = fileName + "读取Excel数据失败: " + err.Error()
+		result.Message = fileNameTip + "读取Excel数据失败: " + err.Error()
 		return result
 	}
 
@@ -365,22 +358,14 @@ func (a *App) ImportKeyEquipmentList(filePath string) db.QueryResult {
 		count++
 	}
 
-	newFileName, err := CopyCacheFile(filePath)
+	_, err = CopyCacheFile(filePath)
 	if err != nil {
 		result.Message = "复制缓存文件失败: " + err.Error()
 		return result
 	}
 
 	// 记录导入历史
-	record := &data_import.DataImportRecord{
-		FileName:    newFileName,
-		FileType:    "装置清单",
-		ImportState: "上传成功",
-		Describe:    fmt.Sprintf("成功导入%d条记录", count),
-		CreateUser:  a.GetCurrentOSUser(),
-	}
-
-	importRecordResult := a.InsertImportRecord(record)
+	importRecordResult := a.InsertImportRecord(fileName, "装置清单", "上传成功", fmt.Sprintf("成功导入%d条记录", count))
 	if !importRecordResult.Ok {
 		log.Printf("记录导入日志失败: %s", importRecordResult.Message)
 	}

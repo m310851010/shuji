@@ -14,9 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"shuji/data_import"
+
 	"github.com/klauspost/cpuid/v2"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"shuji/data_import"
 )
 
 var dbDst string
@@ -376,24 +377,24 @@ func (a *App) GetCurrentOSUser() string {
 
 // CacheFileExists 检查缓存文件是否存在
 func (a *App) CacheFileExists(fileName string) FlagResult {
-    cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, fileName))
-    _, err := os.Stat(cachePath)
-    if err == nil {
-        return FlagResult{true, cachePath}
-    }
-    if os.IsNotExist(err) {
-        return FlagResult{false, "false"}
-    }
-    return FlagResult{false, err.Error()}
+	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, fileName))
+	_, err := os.Stat(cachePath)
+	if err == nil {
+		return FlagResult{true, cachePath}
+	}
+	if os.IsNotExist(err) {
+		return FlagResult{false, "false"}
+	}
+	return FlagResult{false, err.Error()}
 }
 
 // CopyFileToCache 复制文件到缓存目录
 func (a *App) CopyFileToCache(src string) FlagResult {
-    cachePath, err := CopyCacheFile(src)
-    if err != nil {
-        return FlagResult{false, err.Error()}
-    }
-    return FlagResult{true, cachePath}
+	cachePath, err := CopyCacheFile(src)
+	if err != nil {
+		return FlagResult{false, err.Error()}
+	}
+	return FlagResult{true, cachePath}
 }
 
 // GetDB 获取数据库实例
@@ -425,22 +426,21 @@ func (a *App) ValidateAttachment2File(filePath string) db.QueryResult {
 	return dataImportService.ValidateAttachment2File(filePath)
 }
 
-
 // ==================== 导入记录服务 API ====================
 
 // InsertImportRecord 插入导入记录
-func (a *App) InsertImportRecord(record *data_import.DataImportRecord) db.QueryResult {
+func (a *App) InsertImportRecord(fileName, fileType, importState, describe string) db.QueryResult {
 	if a.dbError != nil {
 		return db.QueryResult{Ok: false, Message: "数据库连接失败"}
 	}
 
-	service := data_import.NewDataImportRecordService(a)
-	err := service.InsertImportRecord(record)
+	service := NewDataImportRecordService(a.db)
+	err := service.InsertImportRecord(fileName, fileType, importState, describe)
 	if err != nil {
 		return db.QueryResult{Ok: false, Message: err.Error()}
 	}
 
-	return db.QueryResult{Ok: true, Message: "导入记录插入成功", Data: record}
+	return db.QueryResult{Ok: true, Message: "导入记录插入成功"}
 }
 
 // GetImportRecordsByFileType 根据文件类型查询导入记录
@@ -449,7 +449,7 @@ func (a *App) GetImportRecordsByFileType(fileType string) db.QueryResult {
 		return db.QueryResult{Ok: false, Message: "数据库连接失败"}
 	}
 
-	service := data_import.NewDataImportRecordService(a)
+	service := NewDataImportRecordService(a.db)
 	records, err := service.GetImportRecordsByFileType(fileType)
 	if err != nil {
 		return db.QueryResult{Ok: false, Message: err.Error()}

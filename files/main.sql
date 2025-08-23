@@ -40,7 +40,7 @@ CREATE TABLE "coal_consumption_report" (
 );
 
 
--- 重点耗煤装置（设备）煤炭消耗信息表, 对应excel文件附表3
+-- 重点耗煤装置（设备）煤炭消耗信息表, 对应excel文件附表2
 CREATE TABLE "critical_coal_equipment_consumption" (
   "obj_id" varchar(36) NOT NULL,                       -- 主键，表：重点耗煤装置（设备）煤炭消耗信息表
   "stat_date" varchar(10) NOT NULL,                    -- 数据年份

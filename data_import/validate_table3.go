@@ -168,7 +168,7 @@ func (s *DataImportService) ValidateTable3File(filePath string) db.QueryResult {
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		// 插入导入记录
-		s.insertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
+		s.app.InsertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("读取Excel文件失败: %v", err),
@@ -181,7 +181,7 @@ func (s *DataImportService) ValidateTable3File(filePath string) db.QueryResult {
 	log.Println("mainData", mainData)
 	if err != nil {
 		// 插入导入记录
-		s.insertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
+		s.app.InsertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("解析Excel文件失败: %v", err),
@@ -192,7 +192,7 @@ func (s *DataImportService) ValidateTable3File(filePath string) db.QueryResult {
 	validationErrors := s.validateTable3Data(mainData)
 	if len(validationErrors) > 0 {
 		// 插入导入记录
-		s.insertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
+		s.app.InsertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")),

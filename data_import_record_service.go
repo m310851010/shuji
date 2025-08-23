@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-
 // DataImportRecord 导入记录
 type DataImportRecord struct {
 	ObjID       string    `json:"obj_id" db:"obj_id"`             // 主键
@@ -33,13 +32,15 @@ func NewDataImportRecordService(db *db.Database) *DataImportRecordService {
 }
 
 // InsertImportRecord 插入导入记录
-func (s *DataImportRecordService) InsertImportRecord(record *DataImportRecord) error {
-	// 生成UUID
-	record.ObjID = uuid.New().String()
-
-	// 如果没有设置时间，使用当前时间
-	if record.ImportTime.IsZero() {
-		record.ImportTime = time.Now()
+func (s *DataImportRecordService) InsertImportRecord(fileName, fileType, importState, describe string) error {
+    record := &DataImportRecord{
+		ObjID:       uuid.New().String(),
+		FileName:    fileName,
+		FileType:    fileType,
+		ImportTime:  time.Now(),
+		ImportState: importState,
+		Describe:    describe,
+		CreateUser:  GetCurrentOSUser(),
 	}
 
 	// 构建SQL语句
