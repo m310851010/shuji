@@ -58,10 +58,62 @@ func (s *App) ValidateAttachment2File(filePath string) QueryResult {
 func (s *App) validateAttachment2Data(data []map[string]interface{}) []string {
 	errors := []string{}
 
-	// 强制校验规则实现
+	// 1. 检查年份和单位是否为空
 	for i, row := range data {
 		fieldErrors := s.validateRequiredFields(row, Attachment2RequiredFields, i)
 		errors = append(errors, fieldErrors...)
+	}
+
+	// 2. 检查区域与当前单位是否相符
+	regionErrors := s.validateAttachment2Region(data)
+	errors = append(errors, regionErrors...)
+
+	return errors
+}
+
+// validateAttachment2Region 检查附件2区域与当前单位是否相符
+func (s *App) validateAttachment2Region(data []map[string]interface{}) []string {
+	errors := []string{}
+
+	// 获取当前单位信息
+	result := s.GetAreaConfig()
+	if !result.Ok {
+		// 如果获取失败，跳过区域校验
+		return errors
+	}
+
+	// 解析返回的数据
+	var currentProvince, currentCity, currentCountry string
+	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
+		row := data[0]
+		currentProvince = s.getStringValue(row["province_name"])
+		currentCity = s.getStringValue(row["city_name"])
+		currentCountry = s.getStringValue(row["country_name"])
+	} else {
+		// 如果没有配置，跳过区域校验
+		return errors
+	}
+
+	for i, row := range data {
+		provinceName := s.getStringValue(row["province_name"])
+		cityName := s.getStringValue(row["city_name"])
+		countryName := s.getStringValue(row["country_name"])
+
+		// 检查区域是否与当前单位相符
+		if provinceName != "" && currentProvince != "" && provinceName != currentProvince {
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", i+1))
+			continue
+		}
+
+		if cityName != "" && currentCity != "" && cityName != currentCity {
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", i+1))
+			continue
+		}
+
+		if countryName != "" && currentCountry != "" && countryName != currentCountry {
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", i+1))
+			continue
+		}
 	}
 
 	return errors

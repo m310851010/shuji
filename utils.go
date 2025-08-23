@@ -9,8 +9,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/tjfoc/gmsm/sm4"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -131,18 +129,24 @@ func GetCurrentOSUser() string {
 // CopyCacheFile 复制缓存文件
 func CopyCacheFile(filePath string) (string, error) {
 	fileName := filepath.Base(filePath)
-	// 生成缓存文件名，规则：原文件名 + ___ + 时间戳 + 原扩展名
-	ext := filepath.Ext(fileName)
-	nameWithoutExt := strings.TrimSuffix(fileName, ext)
-	newFileName := fmt.Sprintf("%s___%d%s", nameWithoutExt, time.Now().UnixNano(), ext)
-	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, newFileName))
+// 	// 生成缓存文件名，规则：原文件名 + ___ + 时间戳 + 原扩展名
+// 	ext := filepath.Ext(fileName)
+// 	nameWithoutExt := strings.TrimSuffix(fileName, ext)
+// 	newFileName := fmt.Sprintf("%s___%d%s", nameWithoutExt, time.Now().UnixNano(), ext)
+	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, fileName))
+
+	// 检查缓存目录是否存在, 不存在则创建
+	cacheDir := filepath.Join(Env.BasePath, CACHE_FILE_DIR_NAME)
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		os.MkdirAll(cacheDir, os.ModePerm)
+	}
 
 	log.Printf("复制文件: %s -> %s", filePath, cachePath)
 	if err := copyFile(filePath, cachePath); err != nil {
 		return "", err
 	}
 
-	return newFileName, nil
+	return cachePath, nil
 }
 
 // copyFile 复制文件

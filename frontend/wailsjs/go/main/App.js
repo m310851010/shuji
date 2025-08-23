@@ -6,8 +6,8 @@ export function AbsolutePath(arg1) {
   return window['go']['main']['App']['AbsolutePath'](arg1);
 }
 
-export function BackupDatabase() {
-  return window['go']['main']['App']['BackupDatabase']();
+export function CacheFileExists(arg1) {
+  return window['go']['main']['App']['CacheFileExists'](arg1);
 }
 
 export function CancelImport(arg1) {
@@ -16,6 +16,10 @@ export function CancelImport(arg1) {
 
 export function CheckAndExportToExcel(arg1) {
   return window['go']['main']['App']['CheckAndExportToExcel'](arg1);
+}
+
+export function CopyFileToCache(arg1) {
+  return window['go']['main']['App']['CopyFileToCache'](arg1);
 }
 
 export function Copyfile(arg1, arg2) {
@@ -106,36 +110,12 @@ export function GetPasswordInfo() {
   return window['go']['main']['App']['GetPasswordInfo']();
 }
 
-export function GetSystemInfo() {
-  return window['go']['main']['App']['GetSystemInfo']();
-}
-
-export function GetSystemSettings() {
-  return window['go']['main']['App']['GetSystemSettings']();
-}
-
-export function ImportAttachment2(arg1) {
-  return window['go']['main']['App']['ImportAttachment2'](arg1);
-}
-
 export function ImportEnterpriseList(arg1) {
   return window['go']['main']['App']['ImportEnterpriseList'](arg1);
 }
 
 export function ImportKeyEquipmentList(arg1) {
   return window['go']['main']['App']['ImportKeyEquipmentList'](arg1);
-}
-
-export function ImportTable1(arg1) {
-  return window['go']['main']['App']['ImportTable1'](arg1);
-}
-
-export function ImportTable2(arg1) {
-  return window['go']['main']['App']['ImportTable2'](arg1);
-}
-
-export function ImportTable3(arg1) {
-  return window['go']['main']['App']['ImportTable3'](arg1);
 }
 
 export function InsertImportRecord(arg1) {
@@ -222,10 +202,6 @@ export function Removefile(arg1) {
   return window['go']['main']['App']['Removefile'](arg1);
 }
 
-export function RestoreDatabase(arg1) {
-  return window['go']['main']['App']['RestoreDatabase'](arg1);
-}
-
 export function SaveAreaConfig(arg1) {
   return window['go']['main']['App']['SaveAreaConfig'](arg1);
 }
@@ -238,14 +214,6 @@ export function ShowMessageBox(arg1) {
   return window['go']['main']['App']['ShowMessageBox'](arg1);
 }
 
-export function UpdateSystemSetting(arg1, arg2) {
-  return window['go']['main']['App']['UpdateSystemSetting'](arg1, arg2);
-}
-
-export function ValidateAttachment2File(arg1) {
-  return window['go']['main']['App']['ValidateAttachment2File'](arg1);
-}
-
 export function ValidateEnterpriseListFile(arg1) {
   return window['go']['main']['App']['ValidateEnterpriseListFile'](arg1);
 }
@@ -256,16 +224,4 @@ export function ValidateKeyEquipmentListFile(arg1) {
 
 export function ValidateMergeSource(arg1) {
   return window['go']['main']['App']['ValidateMergeSource'](arg1);
-}
-
-export function ValidateTable1File(arg1) {
-  return window['go']['main']['App']['ValidateTable1File'](arg1);
-}
-
-export function ValidateTable2File(arg1) {
-  return window['go']['main']['App']['ValidateTable2File'](arg1);
-}
-
-export function ValidateTable3File(arg1) {
-  return window['go']['main']['App']['ValidateTable3File'](arg1);
 }

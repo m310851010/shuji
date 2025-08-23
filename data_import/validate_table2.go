@@ -58,10 +58,20 @@ func (s *App) ValidateTable2File(filePath string) QueryResult {
 func (s *App) validateTable2Data(data []map[string]interface{}) []string {
 	errors := []string{}
 
-	// 强制校验规则实现
+	// 1. 检查年份和单位是否为空
 	for i, row := range data {
 		fieldErrors := s.validateRequiredFields(row, Table2RequiredFields, i)
 		errors = append(errors, fieldErrors...)
+
+		// 2. 检查企业是否在企业清单中（如果有清单的话）
+		unitName := s.getStringValue(row["unit_name"])
+		creditCode := s.getStringValue(row["credit_code"])
+		enterpriseListErrors := s.validateEnterpriseNameCreditCodeCorrespondence(unitName, creditCode, i, true)
+		errors = append(errors, enterpriseListErrors...)
+
+		// 3. 检查企业名称和统一信用代码是否对应（如果有清单的话）
+		correspondenceErrors := s.validateEnterpriseNameCreditCodeCorrespondence(unitName, creditCode, i, false)
+		errors = append(errors, correspondenceErrors...)
 	}
 
 	return errors

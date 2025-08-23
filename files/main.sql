@@ -1,4 +1,4 @@
--- 省市县区域表
+-- 省市县区域表, 当前用户登录时, 获取当前用户所在省市县, 然后查询该表, 用户第一次登录时会设置当前省市县
 CREATE TABLE "area_config" (
    "obj_id" varchar(36) NOT NULL,                       -- 主键，表：区域配置表
    "province_name" varchar(100),                        -- 单位省级名称

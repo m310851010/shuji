@@ -61,24 +61,21 @@ func (s *App) ValidateTable1File(filePath string) QueryResult {
 func (s *App) validateTable1Data(mainData, usageData, equipData []map[string]interface{}) []string {
 	errors := []string{}
 
-	// 强制校验规则实现
 	// 1. 检查年份和单位是否为空
 	for i, data := range mainData {
 		fieldErrors := s.validateRequiredFields(data, Table1RequiredFields, i)
 		errors = append(errors, fieldErrors...)
+
+		// 2. 检查企业是否在企业清单中（如果有清单的话）
+		unitName := s.getStringValue(data["unit_name"])
+		creditCode := s.getStringValue(data["credit_code"])
+		enterpriseListErrors := s.validateEnterpriseNameCreditCodeCorrespondence(unitName, creditCode, i, true)
+		errors = append(errors, enterpriseListErrors...)
+
+		// 3. 检查企业名称和统一信用代码是否对应（如果有清单的话）
+		correspondenceErrors := s.validateEnterpriseNameCreditCodeCorrespondence(unitName, creditCode, i, false)
+		errors = append(errors, correspondenceErrors...)
 	}
-
-	// 2. 检查企业是否在企业清单中（如果有清单的话）
-	// TODO: 实现企业清单检查逻辑
-
-	// 3. 检查企业名称和统一信用代码是否对应（如果有清单的话）
-	// TODO: 实现企业名称和信用代码对应关系检查
-
-	// 4. 检查数据单位与当前单位是否相符
-	// TODO: 实现数据单位检查逻辑
-
-	// 5. 检查文件格式是否正确
-	// TODO: 实现文件格式检查逻辑
 
 	return errors
 }

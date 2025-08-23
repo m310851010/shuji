@@ -302,10 +302,6 @@ func (a *App) Copyfile(src string, dst string) FlagResult {
 	return FlagResult{true, "Success"}
 }
 
-func (a *App) GetCurrentOSUser() string {
-	return GetCurrentOSUser()
-}
-
 // Makedir 创建目录
 func (a *App) Makedir(path string) FlagResult {
 	log.Printf("Makedir: %s", path)
@@ -371,6 +367,35 @@ func (a *App) OpenExternal(path string) error {
 
 	return cmd.Start()
 }
+
+// GetCurrentOSUser 获取当前操作系统用户
+func (a *App) GetCurrentOSUser() string {
+	return GetCurrentOSUser()
+}
+
+// CacheFileExists 检查缓存文件是否存在
+func (a *App) CacheFileExists(fileName string) FlagResult {
+    cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, fileName))
+    _, err := os.Stat(cachePath)
+    if err == nil {
+        return FlagResult{true, cachePath}
+    }
+    if os.IsNotExist(err) {
+        return FlagResult{false, "false"}
+    }
+    return FlagResult{false, err.Error()}
+}
+
+// CopyFileToCache 复制文件到缓存目录
+func (a *App) CopyFileToCache(src string) FlagResult {
+    cachePath, err := CopyCacheFile(src)
+    if err != nil {
+        return FlagResult{false, err.Error()}
+    }
+    return FlagResult{true, cachePath}
+}
+
+
 
 // ==================== 导入记录服务 API ====================
 
