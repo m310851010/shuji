@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
+
+// DataImportRecord 导入记录
 type DataImportRecord struct {
 	ObjID       string    `json:"obj_id" db:"obj_id"`             // 主键
 	FileName    string    `json:"file_name" db:"file_name"`       // 上传文件名

@@ -1,12 +1,70 @@
-package main
+package data_import
 
 import (
 	"fmt"
+	"shuji/db"
+	"strings"
 	"time"
 )
 
+// App 应用接口，用于访问数据库和其他功能
+type App interface {
+	GetDB() *db.Database
+	GetAreaConfig() db.QueryResult
+}
+
+// DataImportService 数据导入服务
+type DataImportService struct {
+	app App
+}
+
+// DataImportRecord 导入记录
+type DataImportRecord struct {
+	FileName    string
+	FileType    string
+	ImportTime  time.Time
+	ImportState string
+	Describe    string
+	CreateUser  string
+}
+
+// DataImportRecordService 导入记录服务
+type DataImportRecordService struct {
+	app App
+}
+
+// NewDataImportRecordService 创建导入记录服务
+func NewDataImportRecordService(app App) *DataImportRecordService {
+	return &DataImportRecordService{app: app}
+}
+
+// InsertImportRecord 插入导入记录
+func (s *DataImportRecordService) InsertImportRecord(record *DataImportRecord) error {
+	// 这里实现插入记录的逻辑
+	// 暂时返回nil，实际项目中需要实现具体的数据库插入逻辑
+	return nil
+}
+
+// GetImportRecordsByFileType 根据文件类型查询导入记录
+func (s *DataImportRecordService) GetImportRecordsByFileType(fileType string) ([]map[string]interface{}, error) {
+	// 这里实现根据文件类型查询导入记录的逻辑
+	// 暂时返回空数据，实际项目中需要实现具体的查询逻辑
+	return []map[string]interface{}{}, nil
+}
+
+// NewDataImportService 创建数据导入服务
+func NewDataImportService(app App) *DataImportService {
+	return &DataImportService{app: app}
+}
+
+// GetCurrentOSUser 获取当前操作系统用户
+func GetCurrentOSUser() string {
+	// 这里可以根据实际需求实现获取当前用户名的逻辑
+	return "system"
+}
+
 // insertImportRecord 插入导入记录 - 公共函数
-func (s *App) insertImportRecord(fileName, fileType, importState, describe string) {
+func (s *DataImportService) insertImportRecord(fileName, fileType, importState, describe string) {
 	record := &DataImportRecord{
 		FileName:    fileName,
 		FileType:    fileType,
@@ -16,7 +74,7 @@ func (s *App) insertImportRecord(fileName, fileType, importState, describe strin
 		CreateUser:  GetCurrentOSUser(),
 	}
 
-	recordService := NewDataImportRecordService(s.db)
+	recordService := NewDataImportRecordService(s.app)
 	err := recordService.InsertImportRecord(record)
 	if err != nil {
 		fmt.Printf("插入导入记录失败: %v", err)
@@ -24,9 +82,9 @@ func (s *App) insertImportRecord(fileName, fileType, importState, describe strin
 }
 
 // checkTableHasData 检查表是否有数据的通用函数
-func (s *App) checkTableHasData(tableName string) bool {
+func (s *DataImportService) checkTableHasData(tableName string) bool {
 	query := fmt.Sprintf("SELECT COUNT(*) as count FROM %s", tableName)
-	result, err := s.db.Query(query)
+	result, err := s.app.GetDB().Query(query)
 	if err != nil {
 		return false
 	}
@@ -40,14 +98,134 @@ func (s *App) checkTableHasData(tableName string) bool {
 }
 
 // clearTableData 清空表数据的通用函数
-func (s *App) clearTableData(tableName string) error {
+func (s *DataImportService) clearTableData(tableName string) error {
 	query := fmt.Sprintf("DELETE FROM %s", tableName)
-	_, err := s.db.Exec(query)
+	_, err := s.app.GetDB().Exec(query)
 	return err
 }
 
+// 通用Excel解析辅助函数
+
+// findTableStartRow 查找表格开始行
+func (s *DataImportService) findTableStartRow(rows [][]string, keywords ...string) int {
+	for i, row := range rows {
+		if len(row) > 0 {
+			firstCell := strings.TrimSpace(row[0])
+			for _, keyword := range keywords {
+				if strings.Contains(firstCell, keyword) {
+					return i
+				}
+			}
+		}
+	}
+	return -1
+}
+
+// findTableEndRow 查找表格结束行
+func (s *DataImportService) findTableEndRow(rows [][]string, startRow int, endKeywords ...string) int {
+	for i := startRow + 1; i < len(rows); i++ {
+		row := rows[i]
+		if len(row) > 0 {
+			firstCell := strings.TrimSpace(row[0])
+			for _, keyword := range endKeywords {
+				if strings.Contains(firstCell, keyword) {
+					return i
+				}
+			}
+		}
+	}
+	return len(rows)
+}
+
+// isValidDataRow 检查是否为有效数据行
+func (s *DataImportService) isValidDataRow(row []string) bool {
+	if len(row) == 0 {
+		return false
+	}
+	
+	// 检查第一列是否为空
+	firstCell := strings.TrimSpace(row[0])
+	if firstCell == "" {
+		return false
+	}
+	
+	// 检查是否为表格标题行
+	titleKeywords := []string{"表格", "情况", "汇总", "信息", "消费", "项目", "企业", "单位"}
+	for _, keyword := range titleKeywords {
+		if strings.Contains(firstCell, keyword) && len(firstCell) > 10 {
+			return false
+		}
+	}
+	
+	return true
+}
+
+// cleanCellValue 清理单元格值
+func (s *DataImportService) cleanCellValue(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.ReplaceAll(value, "\n", "")
+	value = strings.ReplaceAll(value, "\r", "")
+	value = strings.ReplaceAll(value, "\t", "")
+	return value
+}
+
+// parseNumericValue 解析数值
+func (s *DataImportService) parseNumericValue(value string) string {
+	value = s.cleanCellValue(value)
+	if value == "" {
+		return "0"
+	}
+	
+	// 移除常见的非数字字符，保留数字、小数点和负号
+	var result strings.Builder
+	for _, char := range value {
+		if (char >= '0' && char <= '9') || char == '.' || char == '-' || char == ',' {
+			result.WriteRune(char)
+		}
+	}
+	
+	cleaned := result.String()
+	if cleaned == "" || cleaned == "-" {
+		return "0"
+	}
+	
+	return cleaned
+}
+
+// parseDateValue 解析日期值
+func (s *DataImportService) parseDateValue(value string) string {
+	value = s.cleanCellValue(value)
+	if value == "" {
+		return ""
+	}
+	
+	// 尝试解析常见的日期格式
+	dateFormats := []string{
+		"2006-01-02",
+		"2006/01/02",
+		"2006.01.02",
+		"2006年01月02日",
+		"2006年1月2日",
+	}
+	
+	for _, format := range dateFormats {
+		if len(value) >= len(format) {
+			// 简单匹配，实际项目中可能需要更复杂的日期解析
+			if strings.Contains(value, "年") && strings.Contains(value, "月") {
+				// 处理中文日期格式
+				value = strings.ReplaceAll(value, "年", "-")
+				value = strings.ReplaceAll(value, "月", "-")
+				value = strings.ReplaceAll(value, "日", "")
+				return value
+			}
+		}
+	}
+	
+	return value
+}
+
 // validateRequiredField 校验必填字段的通用函数
-func (s *App) validateRequiredField(data map[string]interface{}, fieldName, fieldDisplayName string, rowIndex int) []string {
+func (s *DataImportService) validateRequiredField(data map[string]interface{}, fieldName, fieldDisplayName string, rowIndex int) []string {
 	errors := []string{}
 	if value, ok := data[fieldName].(string); !ok || value == "" {
 		errors = append(errors, fmt.Sprintf("第%d行：%s不能为空，请核对并重新上传数据", rowIndex+1, fieldDisplayName))
@@ -56,7 +234,7 @@ func (s *App) validateRequiredField(data map[string]interface{}, fieldName, fiel
 }
 
 // validateRequiredFields 批量校验必填字段
-func (s *App) validateRequiredFields(data map[string]interface{}, fields map[string]string, rowIndex int) []string {
+func (s *DataImportService) validateRequiredFields(data map[string]interface{}, fields map[string]string, rowIndex int) []string {
 	errors := []string{}
 	for fieldName, displayName := range fields {
 		fieldErrors := s.validateRequiredField(data, fieldName, displayName, rowIndex)
@@ -66,7 +244,7 @@ func (s *App) validateRequiredFields(data map[string]interface{}, fields map[str
 }
 
 // getStringValue 获取字符串值的通用函数
-func (s *App) getStringValue(value interface{}) string {
+func (s *DataImportService) getStringValue(value interface{}) string {
 	if value == nil {
 		return ""
 	}
@@ -74,10 +252,10 @@ func (s *App) getStringValue(value interface{}) string {
 }
 
 // checkEnterpriseInList 检查企业是否在清单中
-func (s *App) checkEnterpriseInList(unitName, creditCode string) (bool, error) {
+func (s *DataImportService) checkEnterpriseInList(unitName, creditCode string) (bool, error) {
 	// 先通过统一信用代码查询enterprise_list表，获取企业名称
 	query := "SELECT unit_name FROM enterprise_list WHERE credit_code = ?"
-	result, err := s.db.Query(query, creditCode)
+	result, err := s.app.GetDB().Query(query, creditCode)
 	if err != nil {
 		return false, err
 	}
@@ -98,7 +276,7 @@ func (s *App) checkEnterpriseInList(unitName, creditCode string) (bool, error) {
 }
 
 // validateEnterpriseNameCreditCodeCorrespondence 通用的企业名称和统一信用代码对应关系校验函数（单条数据）
-func (s *App) validateEnterpriseNameCreditCodeCorrespondence(unitName, creditCode string, rowIndex int, isEnterpriseListCheck bool) []string {
+func (s *DataImportService) validateEnterpriseNameCreditCodeCorrespondence(unitName, creditCode string, rowIndex int, isEnterpriseListCheck bool) []string {
 	errors := []string{}
 
 	if unitName != "" && creditCode != "" {
@@ -123,6 +301,11 @@ func (s *App) validateEnterpriseNameCreditCodeCorrespondence(unitName, creditCod
 	}
 
 	return errors
+}
+
+// GetAreaConfig 获取区域配置 - 直接调用App的方法
+func (s *DataImportService) GetAreaConfig() db.QueryResult {
+	return s.app.GetAreaConfig()
 }
 
 // 文件类型常量
@@ -174,13 +357,8 @@ var (
 		"approval_number":   "审查意见文号",
 		"stat_date":         "年份",
 		"unit_name":         "建设单位",
-		"project_name":      "项目名称",
-		"project_code":      "项目代码",
-		"approval_number":   "审查意见文号",
-		"stat_date":         "年份",
 		"main_content":      "主要建设内容",
 		"province_name":     "项目所在省",
-		"country_name":      "自治区",
 		"city_name":         "项目所在市",
 		"country_name":      "项目所在县",
 		"industry_type":     "所属行业大类",
@@ -188,7 +366,6 @@ var (
 		"approval_time":     "节能审查批复时间",
 		"put_into_use_time": "拟投产时间/实际投产时间",
 		"approval_org":      "节能审查机关",
-		"approval_number":   "审查意见文号",
 		"equivalent_value":  "当量值",
 		"equivalent_cost":   "等价值",
 	}

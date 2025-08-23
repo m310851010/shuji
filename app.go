@@ -16,6 +16,7 @@ import (
 
 	"github.com/klauspost/cpuid/v2"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"shuji/data_import"
 )
 
 var dbDst string
@@ -395,36 +396,64 @@ func (a *App) CopyFileToCache(src string) FlagResult {
     return FlagResult{true, cachePath}
 }
 
+// GetDB 获取数据库实例
+func (a *App) GetDB() *db.Database {
+	return a.db
+}
+
+// ValidateTable1File 校验附表1文件
+func (a *App) ValidateTable1File(filePath string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ValidateTable1File(filePath)
+}
+
+// ValidateTable2File 校验附表2文件
+func (a *App) ValidateTable2File(filePath string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ValidateTable2File(filePath)
+}
+
+// ValidateTable3File 校验附表3文件
+func (a *App) ValidateTable3File(filePath string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ValidateTable3File(filePath)
+}
+
+// ValidateAttachment2File 校验附件2文件
+func (a *App) ValidateAttachment2File(filePath string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ValidateAttachment2File(filePath)
+}
 
 
 // ==================== 导入记录服务 API ====================
 
 // InsertImportRecord 插入导入记录
-func (a *App) InsertImportRecord(record *DataImportRecord) QueryResult {
+func (a *App) InsertImportRecord(record *data_import.DataImportRecord) db.QueryResult {
 	if a.dbError != nil {
-		return QueryResult{Ok: false, Message: "数据库连接失败"}
+		return db.QueryResult{Ok: false, Message: "数据库连接失败"}
 	}
 
-	service := NewDataImportRecordService(a.db)
+	service := data_import.NewDataImportRecordService(a)
 	err := service.InsertImportRecord(record)
 	if err != nil {
-		return QueryResult{Ok: false, Message: err.Error()}
+		return db.QueryResult{Ok: false, Message: err.Error()}
 	}
 
-	return QueryResult{Ok: true, Message: "导入记录插入成功", Data: record}
+	return db.QueryResult{Ok: true, Message: "导入记录插入成功", Data: record}
 }
 
 // GetImportRecordsByFileType 根据文件类型查询导入记录
-func (a *App) GetImportRecordsByFileType(fileType string) QueryResult {
+func (a *App) GetImportRecordsByFileType(fileType string) db.QueryResult {
 	if a.dbError != nil {
-		return QueryResult{Ok: false, Message: "数据库连接失败"}
+		return db.QueryResult{Ok: false, Message: "数据库连接失败"}
 	}
 
-	service := NewDataImportRecordService(a.db)
+	service := data_import.NewDataImportRecordService(a)
 	records, err := service.GetImportRecordsByFileType(fileType)
 	if err != nil {
-		return QueryResult{Ok: false, Message: err.Error()}
+		return db.QueryResult{Ok: false, Message: err.Error()}
 	}
 
-	return QueryResult{Ok: true, Message: "查询成功", Data: records}
+	return db.QueryResult{Ok: true, Message: "查询成功", Data: records}
 }

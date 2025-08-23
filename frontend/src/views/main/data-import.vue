@@ -20,15 +20,22 @@
   import DataImportTab from './components/DataImportTab.vue';
   import { TableOptions, TableType } from '@/views/constant';
   import {
-    ImportTable1,
-    ImportTable2,
-    ImportTable3,
-    ImportAttachment2,
     ValidateTable1File,
     ValidateTable2File,
     ValidateTable3File,
     ValidateAttachment2File
+    /*ImportTable1,
+    ImportTable2,
+    ImportTable3,
+    ImportAttachment2,
+
+    ValidateAttachment2File*/
   } from '@wailsjs/go';
+
+  const ImportTable1 ={} ,
+      ImportTable2 ={} ,
+      ImportTable3 ={} ,
+      ImportAttachment2  ={}
 
   const tableTab = ref<TableType>(TableType.table1);
   const data_1 = reactive({

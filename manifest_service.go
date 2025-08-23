@@ -7,14 +7,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"shuji/db"
 
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
+	"shuji/data_import"
 )
 
 // ValidateEnterpriseListFile 校验企业清单文件并返回数据
-func (a *App) ValidateEnterpriseListFile(filePath string) QueryResult {
-	result := QueryResult{
+func (a *App) ValidateEnterpriseListFile(filePath string) db.QueryResult {
+	result := db.QueryResult{
 		Ok:      false,
 		Data:    nil,
 		Message: "",
@@ -95,8 +97,8 @@ func (a *App) ValidateEnterpriseListFile(filePath string) QueryResult {
 }
 
 // ValidateKeyEquipmentListFile 校验装置清单文件
-func (a *App) ValidateKeyEquipmentListFile(filePath string) QueryResult {
-	result := QueryResult{
+func (a *App) ValidateKeyEquipmentListFile(filePath string) db.QueryResult {
+	result := db.QueryResult{
 		Ok:      false,
 		Data:    nil,
 		Message: "",
@@ -189,9 +191,9 @@ func (a *App) ValidateKeyEquipmentListFile(filePath string) QueryResult {
 }
 
 // ImportEnterpriseList 导入企业清单
-func (a *App) ImportEnterpriseList(filePath string) QueryResult {
+func (a *App) ImportEnterpriseList(filePath string) db.QueryResult {
 
-	result := QueryResult{
+	result := db.QueryResult{
 		Ok:      false,
 		Data:    nil,
 		Message: "",
@@ -272,7 +274,7 @@ func (a *App) ImportEnterpriseList(filePath string) QueryResult {
 	}
 
 	// 记录导入历史
-	record := &DataImportRecord{
+	record := &data_import.DataImportRecord{
 		FileName:    newFileName,
 		FileType:    "企业清单",
 		ImportState: "上传成功",
@@ -291,8 +293,8 @@ func (a *App) ImportEnterpriseList(filePath string) QueryResult {
 }
 
 // ImportKeyEquipmentList 导入装置清单
-func (a *App) ImportKeyEquipmentList(filePath string) QueryResult {
-	var result QueryResult
+func (a *App) ImportKeyEquipmentList(filePath string) db.QueryResult {
+	var result db.QueryResult
 	fileName := "文件:" + filepath.Base(filePath) + " "
 
 	// 打开Excel文件
@@ -370,7 +372,7 @@ func (a *App) ImportKeyEquipmentList(filePath string) QueryResult {
 	}
 
 	// 记录导入历史
-	record := &DataImportRecord{
+	record := &data_import.DataImportRecord{
 		FileName:    newFileName,
 		FileType:    "装置清单",
 		ImportState: "上传成功",

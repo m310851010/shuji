@@ -1,5 +1,63 @@
+export namespace data_import {
+	
+	export class DataImportRecord {
+	    FileName: string;
+	    FileType: string;
+	    // Go type: time
+	    ImportTime: any;
+	    ImportState: string;
+	    Describe: string;
+	    CreateUser: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DataImportRecord(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.FileName = source["FileName"];
+	        this.FileType = source["FileType"];
+	        this.ImportTime = this.convertValues(source["ImportTime"], null);
+	        this.ImportState = source["ImportState"];
+	        this.Describe = source["Describe"];
+	        this.CreateUser = source["CreateUser"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace db {
 	
+	export class Database {
+	
+	
+	    static createFrom(source: any = {}) {
+	        return new Database(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	
+	    }
+	}
 	export class QueryResult {
 	    ok: boolean;
 	    data: any;
@@ -52,49 +110,6 @@ export namespace main {
 	        this.message = source["message"];
 	        this.errors = source["errors"];
 	    }
-	}
-	export class DataImportRecord {
-	    obj_id: string;
-	    file_name: string;
-	    file_type: string;
-	    // Go type: time
-	    import_time: any;
-	    import_state: string;
-	    describe: string;
-	    create_user: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new DataImportRecord(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.obj_id = source["obj_id"];
-	        this.file_name = source["file_name"];
-	        this.file_type = source["file_type"];
-	        this.import_time = this.convertValues(source["import_time"], null);
-	        this.import_state = source["import_state"];
-	        this.describe = source["describe"];
-	        this.create_user = source["create_user"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class EnvResult {
 	    appName: string;
@@ -377,22 +392,6 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.response = source["response"];
 	        this.checkboxChecked = source["checkboxChecked"];
-	    }
-	}
-	export class QueryResult {
-	    ok: boolean;
-	    data: any;
-	    message: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new QueryResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ok = source["ok"];
-	        this.data = source["data"];
-	        this.message = source["message"];
 	    }
 	}
 

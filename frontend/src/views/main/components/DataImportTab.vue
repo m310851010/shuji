@@ -66,11 +66,16 @@
 
     model.value.isImporting = true;
 
+    const checkResults: any[] = [];
     try {
-      // 批量处理文件
+      // 批量处理文件, 把处理结果放到一个数组中
+
       for (let i = 0; i < model.value.selectedFiles.length; i++) {
         const file = model.value.selectedFiles[i];
-
+        model.value.checkFunc(file.fullPath).then((result: any) => {
+          checkResults.push(result);
+        });
+/*
         const fn = async () => {
           const importResult = await model.value.importFunc(file.fullPath);
           if (importResult.ok) {
@@ -117,9 +122,10 @@
             description: checkResult.message,
             duration: 5
           });
-        }
+        }*/
       }
 
+      console.log(checkResults);
       console.log('批量导入完成');
       model.value.isImporting = false;
 

@@ -17,13 +17,6 @@ type FlagResult struct {
 	Data string `json:"data"`
 }
 
-// QueryResult 查询结果
-type QueryResult struct {
-	Ok      bool        `json:"ok"`
-	Data    interface{} `json:"data"`
-	Message string      `json:"message"` // 消息内容
-}
-
 // FileInfo 自定义结构体，用于返回前端
 type FileInfo struct {
 	Name         string `json:"name"`         // 文件名（不含路径）

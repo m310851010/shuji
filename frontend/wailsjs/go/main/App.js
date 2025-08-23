@@ -54,6 +54,10 @@ export function GetCurrentOSUser() {
   return window['go']['main']['App']['GetCurrentOSUser']();
 }
 
+export function GetDB() {
+  return window['go']['main']['App']['GetDB']();
+}
+
 export function GetDataCheckDetail(arg1, arg2) {
   return window['go']['main']['App']['GetDataCheckDetail'](arg1, arg2);
 }
@@ -214,6 +218,10 @@ export function ShowMessageBox(arg1) {
   return window['go']['main']['App']['ShowMessageBox'](arg1);
 }
 
+export function ValidateAttachment2File(arg1) {
+  return window['go']['main']['App']['ValidateAttachment2File'](arg1);
+}
+
 export function ValidateEnterpriseListFile(arg1) {
   return window['go']['main']['App']['ValidateEnterpriseListFile'](arg1);
 }
@@ -224,4 +232,16 @@ export function ValidateKeyEquipmentListFile(arg1) {
 
 export function ValidateMergeSource(arg1) {
   return window['go']['main']['App']['ValidateMergeSource'](arg1);
+}
+
+export function ValidateTable1File(arg1) {
+  return window['go']['main']['App']['ValidateTable1File'](arg1);
+}
+
+export function ValidateTable2File(arg1) {
+  return window['go']['main']['App']['ValidateTable2File'](arg1);
+}
+
+export function ValidateTable3File(arg1) {
+  return window['go']['main']['App']['ValidateTable3File'](arg1);
 }
