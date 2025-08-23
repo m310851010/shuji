@@ -123,7 +123,7 @@ func (d *Database) Exec(query string, args ...interface{}) (QueryResult, error) 
 	lastID, _ := result.LastInsertId()
 	rowsAffected, _ := result.RowsAffected()
 
-	log.Printf("SQL执行成功: lastID=%d, rowsAffected=%d", lastID, rowsAffected)
+	log.Printf("SQL执行成功, sql: %s, args: %v", query, args)
 
 	return QueryResult{
 		Ok: true,

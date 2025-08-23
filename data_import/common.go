@@ -11,6 +11,7 @@ type App interface {
 	GetDB() *db.Database
 	GetAreaConfig() db.QueryResult
 	InsertImportRecord(fileName, fileType, importState, describe string) db.QueryResult
+	CheckEnterpriseList() (bool, error)
 }
 
 // DataImportService 数据导入服务
@@ -78,29 +79,6 @@ func (s *DataImportService) findTableEndRow(rows [][]string, startRow int, endKe
 		}
 	}
 	return len(rows)
-}
-
-// isValidDataRow 检查是否为有效数据行
-func (s *DataImportService) isValidDataRow(row []string) bool {
-	if len(row) == 0 {
-		return false
-	}
-
-	// 检查第一列是否为空
-	firstCell := strings.TrimSpace(row[0])
-	if firstCell == "" {
-		return false
-	}
-
-	// 检查是否为表格标题行
-	titleKeywords := []string{"表格", "情况", "汇总", "信息", "消费", "项目", "企业", "单位"}
-	for _, keyword := range titleKeywords {
-		if strings.Contains(firstCell, keyword) && len(firstCell) > 10 {
-			return false
-		}
-	}
-
-	return true
 }
 
 // cleanCellValue 清理单元格值

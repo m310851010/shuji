@@ -267,12 +267,6 @@ func (a *App) ImportEnterpriseList(filePath string) db.QueryResult {
 		count++
 	}
 
-	_, err = CopyCacheFile(filePath)
-	if err != nil {
-		result.Message = "复制缓存文件失败: " + err.Error()
-		return result
-	}
-
 	// 记录导入历史
 	importRecordResult := a.InsertImportRecord(fileName, "企业清单", "上传成功", fmt.Sprintf("成功导入%d条记录", count))
 	if !importRecordResult.Ok {
@@ -356,12 +350,6 @@ func (a *App) ImportKeyEquipmentList(filePath string) db.QueryResult {
 			return result
 		}
 		count++
-	}
-
-	_, err = CopyCacheFile(filePath)
-	if err != nil {
-		result.Message = "复制缓存文件失败: " + err.Error()
-		return result
 	}
 
 	// 记录导入历史

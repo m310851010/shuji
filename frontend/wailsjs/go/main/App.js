@@ -18,6 +18,10 @@ export function CheckAndExportToExcel(arg1) {
   return window['go']['main']['App']['CheckAndExportToExcel'](arg1);
 }
 
+export function CheckEnterpriseList() {
+  return window['go']['main']['App']['CheckEnterpriseList']();
+}
+
 export function CopyFileToCache(arg1) {
   return window['go']['main']['App']['CopyFileToCache'](arg1);
 }

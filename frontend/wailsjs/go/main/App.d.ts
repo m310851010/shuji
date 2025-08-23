@@ -11,6 +11,8 @@ export function CancelImport(arg1:string):Promise<any>;
 
 export function CheckAndExportToExcel(arg1:string):Promise<boolean>;
 
+export function CheckEnterpriseList():Promise<boolean>;
+
 export function CopyFileToCache(arg1:string):Promise<main.FlagResult>;
 
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
