@@ -84,8 +84,8 @@ func (a *App) ValidateEnterpriseListFile(filePath string) db.QueryResult {
 		}
 	}
 
-    isEnterpriseListExist = false
-	ok, err := a.CheckEnterpriseList()
+	isEnterpriseListExist = false
+	ok, err := a.IsEnterpriseListExist()
 	if err != nil {
 		result.Message = "查询企业清单失败: " + err.Error()
 		return result
@@ -179,8 +179,8 @@ func (a *App) ValidateKeyEquipmentListFile(filePath string) db.QueryResult {
 		}
 	}
 
-    isEnterpriseListExist = false
-	ok, err := a.CheckKeyEquipmentList()
+	isEnterpriseListExist = false
+	ok, err := a.IsEquipmentListExist()
 	if err != nil {
 		result.Message = "查询装置清单失败: " + err.Error()
 		return result
@@ -376,7 +376,7 @@ func validateHeaders(headers []string, expectedHeaders []string) bool {
 var isEnterpriseListExist = false
 
 // 检查企业清单是否存在
-func (a *App) CheckEnterpriseList() (bool, error) {
+func (a *App) IsEnterpriseListExist() (bool, error) {
 	if isEnterpriseListExist {
 		return isEnterpriseListExist, nil
 	}
@@ -413,8 +413,8 @@ func (a *App) GetEnterpriseNameByCreditCode(creditCode string) (string, error) {
 var isEquipmentListExist = false
 
 // 检查装置清单是否存在
-func (a *App) CheckKeyEquipmentList() (bool, error) {
-    if isEquipmentListExist {
+func (a *App) IsEquipmentListExist() (bool, error) {
+	if isEquipmentListExist {
 		return isEquipmentListExist, nil
 	}
 	rows, err := a.db.QueryRow("SELECT COUNT(1) as count FROM key_equipment_list")
@@ -424,4 +424,30 @@ func (a *App) CheckKeyEquipmentList() (bool, error) {
 
 	isEquipmentListExist = rows.Data.(map[string]interface{})["count"].(int64) > 0
 	return isEquipmentListExist, nil
+}
+
+// 获取装置清单信息By信用代码
+func (a *App) GetEquipmentByCreditCode(creditCode string) db.QueryResult {
+	rows, err := a.db.QueryRow("SELECT province_name, city_name, country_name, unit_name FROM key_equipment_list WHERE credit_code = ?", creditCode)
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Data:    nil,
+			Message: "查询装置清单失败: " + err.Error(),
+		}
+	}
+
+	if rows.Data == nil {
+		return db.QueryResult{
+			Ok:      false,
+			Data:    nil,
+			Message: "查询装置清单失败",
+		}
+	}
+
+	return db.QueryResult{
+		Ok:      true,
+		Data:    rows.Data,
+		Message: "查询装置清单成功",
+	}
 }

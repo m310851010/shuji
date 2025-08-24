@@ -18,14 +18,6 @@ export function CheckAndExportToExcel(arg1) {
   return window['go']['main']['App']['CheckAndExportToExcel'](arg1);
 }
 
-export function CheckEnterpriseList() {
-  return window['go']['main']['App']['CheckEnterpriseList']();
-}
-
-export function CheckKeyEquipmentList() {
-  return window['go']['main']['App']['CheckKeyEquipmentList']();
-}
-
 export function CopyFileToCache(arg1) {
   return window['go']['main']['App']['CopyFileToCache'](arg1);
 }
@@ -98,6 +90,10 @@ export function GetEnv() {
   return window['go']['main']['App']['GetEnv']();
 }
 
+export function GetEquipmentByCreditCode(arg1) {
+  return window['go']['main']['App']['GetEquipmentByCreditCode'](arg1);
+}
+
 export function GetExportHistory(arg1, arg2) {
   return window['go']['main']['App']['GetExportHistory'](arg1, arg2);
 }
@@ -136,6 +132,14 @@ export function ImportKeyEquipmentList(arg1) {
 
 export function InsertImportRecord(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['InsertImportRecord'](arg1, arg2, arg3, arg4);
+}
+
+export function IsEnterpriseListExist() {
+  return window['go']['main']['App']['IsEnterpriseListExist']();
+}
+
+export function IsEquipmentListExist() {
+  return window['go']['main']['App']['IsEquipmentListExist']();
 }
 
 export function Login(arg1) {

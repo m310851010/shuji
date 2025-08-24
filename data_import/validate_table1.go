@@ -532,8 +532,8 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 		creditCode := s.getStringValue(data["credit_code"])
 
 		if unitName != "" && creditCode != "" {
-			// 第一步: 调用s.app.CheckEnterpriseList(), 检查企业清单是否存在, 不存在直接校验通过
-			hasEnterpriseList, err := s.app.CheckEnterpriseList()
+			// 第一步: 调用s.app.IsEnterpriseListExist(), 检查企业清单是否存在, 不存在直接校验通过
+			hasEnterpriseList, err := s.app.IsEnterpriseListExist()
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("第%d行：企业清单检查失败", excelRowNum))
 				continue

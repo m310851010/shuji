@@ -11,10 +11,6 @@ export function CancelImport(arg1:string):Promise<any>;
 
 export function CheckAndExportToExcel(arg1:string):Promise<boolean>;
 
-export function CheckEnterpriseList():Promise<boolean>;
-
-export function CheckKeyEquipmentList():Promise<boolean>;
-
 export function CopyFileToCache(arg1:string):Promise<db.QueryResult>;
 
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
@@ -51,6 +47,8 @@ export function GetEnterpriseNameByCreditCode(arg1:string):Promise<string>;
 
 export function GetEnv():Promise<main.EnvResult>;
 
+export function GetEquipmentByCreditCode(arg1:string):Promise<db.QueryResult>;
+
 export function GetExportHistory(arg1:number,arg2:number):Promise<any>;
 
 export function GetFileInfo(arg1:string):Promise<main.FileInfo>;
@@ -70,6 +68,10 @@ export function ImportEnterpriseList(arg1:string):Promise<db.QueryResult>;
 export function ImportKeyEquipmentList(arg1:string):Promise<db.QueryResult>;
 
 export function InsertImportRecord(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function IsEnterpriseListExist():Promise<boolean>;
+
+export function IsEquipmentListExist():Promise<boolean>;
 
 export function Login(arg1:string):Promise<db.QueryResult>;
 

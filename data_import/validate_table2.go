@@ -228,17 +228,17 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 
 	// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
 	if isCover {
-        // 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
-        cacheResult := s.app.CacheFileExists(fileName)
-        if cacheResult.Ok {
-            // 文件已存在，直接返回，需要前端确认
-            return db.QueryResult{
-                Ok:      false,
-                Message: "文件已存在，需要确认是否覆盖",
-                Data:    "FILE_EXISTS",
-            }
-        }
-    }
+		// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+		cacheResult := s.app.CacheFileExists(fileName)
+		if cacheResult.Ok {
+			// 文件已存在，直接返回，需要前端确认
+			return db.QueryResult{
+				Ok:      false,
+				Message: "文件已存在，需要确认是否覆盖",
+				Data:    "FILE_EXISTS",
+			}
+		}
+	}
 
 	// 第五步: 按行读取文件数据并校验
 	validationErrors := s.validateTable2DataWithEnterpriseCheck(mainData)
@@ -285,8 +285,8 @@ func (s *DataImportService) validateTable2DataWithEnterpriseCheck(mainData []map
 		creditCode := s.getStringValue(data["credit_code"])
 
 		if unitName != "" && creditCode != "" {
-			// 第一步: 调用s.app.CheckEnterpriseList(), 检查企业清单是否存在, 不存在直接校验通过
-			hasEnterpriseList, err := s.app.CheckEnterpriseList()
+			// 第一步: 调用s.app.IsEnterpriseListExist(), 检查企业清单是否存在, 不存在直接校验通过
+			hasEnterpriseList, err := s.app.IsEnterpriseListExist()
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("第%d行：企业清单检查失败", excelRowNum))
 				continue

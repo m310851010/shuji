@@ -11,10 +11,12 @@ type App interface {
 	GetDB() *db.Database
 	GetAreaConfig() db.QueryResult
 	InsertImportRecord(fileName, fileType, importState, describe string)
-	CheckEnterpriseList() (bool, error)
+	IsEnterpriseListExist() (bool, error)
 	GetEnterpriseNameByCreditCode(creditCode string) (string, error)
 	CacheFileExists(fileName string) db.QueryResult
 	CopyFileToCache(src string) db.QueryResult
+	IsEquipmentListExist() (bool, error)
+	GetEquipmentByCreditCode(creditCode string) db.QueryResult
 }
 
 // DataImportService 数据导入服务
