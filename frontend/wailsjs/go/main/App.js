@@ -14,10 +14,6 @@ export function CancelImport(arg1) {
   return window['go']['main']['App']['CancelImport'](arg1);
 }
 
-export function CheckAndExportToExcel(arg1) {
-  return window['go']['main']['App']['CheckAndExportToExcel'](arg1);
-}
-
 export function CopyFileToCache(arg1, arg2) {
   return window['go']['main']['App']['CopyFileToCache'](arg1, arg2);
 }
@@ -34,10 +30,6 @@ export function ExportAllData(arg1) {
   return window['go']['main']['App']['ExportAllData'](arg1);
 }
 
-export function ExportCheckResultsToExcel(arg1) {
-  return window['go']['main']['App']['ExportCheckResultsToExcel'](arg1);
-}
-
 export function ExportData(arg1, arg2, arg3) {
   return window['go']['main']['App']['ExportData'](arg1, arg2, arg3);
 }
@@ -50,36 +42,20 @@ export function GetAreaConfig() {
   return window['go']['main']['App']['GetAreaConfig']();
 }
 
+export function GetCachePath(arg1) {
+  return window['go']['main']['App']['GetCachePath'](arg1);
+}
+
+export function GetCtx() {
+  return window['go']['main']['App']['GetCtx']();
+}
+
 export function GetCurrentOSUser() {
   return window['go']['main']['App']['GetCurrentOSUser']();
 }
 
 export function GetDB() {
   return window['go']['main']['App']['GetDB']();
-}
-
-export function GetDataCheckDetail(arg1, arg2) {
-  return window['go']['main']['App']['GetDataCheckDetail'](arg1, arg2);
-}
-
-export function GetDataCheckList(arg1, arg2, arg3) {
-  return window['go']['main']['App']['GetDataCheckList'](arg1, arg2, arg3);
-}
-
-export function GetDataCheckListAttachment2(arg1, arg2) {
-  return window['go']['main']['App']['GetDataCheckListAttachment2'](arg1, arg2);
-}
-
-export function GetDataCheckListTable1(arg1, arg2) {
-  return window['go']['main']['App']['GetDataCheckListTable1'](arg1, arg2);
-}
-
-export function GetDataCheckListTable2(arg1, arg2) {
-  return window['go']['main']['App']['GetDataCheckListTable2'](arg1, arg2);
-}
-
-export function GetDataCheckListTable3(arg1, arg2) {
-  return window['go']['main']['App']['GetDataCheckListTable3'](arg1, arg2);
 }
 
 export function GetEnterpriseNameByCreditCode(arg1) {
@@ -150,36 +126,16 @@ export function Makedir(arg1) {
   return window['go']['main']['App']['Makedir'](arg1);
 }
 
-export function ManualDataCheck(arg1) {
-  return window['go']['main']['App']['ManualDataCheck'](arg1);
-}
-
-export function ManualDataCheckAttachment2(arg1) {
-  return window['go']['main']['App']['ManualDataCheckAttachment2'](arg1);
-}
-
-export function ManualDataCheckTable1(arg1) {
-  return window['go']['main']['App']['ManualDataCheckTable1'](arg1);
-}
-
-export function ManualDataCheckTable2(arg1) {
-  return window['go']['main']['App']['ManualDataCheckTable2'](arg1);
-}
-
-export function ManualDataCheckTable3(arg1) {
-  return window['go']['main']['App']['ManualDataCheckTable3'](arg1);
-}
-
 export function MergeDatabase(arg1, arg2) {
   return window['go']['main']['App']['MergeDatabase'](arg1, arg2);
 }
 
-export function ModelDataCheck() {
-  return window['go']['main']['App']['ModelDataCheck']();
-}
-
 export function ModelDataCheckAttachment2() {
   return window['go']['main']['App']['ModelDataCheckAttachment2']();
+}
+
+export function ModelDataCheckReportDownload(arg1) {
+  return window['go']['main']['App']['ModelDataCheckReportDownload'](arg1);
 }
 
 export function ModelDataCheckTable1() {
@@ -192,6 +148,22 @@ export function ModelDataCheckTable2() {
 
 export function ModelDataCheckTable3() {
   return window['go']['main']['App']['ModelDataCheckTable3']();
+}
+
+export function ModelDataCoverAttachment2(arg1) {
+  return window['go']['main']['App']['ModelDataCoverAttachment2'](arg1);
+}
+
+export function ModelDataCoverTable1(arg1) {
+  return window['go']['main']['App']['ModelDataCoverTable1'](arg1);
+}
+
+export function ModelDataCoverTable2(arg1) {
+  return window['go']['main']['App']['ModelDataCoverTable2'](arg1);
+}
+
+export function ModelDataCoverTable3(arg1) {
+  return window['go']['main']['App']['ModelDataCoverTable3'](arg1);
 }
 
 export function Movefile(arg1, arg2) {
@@ -220,6 +192,14 @@ export function Readdir(arg1) {
 
 export function Removefile(arg1) {
   return window['go']['main']['App']['Removefile'](arg1);
+}
+
+export function SM4Decrypt(arg1) {
+  return window['go']['main']['App']['SM4Decrypt'](arg1);
+}
+
+export function SM4Encrypt(arg1) {
+  return window['go']['main']['App']['SM4Encrypt'](arg1);
 }
 
 export function SaveAreaConfig(arg1) {

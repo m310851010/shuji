@@ -182,13 +182,7 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
-				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "coal") || strings.Contains(fieldName, "coke") {
-					// 数值字段
-					dataRow[fieldName] = s.parseNumericValue(cleanedValue)
-				} else {
-					// 文本字段
-					dataRow[fieldName] = cleanedValue
-				}
+				dataRow[fieldName] = cleanedValue
 			}
 		}
 
@@ -307,9 +301,4 @@ func (s *DataImportService) validateAttachment2Data(mainData []map[string]interf
 	}
 
 	return errors
-}
-
-// checkAttachment2HasData 检查附件2相关表是否有数据
-func (s *DataImportService) checkAttachment2HasData() bool {
-	return s.checkTableHasData(TableCoalConsumptionReport)
 }

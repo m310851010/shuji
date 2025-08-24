@@ -1,9 +1,17 @@
 package data_import
 
 import (
+	"archive/zip"
+	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"shuji/db"
+	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // 文件类型常量
@@ -13,6 +21,12 @@ const (
 	TableName3       = "新上项目"
 	TableAttachment2 = "区域综合"
 )
+
+// ValidationError 验证错误结构
+type ValidationError struct {
+	RowNumber int    `json:"row_number"`
+	Message   string `json:"message"`
+}
 
 const (
 	TableType1           = "table1"
@@ -32,6 +46,11 @@ type App interface {
 	CopyFileToCache(tableType string, fileName string) db.QueryResult
 	IsEquipmentListExist() (bool, error)
 	GetEquipmentByCreditCode(creditCode string) db.QueryResult
+	SM4Encrypt(plaintext string) (string, error)
+	SM4Decrypt(ciphertext string) (string, error)
+	GetCachePath(tableType string) string
+	GetCurrentOSUser() string
+	GetCtx() context.Context
 }
 
 // DataImportService 数据导入服务
@@ -482,3 +501,134 @@ var (
 		"coke":             "焦炭消费摸底",
 	}
 )
+
+// generateUUID 生成UUID
+func (s *DataImportService) generateUUID() string {
+	return uuid.New().String()
+}
+
+// parseFloat 解析浮点数
+func (s *DataImportService) parseFloat(value string) (float64, error) {
+	// 移除逗号
+	value = strings.ReplaceAll(value, ",", "")
+	// 移除空格
+	value = strings.TrimSpace(value)
+
+	if value == "" {
+		return 0, nil
+	}
+
+	return strconv.ParseFloat(value, 64)
+}
+
+// getExcelRowNumber 获取记录中的Excel行号
+func (s *DataImportService) getExcelRowNumber(data map[string]interface{}) int {
+	// 尝试获取记录的行号
+	if rowNum, ok := data["_excel_row"].(int); ok {
+		return rowNum
+	}
+
+	// 如果没有找到行号，返回默认值
+	return 1
+}
+
+func (s *DataImportService) getTableName(tableType string) string {
+	switch tableType {
+	case TableType1:
+		return TableName1
+	case TableType2:
+		return TableName2
+	case TableType3:
+		return TableName3
+	case TableTypeAttachment2:
+		return TableAttachment2
+	}
+	return ""
+}
+
+// createValidationErrorZip 创建验证错误文件的ZIP包
+func (s *DataImportService) createValidationErrorZip(failedFiles []string, tableType, tableName string) error {
+	if len(failedFiles) == 0 {
+		return nil
+	}
+
+	cacheDir := s.app.GetCachePath(tableType)
+	// 创建ZIP文件
+	zipFileName := fmt.Sprintf("%s模型报告.zip", tableName)
+	zipPath := filepath.Join(cacheDir, zipFileName)
+
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		return fmt.Errorf("创建ZIP文件失败: %v", err)
+	}
+	defer zipFile.Close()
+
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	// 添加文件到ZIP
+	for _, filePath := range failedFiles {
+		file, err := os.Open(filePath)
+		if err != nil {
+			continue // 跳过无法打开的文件
+		}
+		defer file.Close()
+
+		// 获取文件名
+		fileName := filepath.Base(filePath)
+
+		// 创建ZIP条目
+		zipEntry, err := zipWriter.Create(fileName)
+		if err != nil {
+			continue
+		}
+
+		// 复制文件内容
+		_, err = io.Copy(zipEntry, file)
+		if err != nil {
+			continue
+		}
+	}
+	return nil
+}
+
+// encryptNumericFields 通用数值字段加密函数
+func (s *DataImportService) encryptNumericFields(record map[string]interface{}, numericFields []string) map[string]interface{} {
+	encrypted := make(map[string]interface{})
+
+	for _, field := range numericFields {
+		if value, ok := record[field].(string); ok && value != "" {
+			if encryptedValue, err := s.app.SM4Encrypt(value); err == nil {
+				encrypted[field] = encryptedValue
+			} else {
+				encrypted[field] = ""
+			}
+		} else {
+			encrypted[field] = ""
+		}
+	}
+
+	return encrypted
+}
+
+// formatErrorMessages 格式化错误信息，每条错误使用序号标识并换行
+func formatErrorMessages(errorMsg string) string {
+	if errorMsg == "" {
+		return ""
+	}
+
+	// 按分号分割错误信息
+	errors := strings.Split(errorMsg, ";")
+
+	var formattedErrors []string
+	for i, err := range errors {
+		err = strings.TrimSpace(err)
+		if err != "" {
+			// 添加序号并换行
+			formattedErrors = append(formattedErrors, fmt.Sprintf("%d. %s", i+1, err))
+		}
+	}
+
+	// 用换行符连接所有错误信息
+	return strings.Join(formattedErrors, "\n")
+}

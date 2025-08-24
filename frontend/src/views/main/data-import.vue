@@ -21,18 +21,12 @@
   import { TableOptions, TableType, TableTypeName } from '@/views/constant';
   import { ValidateTable1File, ValidateTable2File, ValidateTable3File, ValidateAttachment2File } from '@wailsjs/go';
 
-  const ImportTable1 = {},
-    ImportTable2 = {},
-    ImportTable3 = {},
-    ImportAttachment2 = {};
-
   const tableTab = ref<TableType>(TableType.table1);
   const data_1 = reactive({
     selectedFiles: [],
     name: TableTypeName.table1,
     tableType: TableType.table1,
     checkFunc: ValidateTable1File,
-    importFunc: ImportTable1
   });
 
   const data_2 = reactive({
@@ -40,7 +34,6 @@
     name: TableTypeName.table2,
     tableType: TableType.table2,
     checkFunc: ValidateTable2File,
-    importFunc: ImportTable2
   });
 
   const data_3 = reactive({
@@ -48,7 +41,6 @@
     name: TableTypeName.table3,
     tableType: TableType.table3,
     checkFunc: ValidateTable3File,
-    importFunc: ImportTable3
   });
 
   const data_4 = reactive({
@@ -56,7 +48,6 @@
     name: TableTypeName.attachment2,
     tableType: TableType.attachment2,
     checkFunc: ValidateAttachment2File,
-    importFunc: ImportAttachment2
   });
 
   const dataMap = {

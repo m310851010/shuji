@@ -60,7 +60,7 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 
 	// 构建表头映射
 	headerMap := make(map[int]string)
-	
+
 	if !skipValidate {
 		// 检查表头一致性
 		if len(headers) < len(expectedHeaders) {
@@ -78,7 +78,7 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 			}
 		}
 	}
-	
+
 	// 构建表头映射（无论是否跳过校验都需要）
 	for i, expected := range expectedHeaders {
 		if i < len(headers) {
@@ -103,13 +103,7 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
-				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "capacity") || strings.Contains(fieldName, "runtime") || strings.Contains(fieldName, "life") {
-					// 数值字段
-					dataRow[fieldName] = s.parseNumericValue(cleanedValue)
-				} else {
-					// 文本字段
-					dataRow[fieldName] = cleanedValue
-				}
+				dataRow[fieldName] = cleanedValue
 			}
 		}
 
@@ -185,7 +179,7 @@ func (s *DataImportService) mapTable2HeaderToField(header string) string {
 
 	// 字段映射
 	fieldMap := map[string]string{
-		"序号":         "sequence_no",
+		"序号":         "row_no",
 		"类型":         "equip_type",
 		"编号":         "equip_no",
 		"累计使用时间":     "total_runtime",

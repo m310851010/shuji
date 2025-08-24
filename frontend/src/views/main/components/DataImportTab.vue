@@ -70,7 +70,6 @@
 
   const handleImportRecords = async () => {
     const result = await GetImportRecordsByFileType(model.value.tableType);
-    console.log(result);
     if (result.ok) {
       dataSource.value = result.data;
     }
@@ -98,7 +97,6 @@
       const file = model.value.selectedFiles[i];
       checkResultList.push(
         model.value.checkFunc(file.fullPath, true).then((result: any) => {
-          console.log(result);
           result.fullPath = file.fullPath;
           result.fileName = getFileName(file.fullPath);
           // 需要覆盖的文件
@@ -119,7 +117,7 @@
         title: '文件覆盖确认',
         content: () => (
           <>
-            <h3 style="color: #f5222d;margin-bottom:15px;text-align:center">以下文件已被上传，是否覆盖？</h3>
+            <h3 style="color: #f5222d;margin-bottom:15px;text-align:center">以下文件已被导入，是否覆盖？</h3>
             <div style="max-height: 350px; overflow: auto">
               <TodoCoverTable
                 fileList={confirmCoverList.value}

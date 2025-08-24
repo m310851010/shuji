@@ -244,13 +244,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
-				if strings.Contains(fieldName, "quantity") {
-					// 数值字段
-					dataRow[fieldName] = s.parseNumericValue(cleanedValue)
-				} else {
-					// 文本字段
-					dataRow[fieldName] = cleanedValue
-				}
+				dataRow[fieldName] = cleanedValue
 			}
 		}
 
@@ -329,13 +323,7 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
-				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "capacity") {
-					// 数值字段
-					dataRow[fieldName] = s.parseNumericValue(cleanedValue)
-				} else {
-					// 文本字段
-					dataRow[fieldName] = cleanedValue
-				}
+				dataRow[fieldName] = cleanedValue
 			}
 		}
 
@@ -385,7 +373,7 @@ func (s *DataImportService) mapTable1UsageHeaderToField(header string) string {
 
 	// 用途表字段映射
 	fieldMap := map[string]string{
-		"序号":     "sequence_no",
+		"序号":     "row_no",
 		"主要用途":   "main_usage",
 		"具体用途":   "specific_usage",
 		"投入品种":   "input_variety",
@@ -406,7 +394,7 @@ func (s *DataImportService) mapTable1EquipHeaderToField(header string) string {
 
 	// 设备表字段映射
 	fieldMap := map[string]string{
-		"序号":         "sequence_no",
+		"序号":         "row_no",
 		"类型":         "equip_type",
 		"编号":         "equip_no",
 		"累计使用时间":     "total_runtime",

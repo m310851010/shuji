@@ -49,22 +49,6 @@ export namespace main {
 	        this.country_name = source["country_name"];
 	    }
 	}
-	export class DataCheckResult {
-	    ok: boolean;
-	    message: string;
-	    errors: string[];
-	
-	    static createFrom(source: any = {}) {
-	        return new DataCheckResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ok = source["ok"];
-	        this.message = source["message"];
-	        this.errors = source["errors"];
-	    }
-	}
 	export class EnvResult {
 	    appName: string;
 	    appFileName: string;
@@ -267,28 +251,6 @@ export namespace main {
 		    }
 		    return a;
 		}
-	}
-	export class ManualCheckResult {
-	    obj_id: string;
-	    table_name: string;
-	    check_result: string;
-	    check_remark: string;
-	    check_user: string;
-	    check_time: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ManualCheckResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.obj_id = source["obj_id"];
-	        this.table_name = source["table_name"];
-	        this.check_result = source["check_result"];
-	        this.check_remark = source["check_remark"];
-	        this.check_user = source["check_user"];
-	        this.check_time = source["check_time"];
-	    }
 	}
 	export class MergeResult {
 	    ok: boolean;

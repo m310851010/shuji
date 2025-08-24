@@ -188,6 +188,10 @@ func (a *App) ExitApp() {
 	os.Exit(0)
 }
 
+func (a *App) GetCtx() context.Context {
+	return a.ctx
+}
+
 // 获取运行环境变量
 func (a *App) GetEnv() EnvResult {
 	return EnvResult{
@@ -394,6 +398,11 @@ func (a *App) GetCurrentOSUser() string {
 	return GetCurrentOSUser()
 }
 
+// GetCachePath 获取缓存路径
+func (a *App) GetCachePath(tableType string) string {
+	return GetPath(filepath.Join(CACHE_FILE_DIR_NAME, tableType))
+}
+
 // CacheFileExists 检查缓存文件是否存在
 func (a *App) CacheFileExists(tableType string, fileName string) db.QueryResult {
 	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, tableType, fileName))
@@ -421,6 +430,8 @@ func (a *App) GetDB() *db.Database {
 	return a.db
 }
 
+// ==================== 校验文件 API ====================
+
 // ValidateTable1File 校验附表1文件
 func (a *App) ValidateTable1File(filePath string, isCover bool) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
@@ -445,6 +456,64 @@ func (a *App) ValidateAttachment2File(filePath string, isCover bool) db.QueryRes
 	return dataImportService.ValidateAttachment2File(filePath, isCover)
 }
 
+// ==================== 模型校验 API ====================
+
+// ModelDataCheckTable1 附表1模型校验
+func (a *App) ModelDataCheckTable1() db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ModelDataCheckTable1()
+}
+
+// ModelDataCheckTable2 附表2模型校验
+func (a *App) ModelDataCheckTable2() db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ModelDataCheckTable2()
+}
+
+// ModelDataCheckTable3 附表3模型校验
+func (a *App) ModelDataCheckTable3() db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ModelDataCheckTable3()
+}
+
+// ModelDataCheckAttachment2 附件2模型校验
+func (a *App) ModelDataCheckAttachment2() db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ModelDataCheckAttachment2()
+}
+
+// ModelDataCheckReportDownload 下载报告
+func (a *App) ModelDataCheckReportDownload(tableType string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ModelDataCheckReportDownload(tableType)
+}
+
+// ==================== 数据覆盖 API ====================
+
+// ModelDataCoverTable1 覆盖附表1数据
+func (a *App) ModelDataCoverTable1(fileNames []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ModelDataCoverTable1(fileNames)
+}
+
+// ModelDataCoverTable2 覆盖附表2数据
+func (a *App) ModelDataCoverTable2(fileNames []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ModelDataCoverTable2(fileNames)
+}
+
+// ModelDataCoverTable3 覆盖附表3数据
+func (a *App) ModelDataCoverTable3(fileNames []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ModelDataCoverTable3(fileNames)
+}
+
+// ModelDataCoverAttachment2 覆盖附件2数据
+func (a *App) ModelDataCoverAttachment2(fileNames []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ModelDataCoverAttachment2(fileNames)
+}
+
 // ==================== 导入记录服务 API ====================
 
 // InsertImportRecord 插入导入记录
@@ -466,4 +535,18 @@ func (a *App) GetImportRecordsByFileType(fileType string) db.QueryResult {
 
 	service := NewDataImportRecordService(a.db)
 	return service.GetImportRecordsByFileType(fileType)
+}
+
+// ========================SM4加密========================
+
+// SM4Encrypt 加密
+func (a *App) SM4Encrypt(plaintext string) (string, error) {
+	string, error := SM4Encrypt(plaintext)
+	return string, error
+}
+
+// SM4Decrypt 解密
+func (a *App) SM4Decrypt(ciphertext string) (string, error) {
+	string, error := SM4Decrypt(ciphertext)
+	return string, error
 }

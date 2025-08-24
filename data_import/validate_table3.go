@@ -100,7 +100,7 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 
 	// 构建表头映射
 	headerArr := []string{
-		"sequence_no",
+		"row_no",
 		"project_name",
 		"project_code",
 		"construction_unit",
@@ -144,13 +144,7 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 			if j < len(headerArr) && headerArr[j] != "" {
 				fieldName := headerArr[j]
 				cleanedValue := s.cleanCellValue(cell)
-				if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "value") || strings.Contains(fieldName, "cost") || strings.Contains(fieldName, "time") {
-					// 数值字段或日期字段
-					dataRow[fieldName] = s.parseNumericValue(cleanedValue)
-				} else {
-					// 文本字段
-					dataRow[fieldName] = cleanedValue
-				}
+				dataRow[fieldName] = cleanedValue
 			}
 		}
 
