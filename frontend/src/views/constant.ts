@@ -4,20 +4,31 @@ import type { SelectProps } from 'ant-design-vue';
  * 导入的文件类型
  */
 export enum TableType {
-  table1 = '附表1',
-  table2 = '附表2',
-  table3 = '附表3',
-  attachment2 = '附件2'
+  table1 = 'table1',
+  table2 = 'table2',
+  table3 = 'table3',
+  attachment2 = 'attachment2'
 }
+
+/**
+ * 导入的文件类型名称
+ */
+export const TableTypeName: Record<TableType, string>  = {
+  [TableType.table1] : '规上企业',
+  [TableType.table2] : '其他单位',
+  [TableType.table3] : '新上项目',
+  [TableType.attachment2] : '区域综合'
+}
+
 
 /**
  * 导入的文件类型选项
  */
 export const TableOptions: SelectProps['options'] = [
-  { label: '规上企业', value: TableType.table1 },
-  { label: '其他单位', value: TableType.table2 },
-  { label: '新上项目', value: TableType.table3 },
-  { label: '区域综合', value: TableType.attachment2 }
+  { label: TableTypeName[TableType.table1], value: TableType.table1 },
+  { label: TableTypeName[TableType.table2], value: TableType.table2 },
+  { label: TableTypeName[TableType.table3], value: TableType.table3 },
+  { label: TableTypeName[TableType.attachment2], value: TableType.attachment2 }
 ];
 
 /**

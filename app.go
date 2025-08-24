@@ -465,10 +465,5 @@ func (a *App) GetImportRecordsByFileType(fileType string) db.QueryResult {
 	}
 
 	service := NewDataImportRecordService(a.db)
-	records, err := service.GetImportRecordsByFileType(fileType)
-	if err != nil {
-		return db.QueryResult{Ok: false, Message: err.Error()}
-	}
-
-	return db.QueryResult{Ok: true, Message: "查询成功", Data: records}
+	return service.GetImportRecordsByFileType(fileType)
 }

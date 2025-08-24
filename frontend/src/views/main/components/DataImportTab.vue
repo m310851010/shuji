@@ -7,7 +7,6 @@
       </a-button>
     </div>
 
-
     <div class="box-grey">
       <a-steps :current="-1" label-placement="vertical" :items="items"></a-steps>
     </div>
@@ -19,13 +18,11 @@
 
     <!-- 文件导入区域 -->
     <UploadComponent v-model="model.selectedFiles" />
-
   </div>
-
 
   <div class="box-grey">
     <div class="bottom-line title">导入记录</div>
-    <a-table :dataSource="dataSource" :columns="columns"  bordered :pagination="false" />
+    <a-table :dataSource="dataSource" :columns="columns" bordered :pagination="false" :scroll="{ y: 300 }" size="small" />
   </div>
 </template>
 
@@ -33,10 +30,12 @@
   import UploadComponent from './Upload.vue';
   import TodoCoverTable from './TodoCoverTable.vue';
   import ShowImportResult from './ShowImportResult.vue';
-  import { TableColumnType } from 'ant-design-vue';
-  import {getFileName, newColumns} from '@/util';
+  import { TableColumnType, Tag } from 'ant-design-vue';
+  import { getFileName, newColumns } from '@/util';
   import { openInfoModal, openModal } from '@/components/useModal';
-  import { message, notification } from 'ant-design-vue';
+  import { GetImportRecordsByFileType } from '@wailsjs/go';
+  import { onMounted } from 'vue';
+  import dayjs from 'dayjs';
 
   const model = defineModel({
     type: Object,
@@ -44,7 +43,8 @@
       selectedFiles: [],
       importFunc: null,
       checkFunc: null,
-      isImporting: false
+      isImporting: false,
+      tableType: ''
     })
   });
 
@@ -68,7 +68,17 @@
     }
   ]);
 
+  const handleImportRecords = async () => {
+    const result = await GetImportRecordsByFileType(model.value.tableType);
+    console.log(result);
+    if (result.ok) {
+      dataSource.value = result.data;
+    }
+  };
 
+  onMounted(() => {
+    handleImportRecords();
+  });
 
   // 处理导入按钮点击
   const handleUploadClick = async () => {
@@ -82,11 +92,12 @@
 
     const checkResultList: Promise<any>[] = [];
     confirmCoverList.value = [];
-         // 批量处理文件, 把处理结果放到一个数组中
-  
-      for (let i = 0; i < model.value.selectedFiles.length; i++) {
-        const file = model.value.selectedFiles[i];
-        checkResultList.push(model.value.checkFunc(file.fullPath, true).then((result: any) => {
+    // 批量处理文件, 把处理结果放到一个数组中
+
+    for (let i = 0; i < model.value.selectedFiles.length; i++) {
+      const file = model.value.selectedFiles[i];
+      checkResultList.push(
+        model.value.checkFunc(file.fullPath, true).then((result: any) => {
           console.log(result);
           result.fullPath = file.fullPath;
           result.fileName = getFileName(file.fullPath);
@@ -96,29 +107,33 @@
             confirmCoverList.value.push(result);
           }
           return result;
-        }));
-      }
+        })
+      );
+    }
 
-      let checkResults = await Promise.all(checkResultList);
+    let checkResults = await Promise.all(checkResultList);
 
-      if (confirmCoverList.value.length) {
-        return openModal({
-          width: 800,
-          content: () => (
-            <>
-              <h3 style="color: #f5222d;margin-bottom:15px;text-align:center">
-                以下文件已被上传，是否覆盖？
-              </h3>
-              <div style="max-height: 350px; overflow: auto">
-                <TodoCoverTable fileList={confirmCoverList.value} onUpdateFileList={(val: any) => {
-                  todoCoverList.value = val
-                }} />
-              </div>
-            </>
-          ),
-          onOk: async () => {
-            if (todoCoverList.value.length) {
-              await Promise.all(todoCoverList.value.map(item => {
+    if (confirmCoverList.value.length) {
+      return openModal({
+        width: 800,
+        title: '文件覆盖确认',
+        content: () => (
+          <>
+            <h3 style="color: #f5222d;margin-bottom:15px;text-align:center">以下文件已被上传，是否覆盖？</h3>
+            <div style="max-height: 350px; overflow: auto">
+              <TodoCoverTable
+                fileList={confirmCoverList.value}
+                onUpdateFileList={(val: any) => {
+                  todoCoverList.value = val;
+                }}
+              />
+            </div>
+          </>
+        ),
+        onOk: async () => {
+          if (todoCoverList.value.length) {
+            await Promise.all(
+              todoCoverList.value.map(item => {
                 return model.value.checkFunc(item, false).then((ret: any) => {
                   checkResults.forEach((it, i) => {
                     if (it.fullPath === item && it.isCover) {
@@ -127,29 +142,29 @@
                     }
                   });
                 });
-              }));
-            }
-
-            // 清空文件列表
-            model.value.selectedFiles = [];
-            model.value.isImporting = false;
-            checkResults = checkResults.filter((it: any) => !it.isCover);
-            if (checkResults.length) {
-              showImportResult(checkResults);
-            }
-
-          },
-          onCancel: async () => {
-            checkResults = checkResults.filter((it: any) => !it.isCover);
-            // 清空文件列表
-            model.value.selectedFiles = [];
-            model.value.isImporting = false;
-            if (checkResults.length) {
-              showImportResult(checkResults);
-            }
+              })
+            );
           }
-        });
-      }
+
+          // 清空文件列表
+          model.value.selectedFiles = [];
+          model.value.isImporting = false;
+          checkResults = checkResults.filter((it: any) => !it.isCover);
+          if (checkResults.length) {
+            showImportResult(checkResults);
+          }
+        },
+        onCancel: async () => {
+          checkResults = checkResults.filter((it: any) => !it.isCover);
+          // 清空文件列表
+          model.value.selectedFiles = [];
+          model.value.isImporting = false;
+          if (checkResults.length) {
+            showImportResult(checkResults);
+          }
+        }
+      });
+    }
 
     // 清空文件列表
     model.value.selectedFiles = [];
@@ -158,19 +173,32 @@
   };
 
   function showImportResult(checkResults: any[]) {
+    handleImportRecords();
     openInfoModal({
       width: 800,
-      content: () => <ShowImportResult style={{maxHeight: '400px', overflow: 'auto'}} resultList={checkResults} />
-    })
+      title: '导入结果',
+      content: () => <ShowImportResult style={{ maxHeight: '400px', overflow: 'auto' }} resultList={checkResults} />
+    });
   }
 
-  const dataSource = Array.from({ length: 5 }).fill({
-    key: '1',
-    enterpriseName: '内蒙古伊核公司',
-    age: 32
-  });
+  const dataSource = ref<any[]>([]);
 
-  const columns: TableColumnType[] = newColumns({ stat_date: '文件名', impDate: '导入时间', impStatus: '导入状态', comment: '说明' });
+  const columns: TableColumnType[] = newColumns(
+    { file_name: '文件名' },
+    { title: '导入时间', customRender: opt => dayjs(opt.record.import_time).format('YYYY-MM-DD HH:mm:ss') },
+    {
+      title: '导入状态',
+      width: 100,
+      customRender: opt => {
+        return (
+          <>
+            <Tag color={opt.record.import_state === '上传成功' ? 'green' : 'red'}>{opt.record.import_state}</Tag>
+          </>
+        );
+      }
+    },
+    { describe: '说明' }
+  );
 </script>
 
 <style scoped>

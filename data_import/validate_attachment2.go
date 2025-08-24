@@ -277,7 +277,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 			}
 		}
 
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传成功", "数据校验通过")
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传成功", "校验通过")
 	}
 
 	return db.QueryResult{

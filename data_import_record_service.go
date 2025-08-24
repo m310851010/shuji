@@ -101,12 +101,16 @@ func (s *DataImportRecordService) InsertImportRecord(fileName, fileType, importS
 }
 
 // GetAllImportRecords 获取所有导入记录
-func (s *DataImportRecordService) GetImportRecordsByFileType(fileType string) ([]map[string]interface{}, error) {
+func (s *DataImportRecordService) GetImportRecordsByFileType(fileType string) db.QueryResult {
 	query := "SELECT * FROM data_import_record WHERE file_type = ? ORDER BY import_time DESC"
 	result, err := s.db.Query(query, fileType)
 	if err != nil {
-		return nil, err
+		return db.QueryResult{
+			Ok:      false,
+			Message: err.Error(),
+			Data:    nil,
+		}
 	}
 
-	return result.Data.([]map[string]interface{}), err
+	return result
 }

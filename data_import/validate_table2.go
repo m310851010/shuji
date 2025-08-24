@@ -263,7 +263,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 				Message: copyMessage,
 			}
 		}
-		s.app.InsertImportRecord(fileName, TableType2, "上传成功", "数据校验通过")
+		s.app.InsertImportRecord(fileName, TableType2, "上传成功", "校验通过")
 	}
 
 	return db.QueryResult{
