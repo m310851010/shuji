@@ -12,7 +12,7 @@ import (
 )
 
 // parseTable3Excel 解析附表3Excel文件
-func (s *DataImportService) parseTable3Excel(f *excelize.File) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseTable3Excel(f *excelize.File, skipValidate bool) ([]map[string]interface{}, error) {
 	// 获取所有工作表
 	sheets := f.GetSheetList()
 	if len(sheets) == 0 {
@@ -20,7 +20,7 @@ func (s *DataImportService) parseTable3Excel(f *excelize.File) ([]map[string]int
 	}
 
 	// 解析主表数据
-	mainData, err := s.parseTable3MainSheet(f, sheets[0])
+	mainData, err := s.parseTable3MainSheet(f, sheets[0], skipValidate)
 	if err != nil {
 		return nil, fmt.Errorf("解析主表数据失败: %v", err)
 	}
@@ -29,7 +29,7 @@ func (s *DataImportService) parseTable3Excel(f *excelize.File) ([]map[string]int
 }
 
 // parseTable3MainSheet 解析附表3主表数据
-func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName string) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName string, skipValidate bool) ([]map[string]interface{}, error) {
 	var mainData []map[string]interface{}
 
 	// 读取表格数据
@@ -80,19 +80,21 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 		"原料用煤情况",
 	}
 
-	// 检查表头一致性
-	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
-	}
-
-	for i, expected := range expectedHeaders {
-		if i >= len(headers) {
-			return nil, fmt.Errorf("缺少表头：%s", expected)
+	if !skipValidate {
+		// 检查表头一致性
+		if len(headers) < len(expectedHeaders) {
+			return nil, fmt.Errorf("表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
 		}
 
-		actual := strings.TrimSpace(headers[i])
-		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+		for i, expected := range expectedHeaders {
+			if i >= len(headers) {
+				return nil, fmt.Errorf("缺少表头：%s", expected)
+			}
+
+			actual := strings.TrimSpace(headers[i])
+			if actual != expected {
+				return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+			}
 		}
 	}
 
@@ -190,7 +192,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	defer f.Close()
 
 	// 第三步: 文件是否和模板文件匹配
-	mainData, err := s.parseTable3Excel(f)
+	mainData, err := s.parseTable3Excel(f, false)
 	if err != nil {
 		errorMessage := fmt.Sprintf("解析Excel文件失败: %v", err)
 		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)

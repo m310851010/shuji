@@ -12,27 +12,28 @@ import (
 )
 
 // parseTable1Excel 解析附表1Excel文件
-func (s *DataImportService) parseTable1Excel(f *excelize.File) ([]map[string]interface{}, []map[string]interface{}, []map[string]interface{}, error) {
+func (s *DataImportService) parseTable1Excel(f *excelize.File, skipValidate bool) ([]map[string]interface{}, []map[string]interface{}, []map[string]interface{}, error) {
 	// 获取所有工作表
 	sheets := f.GetSheetList()
+
 	if len(sheets) == 0 {
 		return nil, nil, nil, fmt.Errorf("Excel文件没有工作表")
 	}
 
 	// 解析主表数据（企业基本信息）
-	mainData, err := s.parseTable1MainSheet(f, sheets[0])
+	mainData, err := s.parseTable1MainSheet(f, sheets[0], skipValidate)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("和%s模板不匹配, 企业基本信息: %v", TableName1, err)
 	}
 
 	// 解析用途数据（煤炭消费主要用途情况）
-	usageData, err := s.parseTable1UsageSheet(f, sheets[0])
+	usageData, err := s.parseTable1UsageSheet(f, sheets[0], skipValidate)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("和%s模板不匹配, 用途数据: %v", TableName1, err)
 	}
 
 	// 解析设备数据（重点耗煤装置情况）
-	equipData, err := s.parseTable1EquipSheet(f, sheets[0])
+	equipData, err := s.parseTable1EquipSheet(f, sheets[0], skipValidate)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("和%s模板不匹配, 设备数据: %v", TableName1, err)
 	}
@@ -41,7 +42,7 @@ func (s *DataImportService) parseTable1Excel(f *excelize.File) ([]map[string]int
 }
 
 // parseTable1MainSheet 解析附表1主表数据
-func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName string) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName string, skipValidate bool) ([]map[string]interface{}, error) {
 	var mainData []map[string]interface{}
 
 	// 读取企业基本信息表格
@@ -65,23 +66,32 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 		"单位所在省/市/区", "单位所在地市", "单位所在区县", "联系电话",
 	}
 
-	// 检查表头一致性
-	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("企业基本信息表头列数不足，模板需要%d列，上传文件%d列", len(expectedHeaders), len(headers))
-	}
-
 	// 构建表头映射
 	headerMap := make(map[int]string)
-	for i, expected := range expectedHeaders {
-		if i >= len(headers) {
-			return nil, fmt.Errorf("缺少表头：%s", expected)
+
+	if !skipValidate {
+		// 检查表头一致性
+		if len(headers) < len(expectedHeaders) {
+			return nil, fmt.Errorf("企业基本信息表头列数不足，模板需要%d列，上传文件%d列", len(expectedHeaders), len(headers))
 		}
 
-		actual := strings.TrimSpace(headers[i])
-		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传数据为:%s", i+1, expected, actual)
+		for i, expected := range expectedHeaders {
+			if i >= len(headers) {
+				return nil, fmt.Errorf("缺少表头：%s", expected)
+			}
+
+			actual := strings.TrimSpace(headers[i])
+			if actual != expected {
+				return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传数据为:%s", i+1, expected, actual)
+			}
 		}
-		headerMap[i] = s.mapTable1HeaderToField(expected)
+	}
+
+	// 构建表头映射（无论是否跳过校验都需要）
+	for i, expected := range expectedHeaders {
+		if i < len(headers) {
+			headerMap[i] = s.mapTable1HeaderToField(expected)
+		}
 	}
 
 	// 解析企业基本信息数据行（主表只有一条数据）
@@ -164,7 +174,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 }
 
 // parseTable1UsageSheet 解析附表1用途数据
-func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName string) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName string, skipValidate bool) ([]map[string]interface{}, error) {
 	var usageData []map[string]interface{}
 
 	rows, err := f.GetRows(sheetName)
@@ -255,7 +265,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 }
 
 // parseTable1EquipSheet 解析附表1设备数据
-func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName string) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName string, skipValidate bool) ([]map[string]interface{}, error) {
 	var equipData []map[string]interface{}
 
 	rows, err := f.GetRows(sheetName)
@@ -442,7 +452,7 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 	defer f.Close()
 
 	// 第三步: 文件是否和模板文件匹配
-	mainData, usageData, equipData, err := s.parseTable1Excel(f)
+	mainData, usageData, equipData, err := s.parseTable1Excel(f, false)
 	if err != nil {
 		errorMessage := err.Error()
 		s.app.InsertImportRecord(fileName, TableType1, "上传失败", errorMessage)

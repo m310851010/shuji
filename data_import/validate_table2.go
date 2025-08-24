@@ -11,7 +11,7 @@ import (
 )
 
 // parseTable2Excel 解析附表2Excel文件
-func (s *DataImportService) parseTable2Excel(f *excelize.File) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseTable2Excel(f *excelize.File, skipValidate bool) ([]map[string]interface{}, error) {
 	// 获取所有工作表
 	sheets := f.GetSheetList()
 	if len(sheets) == 0 {
@@ -19,7 +19,7 @@ func (s *DataImportService) parseTable2Excel(f *excelize.File) ([]map[string]int
 	}
 
 	// 解析主表数据
-	mainData, err := s.parseTable2MainSheet(f, sheets[0])
+	mainData, err := s.parseTable2MainSheet(f, sheets[0], skipValidate)
 	if err != nil {
 		return nil, fmt.Errorf("和%s模板不匹配,  %v", TableName2, err)
 	}
@@ -28,7 +28,7 @@ func (s *DataImportService) parseTable2Excel(f *excelize.File) ([]map[string]int
 }
 
 // parseTable2MainSheet 解析附表2主表数据
-func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName string) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName string, skipValidate bool) ([]map[string]interface{}, error) {
 	var mainData []map[string]interface{}
 
 	// 读取表格数据
@@ -58,23 +58,32 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 		"容量单位", "容量", "用途", "状态", "年耗煤量（单位：吨）",
 	}
 
-	// 检查表头一致性
-	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
-	}
-
 	// 构建表头映射
 	headerMap := make(map[int]string)
-	for i, expected := range expectedHeaders {
-		if i >= len(headers) {
-			return nil, fmt.Errorf("缺少表头：%s", expected)
+	
+	if !skipValidate {
+		// 检查表头一致性
+		if len(headers) < len(expectedHeaders) {
+			return nil, fmt.Errorf("表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
 		}
 
-		actual := strings.TrimSpace(headers[i])
-		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+		for i, expected := range expectedHeaders {
+			if i >= len(headers) {
+				return nil, fmt.Errorf("缺少表头：%s", expected)
+			}
+
+			actual := strings.TrimSpace(headers[i])
+			if actual != expected {
+				return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+			}
 		}
-		headerMap[i] = s.mapTable2HeaderToField(expected)
+	}
+	
+	// 构建表头映射（无论是否跳过校验都需要）
+	for i, expected := range expectedHeaders {
+		if i < len(headers) {
+			headerMap[i] = s.mapTable2HeaderToField(expected)
+		}
 	}
 
 	// 解析数据行（跳过表头下的第一行说明行）
@@ -217,7 +226,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 	defer f.Close()
 
 	// 第三步: 文件是否和模板文件匹配
-	mainData, err := s.parseTable2Excel(f)
+	mainData, err := s.parseTable2Excel(f, false)
 	if err != nil {
 		s.app.InsertImportRecord(fileName, TableType2, "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
 		return db.QueryResult{

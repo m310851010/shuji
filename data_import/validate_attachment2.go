@@ -11,7 +11,7 @@ import (
 )
 
 // parseAttachment2Excel 解析附件2Excel文件
-func (s *DataImportService) parseAttachment2Excel(f *excelize.File) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseAttachment2Excel(f *excelize.File, skipValidate bool) ([]map[string]interface{}, error) {
 	// 获取所有工作表
 	sheets := f.GetSheetList()
 	if len(sheets) == 0 {
@@ -19,7 +19,7 @@ func (s *DataImportService) parseAttachment2Excel(f *excelize.File) ([]map[strin
 	}
 
 	// 解析主表数据
-	mainData, err := s.parseAttachment2MainSheet(f, sheets[0])
+	mainData, err := s.parseAttachment2MainSheet(f, sheets[0], skipValidate)
 	if err != nil {
 		return nil, fmt.Errorf("解析%s数据失败: %v", TableTypeAttachment2, err)
 	}
@@ -28,7 +28,7 @@ func (s *DataImportService) parseAttachment2Excel(f *excelize.File) ([]map[strin
 }
 
 // parseAttachment2MainSheet 解析附件2主表数据
-func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetName string) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetName string, skipValidate bool) ([]map[string]interface{}, error) {
 	var mainData []map[string]interface{}
 
 	// 读取表格数据
@@ -67,67 +67,69 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 	// 获取表头（第4行）
 	headers := rows[3]
 	expectedHeadersCount := len(expectedHeaders4)
-	// 检查表头一致性
-	if len(headers) < expectedHeadersCount {
-		return nil, fmt.Errorf("和%s模板不匹配，第4行列数不足，模板要求%d列，上传数据为:%d列", TableAttachment2, expectedHeadersCount, len(headers))
-	}
-
-	for i, expected := range expectedHeaders4 {
-		if i >= len(headers) {
-			return nil, fmt.Errorf("缺少表头：%s", expected)
+	if !skipValidate {
+		// 检查表头一致性
+		if len(headers) < expectedHeadersCount {
+			return nil, fmt.Errorf("和%s模板不匹配，第4行列数不足，模板要求%d列，上传数据为:%d列", TableAttachment2, expectedHeadersCount, len(headers))
 		}
 
-		actual := strings.TrimSpace(headers[i])
-		if actual != expected {
-			return nil, fmt.Errorf("和%s模板不匹配，第4行第%d列表头不匹配， 模板要求：%s，上传数据为：%s", TableAttachment2, i+1, expected, actual)
-		}
-	}
+		for i, expected := range expectedHeaders4 {
+			if i >= len(headers) {
+				return nil, fmt.Errorf("缺少表头：%s", expected)
+			}
 
-	// 校验第5行表头（分品种煤炭消费摸底）
-	row5 := rows[4] // 第5行（0索引为4）
-	if len(row5) < 8 {
-		return nil, fmt.Errorf("和%s模板不匹配，第5行列数不足，需要至少8列", TableAttachment2)
-	}
-
-	// 校验第5行关键表头字段
-	expectedHeaders5 := map[int]string{
-		4: "煤合计",
-		5: "原煤",
-		6: "洗精煤",
-		7: "其他",
-	}
-
-	for colIndex, expectedHeader := range expectedHeaders5 {
-		if colIndex < len(row5) {
-			actualHeader := s.cleanCellValue(row5[colIndex])
-			if actualHeader != expectedHeader {
-				return nil, fmt.Errorf("和%s模板不匹配，第5行第%d列表头错误，期望：%s，实际：%s", TableAttachment2, colIndex+1, expectedHeader, actualHeader)
+			actual := strings.TrimSpace(headers[i])
+			if actual != expected {
+				return nil, fmt.Errorf("和%s模板不匹配，第4行第%d列表头不匹配， 模板要求：%s，上传数据为：%s", TableAttachment2, i+1, expected, actual)
 			}
 		}
-	}
 
-	// 校验第6行表头（能源加工转换和终端消费）
-	row6 := rows[5] // 第6行（0索引为5）
-	if len(row6) < 15 {
-		return nil, fmt.Errorf("和%s模板不匹配，第6行列数不足，需要至少15列", TableAttachment2)
-	}
+		// 校验第5行表头（分品种煤炭消费摸底）
+		row5 := rows[4] // 第5行（0索引为4）
+		if len(row5) < 8 {
+			return nil, fmt.Errorf("和%s模板不匹配，第5行列数不足，需要至少8列", TableAttachment2)
+		}
 
-	// 校验第6行关键表头字段
-	expectedHeaders6 := map[int]string{
-		8:  "1.火力发电",
-		9:  "2.供热",
-		10: "3.煤炭洗选",
-		11: "4.炼焦",
-		12: "5.炼油及煤制油",
-		13: "6.制气",
-		14: "1.工业",
-	}
+		// 校验第5行关键表头字段
+		expectedHeaders5 := map[int]string{
+			4: "煤合计",
+			5: "原煤",
+			6: "洗精煤",
+			7: "其他",
+		}
 
-	for colIndex, expectedHeader := range expectedHeaders6 {
-		if colIndex < len(row6) {
-			actualHeader := s.cleanCellValue(row6[colIndex])
-			if actualHeader != expectedHeader {
-				return nil, fmt.Errorf("和%s模板不匹配，第6行第%d列表头错误，模板要求：%s，上传数据为：%s", TableAttachment2, colIndex+1, expectedHeader, actualHeader)
+		for colIndex, expectedHeader := range expectedHeaders5 {
+			if colIndex < len(row5) {
+				actualHeader := s.cleanCellValue(row5[colIndex])
+				if actualHeader != expectedHeader {
+					return nil, fmt.Errorf("和%s模板不匹配，第5行第%d列表头错误，期望：%s，实际：%s", TableAttachment2, colIndex+1, expectedHeader, actualHeader)
+				}
+			}
+		}
+
+		// 校验第6行表头（能源加工转换和终端消费）
+		row6 := rows[5] // 第6行（0索引为5）
+		if len(row6) < 15 {
+			return nil, fmt.Errorf("和%s模板不匹配，第6行列数不足，需要至少15列", TableAttachment2)
+		}
+
+		// 校验第6行关键表头字段
+		expectedHeaders6 := map[int]string{
+			8:  "1.火力发电",
+			9:  "2.供热",
+			10: "3.煤炭洗选",
+			11: "4.炼焦",
+			12: "5.炼油及煤制油",
+			13: "6.制气",
+			14: "1.工业",
+		}
+
+		for colIndex, expectedHeader := range expectedHeaders6 {
+			if colIndex < len(row6) {
+				actualHeader := s.cleanCellValue(row6[colIndex])
+				if actualHeader != expectedHeader {
+					return nil, fmt.Errorf("和%s模板不匹配，第6行第%d列表头错误，模板要求：%s，上传数据为：%s", TableAttachment2, colIndex+1, expectedHeader, actualHeader)
+				}
 			}
 		}
 	}
@@ -228,7 +230,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	defer f.Close()
 
 	// 第三步: 文件是否和模板文件匹配
-	mainData, err := s.parseAttachment2Excel(f)
+	mainData, err := s.parseAttachment2Excel(f, false)
 	if err != nil {
 		errorMessage := err.Error()
 		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
