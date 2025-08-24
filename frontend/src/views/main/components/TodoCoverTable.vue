@@ -34,7 +34,8 @@ const selectedRows = ref<Array<{ fileName: string; fullPath: string }>>([])
 
 onMounted(() => {
   // @ts-ignore
-  selectedRows.value = props.fileList || []
+  selectedRows.value = props.fileList || [];
+  emit('updateFileList', selectedRows.value.map(item => item.fullPath));
 })
 // 返回选中的filePath数组
 function getSelectedFilePaths() {

@@ -21,7 +21,7 @@ func (s *DataImportService) parseAttachment2Excel(f *excelize.File) ([]map[strin
 	// 解析主表数据
 	mainData, err := s.parseAttachment2MainSheet(f, sheets[0])
 	if err != nil {
-		return nil, fmt.Errorf("解析主表数据失败: %v", err)
+		return nil, fmt.Errorf("解析%s数据失败: %v", TableTypeAttachment2, err)
 	}
 
 	return mainData, nil
@@ -37,51 +37,135 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 		return nil, err
 	}
 
+	// 查找表格的开始位置（第4行是表头）
+	startDataRow := 7
+	if startDataRow >= len(rows) {
+		return nil, fmt.Errorf("和%s模板不匹配，表格行数不足", TableTypeAttachment2)
+	}
+
 	// 解析制表单位（第3行）
 	var reportUnit string
-	if len(rows) >= 3 {
-		row3 := rows[2] // 第3行（0索引为2）
-		if len(row3) >= 3 {
-			reportUnit = s.cleanCellValue(row3[2]) // 制表单位在第3列
-		}
+	var row3FirstCell string
+	row3 := rows[2] // 第3行（0索引为2）
+
+	if len(row3) <= 2 {
+		return nil, fmt.Errorf("和%s模板不匹配，第3行列数不足", TableAttachment2)
 	}
 
-	// 查找表格的开始位置（第4行是表头）
-	startRow := 3 // 从第4行开始（0索引为3）
-	if startRow >= len(rows) {
-		return nil, fmt.Errorf("表格行数不足")
+	row3FirstCell = s.cleanCellValue(row3[0]) // 第1列：制表单位：
+	if row3FirstCell != "制表单位：" {
+		return nil, fmt.Errorf("和%s模板不匹配，模板要求第3行第1列为：制表单位：，上传数据为：%s", TableAttachment2, row3FirstCell)
 	}
 
-	// 获取表头（第4行）
-	headers := rows[startRow]
+	reportUnit = s.cleanCellValue(row3[1]) // 第2列：制表单位值
 
-	// 期望的表头（第4行的主要表头，包含合并单元格）
-	expectedHeaders := []string{
+	// 期望的表头（第4行的主要表头，基础信息, 包含合并单元格）
+	expectedHeaders4 := []string{
 		"省（市、区）", "地市（州）", "县（区）", "年份", "分品种煤炭消费摸底", "", "", "", "分用途煤炭消费摸底", "", "", "", "", "", "", "", "", "焦炭消费摸底",
 	}
 
-	expectedHeadersCount := 18
+	// 获取表头（第4行）
+	headers := rows[3]
+	expectedHeadersCount := len(expectedHeaders4)
 	// 检查表头一致性
 	if len(headers) < expectedHeadersCount {
-		return nil, fmt.Errorf("表头列数不足，模板要求%d列，实际%d列", expectedHeadersCount, len(headers))
+		return nil, fmt.Errorf("和%s模板不匹配，第4行列数不足，模板要求%d列，上传数据为:%d列", TableAttachment2, expectedHeadersCount, len(headers))
 	}
 
-	// 构建表头映射（基于位置）
-	headerMap := make(map[int]string)
-	for i, expected := range expectedHeaders {
+	for i, expected := range expectedHeaders4 {
 		if i >= len(headers) {
 			return nil, fmt.Errorf("缺少表头：%s", expected)
 		}
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，模板要求：%s，实际：%s", i+1, expected, actual)
+			return nil, fmt.Errorf("和%s模板不匹配，第4行第%d列表头不匹配， 模板要求：%s，上传数据为：%s", TableAttachment2, i+1, expected, actual)
 		}
-		headerMap[i] = s.mapAttachment2HeaderToFieldByPosition(expected, i)
 	}
 
+	// 校验第5行表头（分品种煤炭消费摸底）
+	row5 := rows[4] // 第5行（0索引为4）
+	if len(row5) < 8 {
+		return nil, fmt.Errorf("和%s模板不匹配，第5行列数不足，需要至少8列", TableAttachment2)
+	}
+
+	// 校验第5行关键表头字段
+	expectedHeaders5 := map[int]string{
+		4: "煤合计",
+		5: "原煤",
+		6: "洗精煤",
+		7: "其他",
+	}
+
+	for colIndex, expectedHeader := range expectedHeaders5 {
+		if colIndex < len(row5) {
+			actualHeader := s.cleanCellValue(row5[colIndex])
+			if actualHeader != expectedHeader {
+				return nil, fmt.Errorf("和%s模板不匹配，第5行第%d列表头错误，期望：%s，实际：%s", TableAttachment2, colIndex+1, expectedHeader, actualHeader)
+			}
+		}
+	}
+
+	// 校验第6行表头（能源加工转换和终端消费）
+	row6 := rows[5] // 第6行（0索引为5）
+	if len(row6) < 15 {
+		return nil, fmt.Errorf("和%s模板不匹配，第6行列数不足，需要至少15列", TableAttachment2)
+	}
+
+	// 校验第6行关键表头字段
+	expectedHeaders6 := map[int]string{
+		8:  "1.火力发电",
+		9:  "2.供热",
+		10: "3.煤炭洗选",
+		11: "4.炼焦",
+		12: "5.炼油及煤制油",
+		13: "6.制气",
+		14: "1.工业",
+	}
+
+	for colIndex, expectedHeader := range expectedHeaders6 {
+		if colIndex < len(row6) {
+			actualHeader := s.cleanCellValue(row6[colIndex])
+			if actualHeader != expectedHeader {
+				return nil, fmt.Errorf("和%s模板不匹配，第6行第%d列表头错误，模板要求：%s，上传数据为：%s", TableAttachment2, colIndex+1, expectedHeader, actualHeader)
+			}
+		}
+	}
+
+	// 构建表头映射（基于位置）
+	headerMap := make(map[int]string)
+
+	// 处理复杂的合并单元格表头结构（基于HTML模板的实际结构）
+	// 前4列：基础信息（每列占4行）
+	headerMap[0] = "province_name" // 省（市、区）
+	headerMap[1] = "city_name"     // 地市（州）
+	headerMap[2] = "country_name"  // 县（区）
+	headerMap[3] = "stat_date"     // 年份
+
+	// 第5-8列：分品种煤炭消费摸底（每列占3行）
+	headerMap[4] = "total_coal"  // 煤合计
+	headerMap[5] = "raw_coal"    // 原煤
+	headerMap[6] = "washed_coal" // 洗精煤
+	headerMap[7] = "other_coal"  // 其他
+
+	// 第9-14列：能源加工转换（每列占2行）
+	headerMap[8] = "power_generation" // 1.火力发电
+	headerMap[9] = "heating"          // 2.供热
+	headerMap[10] = "coal_washing"    // 3.煤炭洗选
+	headerMap[11] = "coking"          // 4.炼焦
+	headerMap[12] = "oil_refining"    // 5.炼油及煤制油
+	headerMap[13] = "gas_production"  // 6.制气
+
+	// 第15-17列：终端消费
+	headerMap[14] = "industry"      // 1.工业（占2行）
+	headerMap[15] = "raw_materials" // #用作原料、材料（占1行）
+	headerMap[16] = "other_uses"    // 2.其他用途（占1行）
+
+	// 第18列：焦炭消费摸底（占2行）
+	headerMap[17] = "coke" // 焦炭
+
 	// 解析数据行（从第8行开始，跳过表头、子表头等）
-	for i := startRow + 4; i < len(rows); i++ {
+	for i := startDataRow; i < len(rows); i++ {
 		row := rows[i]
 		if len(row) < 2 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
 			continue // 跳过空行
@@ -91,9 +175,7 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 		dataRow := make(map[string]interface{})
 
 		// 添加制表单位信息
-		if reportUnit != "" {
-			dataRow["report_unit"] = reportUnit
-		}
+		dataRow["report_unit"] = reportUnit
 
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
@@ -117,69 +199,30 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 	return mainData, nil
 }
 
-// mapAttachment2HeaderToFieldByPosition 基于位置映射附件2表头到字段名
-func (s *DataImportService) mapAttachment2HeaderToFieldByPosition(header string, position int) string {
-	header = strings.TrimSpace(header)
-
-	// 基础字段映射
-	baseFieldMap := map[string]string{
-		"省（市、区）": "province_name",
-		"地市（州）":  "city_name",
-		"县（区）":   "country_name",
-		"年份":     "stat_date",
-		"焦炭消费摸底": "coke",
-	}
-
-	// 检查是否是基础字段
-	if fieldName, exists := baseFieldMap[header]; exists {
-		return fieldName
-	}
-
-	// 基于位置的字段映射
-	positionFieldMap := map[int]string{
-		4:  "total_coal",       // 第5列：煤合计
-		5:  "raw_coal",         // 第6列：原煤
-		6:  "washed_coal",      // 第7列：洗精煤
-		7:  "other_coal",       // 第8列：其他
-		8:  "power_generation", // 第9列：1.火力发电
-		9:  "heating",          // 第10列：2.供热
-		10: "coal_washing",     // 第11列：3.煤炭洗选
-		11: "coking",           // 第12列：4.炼焦
-		12: "oil_refining",     // 第13列：5.炼油及煤制油
-		13: "gas_production",   // 第14列：6.制气
-		14: "industry",         // 第15列：1.工业
-		15: "raw_materials",    // 第16列：#用作原料、材料
-		16: "other_uses",       // 第17列：2.其他用途
-	}
-
-	// 检查基于位置的字段映射
-	if fieldName, exists := positionFieldMap[position]; exists {
-		return fieldName
-	}
-
-	return ""
-}
-
 // ValidateAttachment2File 校验附件2文件
 func (s *DataImportService) ValidateAttachment2File(filePath string, isCover bool) db.QueryResult {
 	fileName := filepath.Base(filePath)
 
 	// 第一步: 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", "文件不存在")
+		errorMessage := fmt.Sprintf("文件不存在: %v", err)
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: "文件不存在",
+			Message: errorMessage,
+			Data:    []string{errorMessage},
 		}
 	}
 
 	// 第二步: 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
+		errorMessage := fmt.Sprintf("读取Excel文件失败: %v", err)
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("读取Excel文件失败: %v", err),
+			Message: errorMessage,
+			Data:    []string{errorMessage},
 		}
 	}
 	defer f.Close()
@@ -187,16 +230,18 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	// 第三步: 文件是否和模板文件匹配
 	mainData, err := s.parseAttachment2Excel(f)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
+		errorMessage := err.Error()
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("解析Excel文件失败: %v", err),
+			Message: errorMessage,
+			Data:    []string{errorMessage},
 		}
 	}
 
-	// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
 	if isCover {
-		cacheResult := s.app.CacheFileExists(TableTypeAttachment2, filePath)
+		// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+		cacheResult := s.app.CacheFileExists(TableTypeAttachment2, fileName)
 		if cacheResult.Ok {
 			// 文件已存在，直接返回，需要前端确认
 			return db.QueryResult{
@@ -210,21 +255,25 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	// 第五步: 按行读取文件数据并校验
 	validationErrors := s.validateAttachment2Data(mainData)
 	if len(validationErrors) > 0 {
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
+		errorMessage := fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; "))
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")),
+			Message: errorMessage,
+			Data:    validationErrors,
 		}
 	}
 
 	if len(validationErrors) == 0 {
 		// 第六步: 复制文件到缓存目录（只有校验通过才复制）
-		copyResult := s.app.CopyFileToCache(TableTypeAttachment2, fileName)
+		copyResult := s.app.CopyFileToCache(TableTypeAttachment2, filePath)
 		if !copyResult.Ok {
-			s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message))
+			errorMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)
+			s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
 			return db.QueryResult{
 				Ok:      false,
-				Message: fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message),
+				Message: errorMessage,
+				Data:    []string{errorMessage},
 			}
 		}
 

@@ -291,6 +291,29 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 	return errors
 }
 
+// checkRegionMatch 检查省市县是否匹配的公共函数
+func (s *DataImportService) checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry string, excelRowNum int) []string {
+	errors := []string{}
+
+	// 1.检查省是否匹配, 失败,返回
+	if expectedProvince != "" && provinceName != expectedProvince {
+		errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+		return errors
+	}
+	// 2.检查市, city_name有值时,是否匹配, 无值时返回成功
+	if expectedCity != "" && cityName != expectedCity {
+		errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+		return errors
+	}
+	// 3.检查县, country_name有值时,是否匹配, 无值时返回成功
+	if expectedCountry != "" && countryName != expectedCountry {
+		errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+		return errors
+	}
+
+	return errors
+}
+
 // validateRegionCorrespondence 省市县和统一社会信用代码对应关系校验（从表1、表2提取的通用逻辑）
 func (s *DataImportService) validateRegionCorrespondence(data map[string]interface{}, excelRowNum int) []string {
 	errors := []string{}
@@ -329,22 +352,8 @@ func (s *DataImportService) validateRegionCorrespondence(data map[string]interfa
 			expectedCountry = s.getStringValue(areaData[0]["country_name"])
 		}
 
-		// 第二步: 用province_name, city_name, country_name和单位所在省市县比较是否相等
-		// 1.检查省是否匹配, 失败,返回
-		if expectedProvince != "" && provinceName != expectedProvince {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			return errors
-		}
-		// 2.检查市, city_name有值时,是否匹配, 无值时返回成功
-		if expectedCity != "" && cityName != expectedCity {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			return errors
-		}
-		// 3.检查县, country_name有值时,是否匹配, 无值时返回成功
-		if expectedCountry != "" && countryName != expectedCountry {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			return errors
-		}
+		// 第二步: 使用公共函数检查省市县是否匹配
+		return s.checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry, excelRowNum)
 	}
 
 	return errors
@@ -368,23 +377,8 @@ func (s *DataImportService) validateRegionOnly(data map[string]interface{}, exce
 		expectedCity := s.getStringValue(row["city_name"])
 		expectedCountry := s.getStringValue(row["country_name"])
 
-		// 用province_name, city_name, country_name和文件中的省、市、县比较是否相等
-		// 注意：city_name和country_name有可能为空, 为空时不校验这俩字段
-		// 1.检查省是否匹配, 失败,返回
-		if expectedProvince != "" && provinceName != expectedProvince {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			return errors
-		}
-		// 2.检查市, city_name有值时,是否匹配, 无值时返回成功
-		if expectedCity != "" && cityName != expectedCity {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			return errors
-		}
-		// 3.检查县, country_name有值时,是否匹配, 无值时返回成功
-		if expectedCountry != "" && countryName != expectedCountry {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			return errors
-		}
+		// 使用公共函数检查省市县是否匹配
+		return s.checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry, excelRowNum)
 	}
 
 	return errors
@@ -468,10 +462,23 @@ var (
 
 	// 附件2必填字段
 	Attachment2RequiredFields = map[string]string{
-		"stat_date":     "数据年份",
-		"province_name": "省（市、区）",
-		"city_name":     "地市（州）",
-		"country_name":  "县（区）",
-		"report_unit":   "制表单位",
+		"stat_date":        "数据年份",
+		"province_name":    "省（市、区）",
+		"city_name":        "地市（州）",
+		"country_name":     "县（区）",
+		"total_coal":       "煤合计",
+		"raw_coal":         "原煤",
+		"washed_coal":      "洗精煤",
+		"other_coal":       "其他",
+		"power_generation": "火力发电",
+		"heating":          "供热",
+		"coal_washing":     "煤炭洗选",
+		"coking":           "炼焦",
+		"oil_refining":     "炼油及煤制油",
+		"gas_production":   "制气",
+		"industry":         "工业",
+		"raw_materials":    "用作原料、材料",
+		"other_uses":       "其他用途",
+		"coke":             "焦炭消费摸底",
 	}
 )

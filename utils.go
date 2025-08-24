@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -134,8 +133,6 @@ func CopyCacheFile(filePath string, tableType string) (string, error) {
 	// 	nameWithoutExt := strings.TrimSuffix(fileName, ext)
 	// 	newFileName := fmt.Sprintf("%s___%d%s", nameWithoutExt, time.Now().UnixNano(), ext)
 	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, tableType, fileName))
-
-	log.Printf("复制文件: %s -> %s", filePath, cachePath)
 
 	// 检查缓存目录是否存在, 不存在则创建
 	cacheDir := filepath.Join(Env.BasePath, CACHE_FILE_DIR_NAME, tableType)
