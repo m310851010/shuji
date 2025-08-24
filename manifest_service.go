@@ -84,6 +84,7 @@ func (a *App) ValidateEnterpriseListFile(filePath string) db.QueryResult {
 		}
 	}
 
+    isEnterpriseListExist = false
 	ok, err := a.CheckEnterpriseList()
 	if err != nil {
 		result.Message = "查询企业清单失败: " + err.Error()
@@ -178,7 +179,8 @@ func (a *App) ValidateKeyEquipmentListFile(filePath string) db.QueryResult {
 		}
 	}
 
-	ok, err := a.checkKeyEquipmentList()
+    isEnterpriseListExist = false
+	ok, err := a.CheckKeyEquipmentList()
 	if err != nil {
 		result.Message = "查询装置清单失败: " + err.Error()
 		return result
@@ -371,12 +373,12 @@ func validateHeaders(headers []string, expectedHeaders []string) bool {
 }
 
 // 缓存企业清单是否存在
-var hasEnterpriseList = false
+var isEnterpriseListExist = false
 
 // 检查企业清单是否存在
 func (a *App) CheckEnterpriseList() (bool, error) {
-	if hasEnterpriseList {
-		return hasEnterpriseList, nil
+	if isEnterpriseListExist {
+		return isEnterpriseListExist, nil
 	}
 
 	rows, err := a.db.QueryRow("SELECT COUNT(1) as count FROM enterprise_list")
@@ -384,8 +386,8 @@ func (a *App) CheckEnterpriseList() (bool, error) {
 		return false, fmt.Errorf("查询企业清单失败: %v", err)
 	}
 
-	hasEnterpriseList = rows.Data.(map[string]interface{})["count"].(int64) > 0
-	return hasEnterpriseList, nil
+	isEnterpriseListExist = rows.Data.(map[string]interface{})["count"].(int64) > 0
+	return isEnterpriseListExist, nil
 }
 
 // GetEnterpriseNameByCreditCode 获取企业名称
@@ -407,12 +409,19 @@ func (a *App) GetEnterpriseNameByCreditCode(creditCode string) (string, error) {
 	return unitName.(string), nil
 }
 
+// 缓存装置清单是否存在
+var isEquipmentListExist = false
+
 // 检查装置清单是否存在
-func (a *App) checkKeyEquipmentList() (bool, error) {
+func (a *App) CheckKeyEquipmentList() (bool, error) {
+    if isEquipmentListExist {
+		return isEquipmentListExist, nil
+	}
 	rows, err := a.db.QueryRow("SELECT COUNT(1) as count FROM key_equipment_list")
 	if err != nil {
 		return false, fmt.Errorf("查询装置清单失败: %v", err)
 	}
 
-	return rows.Data.(map[string]interface{})["count"].(int64) > 0, nil
+	isEquipmentListExist = rows.Data.(map[string]interface{})["count"].(int64) > 0
+	return isEquipmentListExist, nil
 }

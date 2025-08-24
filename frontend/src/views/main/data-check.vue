@@ -77,7 +77,7 @@
     position: relative;
     margin-right: 20px;
     &:before {
-      content: '/';
+      content: '';
       position: absolute;
       left: 50%;
       transform: translate(-50%, -50%);

@@ -4,12 +4,19 @@
     <a-layout class="h-100">
       <div class="flex-vertical">
         <div class="flex-main">
+          <div class="title-container">
+            <h2 class="main-title">煤炭摸底数据校验工具</h2>
+          </div>
+
+          <!-- 灰色间隔线 -->
+          <div class="divider-line"></div>
+
           <a-layout-sider width="220" class="sider" theme="light">
             <div class="address">
-              <a-space direction="vertical">
-                <a-tag color="processing" v-for="item in areas" :key="item">{{ item }}</a-tag>
-              </a-space>
+              <a-tag v-for="(item, index) in areas" :key="item" color="#6BA2D4" class="area-tag">{{ item }}</a-tag>
             </div>
+
+            <div class="divider-line"></div>
 
             <a-menu mode="inline" class="menu" v-model:selectedKeys="selectedKeys">
               <a-menu-item v-for="item in menus" :key="item.path" @click="() => $router.push(item.path)">
@@ -18,9 +25,14 @@
             </a-menu>
           </a-layout-sider>
         </div>
-        <div style="text-align: center; margin-bottom: 20px; font-size: 20px">
-          <SettingOutlined @click="handleSettingClick" style="cursor: pointer" />
-          <div style="font-size: 14px; margin-top: 30px">
+
+        <!-- 灰色间隔线 -->
+        <div class="divider-line"></div>
+
+        <div class="bottom-section">
+          <SettingOutlined :class="['setting-icon', { 'setting-icon-active': isSettingRoute }]" @click="handleSettingClick" style="cursor: pointer" />
+
+          <div class="support-info">
             <div>技术支持</div>
             <div>XXX-XXX-XXX</div>
             <div>北京数极智能科技有限公司</div>
@@ -35,8 +47,11 @@
   </Window>
 </template>
 
+
+
 <script setup lang="ts">
   import { RouterView, useRoute } from 'vue-router';
+  import { computed } from 'vue';
   import Window from '@/components/Window.vue';
   import { SettingOutlined } from '@ant-design/icons-vue';
   import { useRouter } from 'vue-router';
@@ -56,6 +71,7 @@
   const selectedKeys = ref<string[]>([]);
   const route = useRoute();
   const $router = useRouter();
+  const isSettingRoute = computed(() => route.path === '/main/setting');
 
   // 监听路由变化, 并更新选中的菜单
   watchEffect(() => (selectedKeys.value = [route.path]));
@@ -76,7 +92,7 @@
 
 <style scoped>
   .sider.ant-layout-sider {
-    background-color: #f1f4f8;
+    background-color: #F9FAFB;
   }
 
   .content {
@@ -88,6 +104,7 @@
   }
 
   .menu {
+    margin-top: 10px;
     background-color: transparent;
   }
   :deep(.menu) .ant-menu-item {
@@ -96,14 +113,24 @@
     width: 100%;
     padding: 25px 0 !important;
     text-align: center;
+    transition: background-color 0.3s, color 0.3s;
     &.ant-menu-item-selected {
-      background-color: #b5d5f0;
+      background-color: #1A5284;
+      color: #ffffff;
+      font-weight: 500;
+    }
+    &:hover {
+      background-color: #1A5284;
+      color: #ffffff;
     }
   }
 
   .address {
     padding: 15px 0 20px;
     text-align: center;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
   }
   :deep(.address) .ant-tag {
     text-align: center;
@@ -111,5 +138,62 @@
     font-size: 13px;
     padding: 2px 5px;
     min-width: 120px;
+    border-radius: 3px;
   }
+
+  /* 图标 hover 颜色 */
+.setting-icon {
+  font-size: 20px;
+  transition: color 0.3s;
+}
+.setting-icon-active {
+  color: #1A5284;
+}
+.setting-icon:hover {
+  color: #1A5284;
+  font-weight: 600;
+}
+
+/* 灰色间隔线样式 */
+.divider-line {
+  width: 100%;
+  margin: 0 auto;
+  border: 1px solid #e8e8e8c0;
+}
+
+/* 标题容器样式 */
+.title-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  margin: 10px 20px;
+}
+
+/* 主标题样式 */
+.main-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #1A5284;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+}
+
+/* 技术支持信息样式 */
+.support-info {
+  font-size: 14px;
+  margin: 20px 0;
+}
+
+/* 底部区域样式 */
+.bottom-section {
+  text-align: center;
+  padding-top: 20px;
+}
+
+/* 地址标签间距样式 */
+.area-tag {
+  margin: 4px 8px !important;
+}
 </style>

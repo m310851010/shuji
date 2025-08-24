@@ -14,10 +14,10 @@ export enum TableType {
  * 导入的文件类型选项
  */
 export const TableOptions: SelectProps['options'] = [
-  { label: '表1', value: TableType.table1 },
-  { label: '表2', value: TableType.table2 },
-  { label: '表3', value: TableType.table3 },
-  { label: '附件2', value: TableType.attachment2 }
+  { label: '规上企业', value: TableType.table1 },
+  { label: '其他单位', value: TableType.table2 },
+  { label: '新上项目', value: TableType.table3 },
+  { label: '区域综合', value: TableType.attachment2 }
 ];
 
 /**

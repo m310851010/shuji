@@ -6,7 +6,7 @@
         :model="formState"
         name="basic"
         :label-col="{ span: 3 }"
-        :wrapper-col="{ span: 21 }"
+        :wrapper-col="{ span: 24 }"
         autocomplete="off"
         @finish="onFinish"
       >

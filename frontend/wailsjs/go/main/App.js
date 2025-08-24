@@ -22,6 +22,10 @@ export function CheckEnterpriseList() {
   return window['go']['main']['App']['CheckEnterpriseList']();
 }
 
+export function CheckKeyEquipmentList() {
+  return window['go']['main']['App']['CheckKeyEquipmentList']();
+}
+
 export function CopyFileToCache(arg1) {
   return window['go']['main']['App']['CopyFileToCache'](arg1);
 }

@@ -13,6 +13,8 @@ export function CheckAndExportToExcel(arg1:string):Promise<boolean>;
 
 export function CheckEnterpriseList():Promise<boolean>;
 
+export function CheckKeyEquipmentList():Promise<boolean>;
+
 export function CopyFileToCache(arg1:string):Promise<db.QueryResult>;
 
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;

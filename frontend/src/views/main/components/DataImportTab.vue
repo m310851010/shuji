@@ -1,24 +1,31 @@
 <template>
-  <a-flex class="box-grey" justify="flex-end">
-    <a-button type="primary" @click="handleUploadClick" :loading="model.isImporting" :disabled="!model.selectedFiles?.length">
-      导入数据
-    </a-button>
-  </a-flex>
   <div class="box-grey">
-    <a-steps :current="-1" label-placement="vertical" :items="items"></a-steps>
+    <div class="bottom-line">
+      <span class="title">导入数据</span>
+      <a-button type="primary" @click="handleUploadClick" :loading="model.isImporting" :disabled="!model.selectedFiles?.length">
+        点击导入
+      </a-button>
+    </div>
+
+
+    <div class="box-grey">
+      <a-steps :current="-1" label-placement="vertical" :items="items"></a-steps>
+    </div>
+
+    <div v-if="showValidationResult" class="box-grey" style="padding-top: 5px; padding-bottom: 5px">
+      校验结果：
+      <span class="result-text">{{ validationResult }}</span>
+    </div>
+
+    <!-- 文件导入区域 -->
+    <UploadComponent v-model="model.selectedFiles" />
+
   </div>
 
-  <div v-if="showValidationResult" class="box-grey" style="padding-top: 5px; padding-bottom: 5px">
-    校验结果：
-    <span class="result-text">{{ validationResult }}</span>
-  </div>
-
-  <!-- 文件导入区域 -->
-  <UploadComponent v-model="model.selectedFiles" />
 
   <div class="box-grey">
-    <div class="bottom-line">导入记录</div>
-    <a-table :dataSource="dataSource" :columns="columns" size="small" bordered :pagination="false" />
+    <div class="bottom-line title">导入记录</div>
+    <a-table :dataSource="dataSource" :columns="columns"  bordered :pagination="false" />
   </div>
 </template>
 

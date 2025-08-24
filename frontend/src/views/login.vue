@@ -2,7 +2,9 @@
   <Window>
     <View class="container">
       <a-form class="form" :model="formState" name="basic" autocomplete="off" @finish="onFinish">
-        <a-form-item class="text-tip">{{ formState.firstLogin ? '初次进入请设置密码！' : '请输入密码解锁！' }}</a-form-item>
+        <a-form-item class="text-tip">
+          {{ formState.firstLogin ? '初次进入请设置密码！' : '请输入密码解锁！' }}
+        </a-form-item>
 
         <a-form-item name="password" :rules="[{ required: true, message: '密码不能为空！' }]">
           <a-input-password v-model:value="formState.password" placeholder="请输入密码" />
@@ -83,4 +85,16 @@
     font-size: 18px;
     text-align: center;
   }
+
+  .ant-btn-primary.ant-btn-background-ghost {
+    width: 120px;
+    background-color: #1A5284;
+    color: #fff;
+  }
+  .ant-btn-primary.ant-btn-background-ghost:not(:disabled):hover {
+    background-color: #1a5384d6;
+    color: #fff;
+  }
+
+
 </style>

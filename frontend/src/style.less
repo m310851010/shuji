@@ -17,7 +17,7 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  background-color: #f1f4f8;
+  background-color: #F9FAFB;
 }
 
 .text-center {
@@ -56,6 +56,10 @@
   &.no-bg {
     background-color: transparent;
   }
+
+  .title {
+    color: #1A5284;
+  }
 }
 
 /**
@@ -68,15 +72,36 @@
   justify-content: space-between;
   align-items: center;
   font-size: 20px;
+
+  .ant-radio-button-wrapper-checked {
+    border-radius: 3x;
+    color: #fff !important;
+
+    .ant-radio-button-checked {
+      background-color: #1A5284;
+
+    }
+  }
+
+
+}
+
+.ant-radio-button-wrapper::before{
+  background-color: transparent !important;
 }
 
 /**
  * 标签按钮
  */
 .tab-button.ant-radio-button-wrapper {
-  margin-right: 8px;
+  margin-right: 12px;
   padding: 0 30px;
+  border: 1px solid #1A5284 !important;
+  border-radius: 3px;
+
 }
+
+//
 
 /**
  * 页面内容
@@ -196,6 +221,7 @@
 .flex-vertical {
   display: flex;
   flex-direction: column;
+  background-color: #F9FAFB;
 }
 
 .flex-main {
@@ -203,11 +229,15 @@
 }
 
 .bottom-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid #e7e9ed;
   font-size: 15px;
   font-weight: bold;
   padding-bottom: 12px;
   margin-bottom: 12px;
+
 }
 
 .ant-steps-item-description {

@@ -1,6 +1,6 @@
 <template>
   <div class="page-header">
-    <a-radio-group v-model:value="tableTab" @change="handleTabChange">
+    <a-radio-group  v-model:value="tableTab" @change="handleTabChange">
       <a-radio-button v-for="item in TableOptions" :key="item.value" :value="item.value" class="tab-button">
         {{ item.label }}
       </a-radio-button>
