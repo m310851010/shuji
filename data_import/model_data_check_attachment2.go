@@ -12,6 +12,65 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// ModelDataCoverAttachment2 覆盖附件2数据
+func (s *DataImportService) ModelDataCoverAttachment2(filePaths []string) db.QueryResult {
+	cacheDir := s.app.GetCachePath(TableTypeAttachment2)
+	files, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("读取缓存目录失败: %v", err),
+		}
+	}
+
+	var validationErrors []ValidationError
+	var failedFiles []string
+
+	for _, file := range files {
+		// 检查是否xlsx或者xls文件
+		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+			filePath := filepath.Join(cacheDir, file.Name())
+			if !slices.Contains(filePaths, filePath) {
+				// 删除该Excel文件
+				os.Remove(filePath)
+				continue
+			}
+
+			f, err := excelize.OpenFile(filePath)
+			if err != nil {
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 读取失败: %v", file.Name(), err)})
+				os.Remove(filePath)
+				continue
+			}
+
+			mainData, err := s.parseAttachment2Excel(f, true)
+			f.Close()
+			os.Remove(filePath)
+
+			if err != nil {
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 解析失败: %v", file.Name(), err)})
+				failedFiles = append(failedFiles, filePath)
+				continue
+			}
+
+			err = s.coverAttachment2Data(mainData, file.Name())
+			if err != nil {
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 覆盖数据失败: %v", file.Name(), err)})
+				failedFiles = append(failedFiles, filePath)
+			}
+		}
+	}
+
+	return db.QueryResult{
+		Ok:      true,
+		Message: "覆盖完成",
+		Data: map[string]interface{}{
+			"failed_files": failedFiles,      // 失败的文件
+			"errors":       validationErrors, // 错误信息
+		},
+	}
+}
+
 // ModelDataCheckAttachment2 附件2模型校验函数
 func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 	// 1. 读取缓存目录指定表格类型下的所有Excel文件
@@ -25,13 +84,17 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 		}
 	}
 
-	var validationErrors []ValidationError
-	var importedFiles []string
-	var failedFiles []string
+	var validationErrors []ValidationError = []ValidationError{} // 错误信息
+	var importedFiles []string = []string{}                      // 导入的文件
+	var coverFiles []string = []string{}                         // 覆盖的文件
+	var failedFiles []string = []string{}                        // 失败的文件
+	var hasExcelFile bool = false                                // 是否有Excel文件
 
 	// 2. 循环调用对应的解析Excel函数
 	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".xlsx") {
+		// 检查是否xlsx或者xls文件
+		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+			hasExcelFile = true
 			filePath := filepath.Join(cacheDir, file.Name())
 
 			// 解析Excel文件 (skipValidate=true)
@@ -71,7 +134,7 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 
 			// 5. 校验通过后,检查文件是否已导入
 			if s.isAttachment2FileImported(mainData) {
-				importedFiles = append(importedFiles, file.Name())
+				coverFiles = append(coverFiles, filePath)
 				continue
 			}
 
@@ -88,11 +151,23 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 		}
 	}
 
+	if !hasExcelFile {
+		return db.QueryResult{
+			Ok:      false,
+			Message: "没有待校验Excel文件，请先进行数据导入",
+		}
+	}
+
 	// 7. 把所有的模型验证失败的文件打个zip包
 	if len(failedFiles) > 0 {
 		err = s.createValidationErrorZip(failedFiles, TableTypeAttachment2, TableAttachment2)
 		if err != nil {
 			validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("创建错误报告失败: %v", err)})
+		}
+
+		// 删除失败文件
+		for _, filePath := range failedFiles {
+			os.Remove(filePath)
 		}
 	}
 
@@ -103,12 +178,11 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 	}
 
 	return db.QueryResult{
-		Ok:      len(failedFiles) == 0,
+		Ok:      true,
 		Message: message,
 		Data: map[string]interface{}{
-			"imported_files": importedFiles,
-			"failed_files":   failedFiles,
-			"errors":         validationErrors,
+			"cover_files":    coverFiles,           // 覆盖的文件
+			"hasFailedFiles": len(failedFiles) > 0, // 是否有失败的文件
 		},
 	}
 }
@@ -130,6 +204,10 @@ func (s *DataImportService) validateAttachment2DataForModel(mainData []map[strin
 		errors = append(errors, consistencyErrors...)
 	}
 
+	// 数据库验证
+	dbErrors := s.validateAttachment2DatabaseRules(mainData)
+	errors = append(errors, dbErrors...)
+
 	return errors
 }
 
@@ -137,42 +215,42 @@ func (s *DataImportService) validateAttachment2DataForModel(mainData []map[strin
 func (s *DataImportService) validateAttachment2NumericFields(data map[string]interface{}, rowNum int) []ValidationError {
 	errors := []ValidationError{}
 
-	// 校验所有数值字段不能为负数
-	numericFields := []string{
-		"total_coal", "raw_coal", "washed_coal", "other_coal", "power_generation",
-		"heating", "coal_washing", "coking", "oil_refining", "gas_production",
-		"industry", "raw_materials", "other_uses", "coke",
-	}
-
-	for _, fieldName := range numericFields {
-		if value, ok := data[fieldName].(string); ok && value != "" {
-			if numValue, err := s.parseFloat(value); err == nil {
-				if numValue < 0 {
-					errors = append(errors, ValidationError{RowNumber: rowNum, Message: fmt.Sprintf("%s不能为负数", fieldName)})
-				}
-			}
-		}
-	}
-
-	return errors
-}
-
-// validateAttachment2DataConsistency 校验附件2数据一致性
-func (s *DataImportService) validateAttachment2DataConsistency(data map[string]interface{}, rowNum int) []ValidationError {
-	errors := []ValidationError{}
-
-	// 校验煤合计 = 原煤 + 洗精煤 + 其他
+	// 1. 分品种煤炭消费摸底部分校验
 	totalCoal, _ := s.parseFloat(s.getStringValue(data["total_coal"]))
 	rawCoal, _ := s.parseFloat(s.getStringValue(data["raw_coal"]))
 	washedCoal, _ := s.parseFloat(s.getStringValue(data["washed_coal"]))
 	otherCoal, _ := s.parseFloat(s.getStringValue(data["other_coal"]))
 
-	if totalCoal != rawCoal+washedCoal+otherCoal {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应等于原煤+洗精煤+其他"})
+	// ①≧0
+	if totalCoal < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能为负数"})
+	}
+	if rawCoal < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能为负数"})
+	}
+	if washedCoal < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能为负数"})
+	}
+	if otherCoal < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能为负数"})
 	}
 
-	// 校验用途合计 = 火力发电 + 供热 + 煤炭洗选 + 炼焦 + 炼油及煤制油 + 制气 + 工业 + 用作原料、材料 + 其他用途
-	powerGen, _ := s.parseFloat(s.getStringValue(data["power_generation"]))
+	// ②≦200000
+	if totalCoal > 200000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能大于200000"})
+	}
+	if rawCoal > 200000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能大于200000"})
+	}
+	if washedCoal > 200000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能大于200000"})
+	}
+	if otherCoal > 200000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能大于200000"})
+	}
+
+	// 2. 分用途煤炭消费摸底部分校验
+	powerGeneration, _ := s.parseFloat(s.getStringValue(data["power_generation"]))
 	heating, _ := s.parseFloat(s.getStringValue(data["heating"]))
 	coalWashing, _ := s.parseFloat(s.getStringValue(data["coal_washing"]))
 	coking, _ := s.parseFloat(s.getStringValue(data["coking"]))
@@ -182,13 +260,326 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 	rawMaterials, _ := s.parseFloat(s.getStringValue(data["raw_materials"]))
 	otherUses, _ := s.parseFloat(s.getStringValue(data["other_uses"]))
 
-	usageTotal := powerGen + heating + coalWashing + coking + oilRefining + gasProduction + industry + rawMaterials + otherUses
-	if totalCoal != usageTotal {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应等于各用途消费量之和"})
+	// ①≧0
+	if powerGeneration < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能为负数"})
+	}
+	if heating < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能为负数"})
+	}
+	if coalWashing < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能为负数"})
+	}
+	if coking < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能为负数"})
+	}
+	if oilRefining < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能为负数"})
+	}
+	if gasProduction < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能为负数"})
+	}
+	if industry < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能为负数"})
+	}
+	if rawMaterials < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能为负数"})
+	}
+	if otherUses < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能为负数"})
+	}
+
+	// ②≦100000
+	if powerGeneration > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能大于100000"})
+	}
+	if heating > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能大于100000"})
+	}
+	if coalWashing > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能大于100000"})
+	}
+	if coking > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能大于100000"})
+	}
+	if oilRefining > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能大于100000"})
+	}
+	if gasProduction > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能大于100000"})
+	}
+	if industry > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能大于100000"})
+	}
+	if rawMaterials > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能大于100000"})
+	}
+	if otherUses > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能大于100000"})
+	}
+
+	// 3. 焦炭消费摸底部分校验
+	coke, _ := s.parseFloat(s.getStringValue(data["coke"]))
+
+	// ①≧0
+	if coke < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能为负数"})
+	}
+
+	// ②≦100000
+	if coke > 100000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能大于100000"})
 	}
 
 	return errors
 }
+
+// validateAttachment2DataConsistency 校验附件2数据一致性
+func (s *DataImportService) validateAttachment2DataConsistency(data map[string]interface{}, rowNum int) []ValidationError {
+	errors := []ValidationError{}
+
+	// 1. 分品种煤炭消费摸底部分
+	// ③煤合计=原煤+洗精煤+其他
+	totalCoal, _ := s.parseFloat(s.getStringValue(data["total_coal"]))
+	rawCoal, _ := s.parseFloat(s.getStringValue(data["raw_coal"]))
+	washedCoal, _ := s.parseFloat(s.getStringValue(data["washed_coal"]))
+	otherCoal, _ := s.parseFloat(s.getStringValue(data["other_coal"]))
+
+	expectedTotal := rawCoal + washedCoal + otherCoal
+	if totalCoal != expectedTotal {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应等于原煤+洗精煤+其他"})
+	}
+
+	// 2. 分用途煤炭消费摸底部分
+	// ③工业≧工业（#用作原料、材料）
+	industry, _ := s.parseFloat(s.getStringValue(data["industry"]))
+	rawMaterials, _ := s.parseFloat(s.getStringValue(data["raw_materials"]))
+
+	if industry < rawMaterials {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业应大于等于工业（#用作原料、材料）"})
+	}
+
+	// 3. 文件内整体校验
+	// ①分品种煤炭消费摸底与分用途煤炭消费摸底
+	// 煤合计≧能源加工转换+终端消费
+	powerGeneration, _ := s.parseFloat(s.getStringValue(data["power_generation"]))
+	heating, _ := s.parseFloat(s.getStringValue(data["heating"]))
+	coalWashing, _ := s.parseFloat(s.getStringValue(data["coal_washing"]))
+	coking, _ := s.parseFloat(s.getStringValue(data["coking"]))
+	oilRefining, _ := s.parseFloat(s.getStringValue(data["oil_refining"]))
+	gasProduction, _ := s.parseFloat(s.getStringValue(data["gas_production"]))
+	otherUses, _ := s.parseFloat(s.getStringValue(data["other_uses"]))
+
+	// 能源加工转换 = 火力发电 + 供热 + 煤炭洗选 + 炼焦 + 炼油及煤制油 + 制气
+	energyConversion := powerGeneration + heating + coalWashing + coking + oilRefining + gasProduction
+	// 终端消费 = 工业 + 其他用途
+	terminalConsumption := industry + otherUses
+
+	if totalCoal < energyConversion+terminalConsumption {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应大于等于能源加工转换+终端消费"})
+	}
+
+	return errors
+}
+
+// validateAttachment2DatabaseRules 校验附件2数据库验证规则
+func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[string]interface{}) []ValidationError {
+	errors := []ValidationError{}
+
+	if len(mainData) == 0 {
+		return errors
+	}
+
+	// 获取当前用户的省市县级别
+	areaResult := s.app.GetAreaConfig()
+	if !areaResult.Ok || areaResult.Data == nil {
+		return errors
+	}
+
+	areaData, ok := areaResult.Data.([]map[string]interface{})
+	if !ok || len(areaData) == 0 {
+		return errors
+	}
+
+	area := areaData[0]
+	provinceName := s.getStringValue(area["province_name"])
+	cityName := s.getStringValue(area["city_name"])
+	countryName := s.getStringValue(area["country_name"])
+
+	// 构建查询条件
+	var whereClause string
+	var args []interface{}
+
+	if countryName != "" {
+		// 有县，查询该县下的所有数据
+		whereClause = "WHERE province_name = ? AND city_name = ? AND country_name = ?"
+		args = []interface{}{provinceName, cityName, countryName}
+	} else if cityName != "" {
+		// 有市无县，查询该市下的所有县的数据
+		whereClause = "WHERE province_name = ? AND city_name = ?"
+		args = []interface{}{provinceName, cityName}
+	} else if provinceName != "" {
+		// 只有省，查询该省下的所有市的数据
+		whereClause = "WHERE province_name = ?"
+		args = []interface{}{provinceName}
+	} else {
+		// 没有区域信息，跳过验证
+		return errors
+	}
+
+	// 获取当前数据的年份
+	statDate := s.getStringValue(mainData[0]["stat_date"])
+	if statDate == "" {
+		return errors
+	}
+
+	// 查询下级所有同一年份的数据
+	query := fmt.Sprintf(`
+		SELECT 
+			total_coal, raw_coal, washed_coal, other_coal,
+			power_generation, heating, coal_washing, coking, oil_refining, gas_production,
+			industry, raw_materials, other_uses, coke
+		FROM coal_consumption_report 
+		%s AND stat_date = ?
+	`, whereClause)
+	args = append(args, statDate)
+
+	result, err := s.app.GetDB().Query(query, args...)
+	if err != nil || result.Data == nil {
+		return errors
+	}
+
+	subData, ok := result.Data.([]map[string]interface{})
+	if !ok || len(subData) == 0 {
+		return errors
+	}
+
+	// 计算下级数据总和
+	var subTotalCoal, subRawCoal, subWashedCoal, subOtherCoal float64
+	var subPowerGeneration, subHeating, subCoalWashing, subCoking, subOilRefining, subGasProduction float64
+	var subIndustry, subRawMaterials, subOtherUses, subCoke float64
+
+	for _, record := range subData {
+		// 解密数值字段
+		totalCoal, _ := s.parseFloat(s.decryptValue(record["total_coal"]))
+		rawCoal, _ := s.parseFloat(s.decryptValue(record["raw_coal"]))
+		washedCoal, _ := s.parseFloat(s.decryptValue(record["washed_coal"]))
+		otherCoal, _ := s.parseFloat(s.decryptValue(record["other_coal"]))
+		powerGeneration, _ := s.parseFloat(s.decryptValue(record["power_generation"]))
+		heating, _ := s.parseFloat(s.decryptValue(record["heating"]))
+		coalWashing, _ := s.parseFloat(s.decryptValue(record["coal_washing"]))
+		coking, _ := s.parseFloat(s.decryptValue(record["coking"]))
+		oilRefining, _ := s.parseFloat(s.decryptValue(record["oil_refining"]))
+		gasProduction, _ := s.parseFloat(s.decryptValue(record["gas_production"]))
+		industry, _ := s.parseFloat(s.decryptValue(record["industry"]))
+		rawMaterials, _ := s.parseFloat(s.decryptValue(record["raw_materials"]))
+		otherUses, _ := s.parseFloat(s.decryptValue(record["other_uses"]))
+		coke, _ := s.parseFloat(s.decryptValue(record["coke"]))
+
+		subTotalCoal += totalCoal
+		subRawCoal += rawCoal
+		subWashedCoal += washedCoal
+		subOtherCoal += otherCoal
+		subPowerGeneration += powerGeneration
+		subHeating += heating
+		subCoalWashing += coalWashing
+		subCoking += coking
+		subOilRefining += oilRefining
+		subGasProduction += gasProduction
+		subIndustry += industry
+		subRawMaterials += rawMaterials
+		subOtherUses += otherUses
+		subCoke += coke
+	}
+
+	// 计算当前数据总和
+	var currentTotalCoal, currentRawCoal, currentWashedCoal, currentOtherCoal float64
+	var currentPowerGeneration, currentHeating, currentCoalWashing, currentCoking, currentOilRefining, currentGasProduction float64
+	var currentIndustry, currentRawMaterials, currentOtherUses, currentCoke float64
+
+	for _, record := range mainData {
+		totalCoal, _ := s.parseFloat(s.getStringValue(record["total_coal"]))
+		rawCoal, _ := s.parseFloat(s.getStringValue(record["raw_coal"]))
+		washedCoal, _ := s.parseFloat(s.getStringValue(record["washed_coal"]))
+		otherCoal, _ := s.parseFloat(s.getStringValue(record["other_coal"]))
+		powerGeneration, _ := s.parseFloat(s.getStringValue(record["power_generation"]))
+		heating, _ := s.parseFloat(s.getStringValue(record["heating"]))
+		coalWashing, _ := s.parseFloat(s.getStringValue(record["coal_washing"]))
+		coking, _ := s.parseFloat(s.getStringValue(record["coking"]))
+		oilRefining, _ := s.parseFloat(s.getStringValue(record["oil_refining"]))
+		gasProduction, _ := s.parseFloat(s.getStringValue(record["gas_production"]))
+		industry, _ := s.parseFloat(s.getStringValue(record["industry"]))
+		rawMaterials, _ := s.parseFloat(s.getStringValue(record["raw_materials"]))
+		otherUses, _ := s.parseFloat(s.getStringValue(record["other_uses"]))
+		coke, _ := s.parseFloat(s.getStringValue(record["coke"]))
+
+		currentTotalCoal += totalCoal
+		currentRawCoal += rawCoal
+		currentWashedCoal += washedCoal
+		currentOtherCoal += otherCoal
+		currentPowerGeneration += powerGeneration
+		currentHeating += heating
+		currentCoalWashing += coalWashing
+		currentCoking += coking
+		currentOilRefining += oilRefining
+		currentGasProduction += gasProduction
+		currentIndustry += industry
+		currentRawMaterials += rawMaterials
+		currentOtherUses += otherUses
+		currentCoke += coke
+	}
+
+	// 校验规则：同年份本单位所上传数值*120%应≥下级单位相加之和
+	threshold := 1.2
+
+	// 校验各个字段
+	if currentTotalCoal*threshold < subTotalCoal {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤合计数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentRawCoal*threshold < subRawCoal {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "原煤数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentWashedCoal*threshold < subWashedCoal {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "洗精煤数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentOtherCoal*threshold < subOtherCoal {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentPowerGeneration*threshold < subPowerGeneration {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "火力发电数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentHeating*threshold < subHeating {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "供热数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentCoalWashing*threshold < subCoalWashing {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤炭洗选数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentCoking*threshold < subCoking {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼焦数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentOilRefining*threshold < subOilRefining {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼油及煤制油数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentGasProduction*threshold < subGasProduction {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "制气数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentIndustry*threshold < subIndustry {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentRawMaterials*threshold < subRawMaterials {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentOtherUses*threshold < subOtherUses {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他用途数值*120%应大于等于下级单位相加之和"})
+	}
+	if currentCoke*threshold < subCoke {
+		errors = append(errors, ValidationError{RowNumber: 0, Message: "焦炭数值*120%应大于等于下级单位相加之和"})
+	}
+
+	return errors
+}
+
+
 
 // coverAttachment2Data 覆盖附件2数据
 func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface{}, fileName string) error {
@@ -235,18 +626,14 @@ func (s *DataImportService) isAttachment2FileImported(mainData []map[string]inte
 		cityName := s.getStringValue(record["city_name"])
 		countryName := s.getStringValue(record["country_name"])
 
-		query := "SELECT COUNT(*) as count FROM coal_consumption_report WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?"
-		result, err := s.app.GetDB().Query(query, statDate, provinceName, cityName, countryName)
-		if err != nil {
+		query := "SELECT COUNT(1) as count FROM coal_consumption_report WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?"
+		result, err := s.app.GetDB().QueryRow(query, statDate, provinceName, cityName, countryName)
+		if err != nil || result.Data == nil {
 			continue
 		}
 
-		if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-			if count, ok := data[0]["count"].(int64); ok {
-				if count > 0 {
-					return true // 检查到立即停止表示已导入
-				}
-			}
+		if result.Data.(map[string]interface{})["count"].(int64) > 0 {
+			return true // 检查到立即停止表示已导入
 		}
 	}
 
@@ -373,63 +760,4 @@ func (s *DataImportService) encryptAttachment2NumericFields(record map[string]in
 		"industry", "raw_materials", "other_uses", "coke",
 	}
 	return s.encryptNumericFields(record, numericFields)
-}
-
-// ModelDataCoverAttachment2 覆盖附件2数据
-func (s *DataImportService) ModelDataCoverAttachment2(fileNames []string) db.QueryResult {
-	cacheDir := s.app.GetCachePath(TableTypeAttachment2)
-	files, err := os.ReadDir(cacheDir)
-	if err != nil {
-		return db.QueryResult{
-			Ok:      false,
-			Message: fmt.Sprintf("读取缓存目录失败: %v", err),
-		}
-	}
-
-	var validationErrors []ValidationError
-	var failedFiles []string
-
-	for _, file := range files {
-		// 检查是否xlsx或者xls文件
-		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
-			filePath := filepath.Join(cacheDir, file.Name())
-			if !slices.Contains(fileNames, file.Name()) {
-				// 删除该Excel文件
-				os.Remove(filePath)
-				continue
-			}
-
-			f, err := excelize.OpenFile(filePath)
-			if err != nil {
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 读取失败: %v", file.Name(), err)})
-				os.Remove(filePath)
-				continue
-			}
-
-			mainData, err := s.parseAttachment2Excel(f, true)
-			f.Close()
-			os.Remove(filePath)
-
-			if err != nil {
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 解析失败: %v", file.Name(), err)})
-				failedFiles = append(failedFiles, filePath)
-				continue
-			}
-
-			err = s.coverAttachment2Data(mainData, file.Name())
-			if err != nil {
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 覆盖数据失败: %v", file.Name(), err)})
-				failedFiles = append(failedFiles, filePath)
-			}
-		}
-	}
-
-	return db.QueryResult{
-		Ok:      true,
-		Message: "覆盖完成",
-		Data: map[string]interface{}{
-			"failed_files": failedFiles,      // 失败的文件
-			"errors":       validationErrors, // 错误信息
-		},
-	}
 }

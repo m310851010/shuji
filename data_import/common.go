@@ -408,6 +408,25 @@ func (s *DataImportService) GetAreaConfig() db.QueryResult {
 	return s.app.GetAreaConfig()
 }
 
+// decryptValue 解密数值
+func (s *DataImportService) decryptValue(value interface{}) string {
+	if value == nil {
+		return "0"
+	}
+
+	encryptedValue := s.getStringValue(value)
+	if encryptedValue == "" {
+		return "0"
+	}
+
+	decryptedValue, err := s.app.SM4Decrypt(encryptedValue)
+	if err != nil {
+		return "0"
+	}
+
+	return decryptedValue
+}
+
 // 导入状态常量
 const (
 	ImportStateSuccess = "上传成功"
@@ -453,9 +472,9 @@ var (
 		"trade_b":       "所属行业",
 		"trade_c":       "所属行业",
 		"stat_date":     "数据年份",
-		"equip_type":    "类型",
-		"equip_no":      "编号",
-		"total_runtime": "累计使用时间",
+		"coal_type":    "类型",
+		"row_no":      "编号",
+		"coal_no": "累计使用时间",
 		"design_life":   "设计年限",
 		"capacity_unit": "容量单位",
 		"capacity":      "容量",

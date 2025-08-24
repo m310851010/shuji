@@ -148,8 +148,10 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 			}
 		}
 
+        dataRow["_excel_row"] = i + 1
+
 		// 只添加有项目名称的数据行
-		if projectName, ok := dataRow["project_name"].(string); ok && projectName != "" {
+		if projectName, ok := dataRow["project_code"].(string); ok && projectName != "" {
 			mainData = append(mainData, dataRow)
 		}
 	}

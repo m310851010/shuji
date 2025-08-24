@@ -38,7 +38,6 @@ import {ModelDataCheckReportDownload} from '@wailsjs/go';
   }
 
 
-
   const handleCheckClick = async () => {
     const handleResult = (hasFailedFiles: boolean) => {
       passed.value = !hasFailedFiles;
@@ -47,6 +46,7 @@ import {ModelDataCheckReportDownload} from '@wailsjs/go';
 
     model.value.isChecking = true;
     const result = await  model.value.checkFunc();
+    console.log("模型校验结果", result);
     if (!result.ok) {
       model.value.isChecking = false;
      openInfoModal({

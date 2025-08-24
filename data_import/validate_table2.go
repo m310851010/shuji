@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -98,6 +99,7 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 		for key, value := range unitInfo {
 			dataRow[key] = value
 		}
+        dataRow["_excel_row"] = i + 1
 
 		// 添加设备信息
 		for j, cell := range row {
@@ -107,12 +109,13 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 			}
 		}
 
-		// 只添加有设备类型的数据行
-		if equipType, ok := dataRow["equip_type"].(string); ok && equipType != "" {
+		// 只添加有耗煤类型的数据行
+		if equipType, ok := dataRow["coal_type"].(string); ok && equipType != "" {
 			mainData = append(mainData, dataRow)
 		}
 	}
 
+	log.Println("数据===", mainData)
 	return mainData, nil
 }
 
@@ -180,9 +183,9 @@ func (s *DataImportService) mapTable2HeaderToField(header string) string {
 	// 字段映射
 	fieldMap := map[string]string{
 		"序号":         "row_no",
-		"类型":         "equip_type",
-		"编号":         "equip_no",
-		"累计使用时间":     "total_runtime",
+		"类型":         "coal_type",
+		"编号":         "coal_no",
+		"累计使用时间":     "usage_time",
 		"设计年限":       "design_life",
 		"能效水平":       "enecrgy_efficienct_bmk",
 		"容量单位":       "capacity_unit",
@@ -221,6 +224,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 
 	// 第三步: 文件是否和模板文件匹配
 	mainData, err := s.parseTable2Excel(f, false)
+	log.Println("数据===", mainData)
 	if err != nil {
 		s.app.InsertImportRecord(fileName, TableType2, "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
 		return db.QueryResult{
@@ -280,9 +284,9 @@ func (s *DataImportService) validateTable2DataWithEnterpriseCheck(mainData []map
 	errors := []string{}
 
 	// 在一个循环中完成所有验证
-	for i, data := range mainData {
+	for _, data := range mainData {
 		// Excel中的实际行号：设备数据从第7行开始（表头第5行+1行说明+1行数据）
-		excelRowNum := 7 + i
+		excelRowNum := s.getExcelRowNumber(data)
 
 		// 1. 检查必填字段
 		fieldErrors := s.validateRequiredFields(data, Table2RequiredFields, excelRowNum)

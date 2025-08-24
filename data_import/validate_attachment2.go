@@ -295,9 +295,10 @@ func (s *DataImportService) validateAttachment2Data(mainData []map[string]interf
 		fieldErrors := s.validateRequiredFields(data, Attachment2RequiredFields, excelRowNum)
 		errors = append(errors, fieldErrors...)
 
-		// 2. 检查区域与当前单位是否相符
+		// 2. 检查省市县校验
 		regionErrors := s.validateRegionOnly(data, excelRowNum)
 		errors = append(errors, regionErrors...)
+
 	}
 
 	return errors

@@ -450,7 +450,7 @@ func (s *DataImportService) addValidationErrorsToExcel(filePath string, errors [
 
 	maxCol := len(cols)
 	if maxCol == 0 {
-		return fmt.Errorf("工作表为空")
+		maxCol = 9
 	}
 
 	// 为每个错误行添加错误信息

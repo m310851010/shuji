@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -11,6 +12,66 @@ import (
 
 	"github.com/xuri/excelize/v2"
 )
+
+// ModelDataCoverTable2 覆盖附表2数据
+func (s *DataImportService) ModelDataCoverTable2(filePaths []string) db.QueryResult {
+	cacheDir := s.app.GetCachePath(TableType2)
+	files, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("读取缓存目录失败: %v", err),
+		}
+	}
+
+	var validationErrors []ValidationError
+	var failedFiles []string
+
+	for _, file := range files {
+		// 检查是否xlsx或者xls文件
+		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+			filePath := filepath.Join(cacheDir, file.Name())
+			if !slices.Contains(filePaths, filePath) {
+				// 删除该Excel文件
+				os.Remove(filePath)
+				continue
+			}
+
+			f, err := excelize.OpenFile(filePath)
+			if err != nil {
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 读取失败: %v", file.Name(), err)})
+				os.Remove(filePath)
+				continue
+			}
+
+			mainData, err := s.parseTable2Excel(f, true)
+
+			f.Close()
+			os.Remove(filePath)
+
+			if err != nil {
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 解析失败: %v", file.Name(), err)})
+				failedFiles = append(failedFiles, filePath)
+				continue
+			}
+
+			err = s.coverTable2Data(mainData, file.Name())
+			if err != nil {
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 覆盖数据失败: %v", file.Name(), err)})
+				failedFiles = append(failedFiles, filePath)
+			}
+		}
+	}
+
+	return db.QueryResult{
+		Ok:      true,
+		Message: "覆盖完成",
+		Data: map[string]interface{}{
+			"failed_files": failedFiles,      // 失败的文件
+			"errors":       validationErrors, // 错误信息
+		},
+	}
+}
 
 // ModelDataCheckTable2 附表2模型校验函数
 func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
@@ -25,13 +86,17 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 		}
 	}
 
-	var validationErrors []ValidationError
-	var importedFiles []string
-	var failedFiles []string
+	var validationErrors []ValidationError = []ValidationError{} // 错误信息
+	var importedFiles []string = []string{}                      // 导入的文件
+	var coverFiles []string = []string{}                         // 覆盖的文件
+	var failedFiles []string = []string{}                        // 失败的文件
+	var hasExcelFile bool = false                                // 是否有Excel文件
 
 	// 2. 循环调用对应的解析Excel函数
 	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".xlsx") {
+		// 检查是否xlsx或者xls文件
+		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+			hasExcelFile = true
 			filePath := filepath.Join(cacheDir, file.Name())
 
 			// 解析Excel文件 (skipValidate=true)
@@ -43,6 +108,7 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 			}
 
 			mainData, err := s.parseTable2Excel(f, true)
+			log.Println("主表数据==", mainData)
 			f.Close()
 
 			if err != nil {
@@ -52,7 +118,7 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 			}
 
 			// 4. 调用校验函数,对每一行数据验证
-			errors := s.validateTable2Data(mainData)
+			errors := s.validateTable2DataForModel(mainData)
 			if len(errors) > 0 {
 				// 校验失败，在Excel文件中错误行最后添加错误信息
 				err = s.addValidationErrorsToExcelTable2(filePath, errors, mainData)
@@ -71,7 +137,7 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 
 			// 5. 校验通过后,检查文件是否已导入
 			if s.isTable2FileImported(mainData) {
-				importedFiles = append(importedFiles, file.Name())
+				coverFiles = append(coverFiles, filePath)
 				continue
 			}
 
@@ -88,11 +154,23 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 		}
 	}
 
+	if !hasExcelFile {
+		return db.QueryResult{
+			Ok:      false,
+			Message: "没有待校验Excel文件，请先进行数据导入",
+		}
+	}
+
 	// 7. 把所有的模型验证失败的文件打个zip包
 	if len(failedFiles) > 0 {
 		err = s.createValidationErrorZip(failedFiles, TableType2, TableName2)
 		if err != nil {
 			validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("创建错误报告失败: %v", err)})
+		}
+
+		// 删除失败文件
+		for _, filePath := range failedFiles {
+			os.Remove(filePath)
 		}
 	}
 
@@ -103,51 +181,73 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 	}
 
 	return db.QueryResult{
-		Ok:      len(failedFiles) == 0,
+		Ok:      true,
 		Message: message,
 		Data: map[string]interface{}{
-			"imported_files": importedFiles,
-			"failed_files":   failedFiles,
-			"errors":         validationErrors,
+			"cover_files":    coverFiles,           // 覆盖的文件
+			"hasFailedFiles": len(failedFiles) > 0, // 是否有失败的文件
 		},
 	}
 }
 
-// validateTable2Data 校验附表2数据
-func (s *DataImportService) validateTable2Data(mainData []map[string]interface{}) []ValidationError {
+// validateTable2DataForModel 校验附表2数据（模型校验专用）
+func (s *DataImportService) validateTable2DataForModel(mainData []map[string]interface{}) []ValidationError {
 	errors := []ValidationError{}
 
 	for _, data := range mainData {
 		// 获取记录的实际Excel行号
 		excelRowNum := s.getExcelRowNumber(data)
+
 		// 数值字段校验
-		valueErrors := s.validateTable2NumericFields(data, excelRowNum)
+		valueErrors := s.validateTable2NumericFieldsForModel(data, excelRowNum)
 		errors = append(errors, valueErrors...)
 	}
 
 	return errors
 }
 
-// validateTable2NumericFields 校验附表2数值字段
-func (s *DataImportService) validateTable2NumericFields(data map[string]interface{}, rowNum int) []ValidationError {
+// validateTable2NumericFieldsForModel 校验附表2数值字段（模型校验专用）
+func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]interface{}, rowNum int) []ValidationError {
 	errors := []ValidationError{}
 
-	// 校验累计使用时间范围 (0-50年)
-	if totalRuntime, ok := data["total_runtime"].(string); ok && totalRuntime != "" {
-		if runtime, err := s.parseFloat(totalRuntime); err == nil {
-			if runtime < 0 || runtime > 50 {
-				errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应在0-50年之间"})
-			}
-		}
+	// 1. 累计使用时间、设计年限校验
+	// 应为0-50（含0和50）间的整数
+	totalRuntime, _ := s.parseFloat(s.getStringValue(data["usage_time"]))
+	log.Println("累计使用时间===", totalRuntime, "  ", rowNum)
+	designLife, _ := s.parseFloat(s.getStringValue(data["design_life"]))
+
+	if totalRuntime < 0 || totalRuntime > 50 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应在0-50之间"})
+	}
+	if totalRuntime != float64(int(totalRuntime)) {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应为整数"})
 	}
 
-	// 校验容量范围 (>= 0 且 <= 1000000000)
-	if capacity, ok := data["capacity"].(string); ok && capacity != "" {
-		if capValue, err := s.parseFloat(capacity); err == nil {
-			if capValue < 0 || capValue > 1000000000 {
-				errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量应在0-1000000000之间"})
-			}
-		}
+	if designLife < 0 || designLife > 50 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应在0-50之间"})
+	}
+	if designLife != float64(int(designLife)) {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应为整数"})
+	}
+
+	// 2. 容量校验
+	// 应为正整数
+	capacity, _ := s.parseFloat(s.getStringValue(data["capacity"]))
+	if capacity < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量不能为负数"})
+	}
+	if capacity != float64(int(capacity)) {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量应为整数"})
+	}
+
+	// 3. 年耗煤量校验
+	// ≧0且≦1000000000
+	annualCoalConsumption, _ := s.parseFloat(s.getStringValue(data["annual_coal_consumption"]))
+	if annualCoalConsumption < 0 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能为负数"})
+	}
+	if annualCoalConsumption > 1000000000 {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能大于1000000000"})
 	}
 
 	return errors
@@ -189,19 +289,13 @@ func (s *DataImportService) isTable2FileImported(mainData []map[string]interface
 	creditCode := s.getStringValue(mainData[0]["credit_code"])
 	statDate := s.getStringValue(mainData[0]["stat_date"])
 
-	query := "SELECT COUNT(*) as count FROM critical_coal_equipment_consumption WHERE credit_code = ? AND stat_date = ?"
-	result, err := s.app.GetDB().Query(query, creditCode, statDate)
-	if err != nil {
+	query := "SELECT COUNT(1) as count FROM critical_coal_equipment_consumption WHERE credit_code = ? AND stat_date = ?"
+	result, err := s.app.GetDB().QueryRow(query, creditCode, statDate)
+	if err != nil || result.Data == nil {
 		return false
 	}
 
-	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-		if count, ok := data[0]["count"].(int64); ok {
-			return count > 0
-		}
-	}
-
-	return false
+	return result.Data.(map[string]interface{})["count"].(int64) > 0
 }
 
 // saveTable2Data 保存附表2数据到数据库
@@ -216,8 +310,8 @@ func (s *DataImportService) saveTable2Data(mainData []map[string]interface{}) er
 		query := `INSERT INTO critical_coal_equipment_consumption (
 			obj_id, stat_date, create_time, unit_name, credit_code, trade_a, trade_b, trade_c,
 			province_name, city_name, country_name, coal_type, coal_no, usage_time, design_life,
-			enecrgy_efficienct_bmk, capacity_unit, capacity, use_info, status, annual_coal_consumption
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			enecrgy_efficienct_bmk, capacity_unit, capacity, use_info, status, annual_coal_consumption, create_user, row_no
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		_, err := s.app.GetDB().Exec(query,
 			record["obj_id"], record["stat_date"], record["create_time"], record["unit_name"],
@@ -225,7 +319,7 @@ func (s *DataImportService) saveTable2Data(mainData []map[string]interface{}) er
 			record["province_name"], record["city_name"], record["country_name"], record["coal_type"],
 			record["coal_no"], record["usage_time"], encryptedValues["design_life"], record["enecrgy_efficienct_bmk"],
 			record["capacity_unit"], encryptedValues["capacity"], record["use_info"], record["status"],
-			encryptedValues["annual_coal_consumption"])
+			encryptedValues["annual_coal_consumption"], s.app.GetCurrentOSUser(), record["row_no"])
 		if err != nil {
 			return fmt.Errorf("保存数据失败: %v", err)
 		}
@@ -270,13 +364,11 @@ func (s *DataImportService) addValidationErrorsToExcelTable2(filePath string, er
 
 	maxCol := len(cols)
 	if maxCol == 0 {
-		return fmt.Errorf("工作表为空")
+		maxCol = 10
 	}
 
 	// 为每个错误行添加错误信息
-	for rowNum, errorMsg := range errorMap {
-		// Excel行号从1开始，且需要加上标题行偏移
-		excelRow := rowNum + 6 // 附表2通常从第7行开始有数据
+	for excelRow, errorMsg := range errorMap {
 
 		// 在最后一列添加错误信息
 		errorCol := maxCol + 1
@@ -316,63 +408,4 @@ func (s *DataImportService) encryptTable2NumericFields(record map[string]interfa
 		"design_life", "capacity", "annual_coal_consumption",
 	}
 	return s.encryptNumericFields(record, numericFields)
-}
-
-// ModelDataCoverTable2 覆盖附表2数据
-func (s *DataImportService) ModelDataCoverTable2(fileNames []string) db.QueryResult {
-	cacheDir := s.app.GetCachePath(TableType2)
-	files, err := os.ReadDir(cacheDir)
-	if err != nil {
-		return db.QueryResult{
-			Ok:      false,
-			Message: fmt.Sprintf("读取缓存目录失败: %v", err),
-		}
-	}
-
-	var validationErrors []ValidationError
-	var failedFiles []string
-
-	for _, file := range files {
-		// 检查是否xlsx或者xls文件
-		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
-			filePath := filepath.Join(cacheDir, file.Name())
-			if !slices.Contains(fileNames, file.Name()) {
-				// 删除该Excel文件
-				os.Remove(filePath)
-				continue
-			}
-
-			f, err := excelize.OpenFile(filePath)
-			if err != nil {
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 读取失败: %v", file.Name(), err)})
-				os.Remove(filePath)
-				continue
-			}
-
-			mainData, err := s.parseTable2Excel(f, true)
-			f.Close()
-			os.Remove(filePath)
-
-			if err != nil {
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 解析失败: %v", file.Name(), err)})
-				failedFiles = append(failedFiles, filePath)
-				continue
-			}
-
-			err = s.coverTable2Data(mainData, file.Name())
-			if err != nil {
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 覆盖数据失败: %v", file.Name(), err)})
-				failedFiles = append(failedFiles, filePath)
-			}
-		}
-	}
-
-	return db.QueryResult{
-		Ok:      true,
-		Message: "覆盖完成",
-		Data: map[string]interface{}{
-			"failed_files": failedFiles,      // 失败的文件
-			"errors":       validationErrors, // 错误信息
-		},
-	}
 }
