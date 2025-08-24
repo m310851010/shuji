@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"shuji/data_import"
+
 	"github.com/xuri/excelize/v2"
 )
 
@@ -77,11 +79,11 @@ func (a *App) ModelDataCheckTable1() DataCheckResult {
 
 	if len(allErrors) > 0 {
 		result.Ok = false
-		result.Message = "附表1模型校验发现错误"
+		result.Message = data_import.TableName1 + "模型校验发现错误"
 		result.Errors = allErrors
 	} else {
 		result.Ok = true
-		result.Message = "附表1模型校验通过"
+		result.Message = data_import.TableName1 + "模型校验通过"
 	}
 
 	return result
@@ -288,11 +290,11 @@ func (a *App) ModelDataCheckTable2() DataCheckResult {
 
 	if len(allErrors) > 0 {
 		result.Ok = false
-		result.Message = "附表2模型校验发现错误"
+		result.Message = data_import.TableName2 + "模型校验发现错误"
 		result.Errors = allErrors
 	} else {
 		result.Ok = true
-		result.Message = "附表2模型校验通过"
+		result.Message = data_import.TableName2 + "模型校验通过"
 	}
 
 	return result
@@ -359,11 +361,11 @@ func (a *App) ModelDataCheckTable3() DataCheckResult {
 
 	if len(allErrors) > 0 {
 		result.Ok = false
-		result.Message = "附表3模型校验发现错误"
+		result.Message = data_import.TableName3 + "模型校验发现错误"
 		result.Errors = allErrors
 	} else {
 		result.Ok = true
-		result.Message = "附表3模型校验通过"
+		result.Message = data_import.TableName3 + "模型校验通过"
 	}
 
 	return result
@@ -430,11 +432,11 @@ func (a *App) ModelDataCheckAttachment2() DataCheckResult {
 
 	if len(allErrors) > 0 {
 		result.Ok = false
-		result.Message = "附件2模型校验发现错误"
+		result.Message = data_import.TableAttachment2 + "模型校验发现错误"
 		result.Errors = allErrors
 	} else {
 		result.Ok = true
-		result.Message = "附件2模型校验通过"
+		result.Message = data_import.TableAttachment2 + "模型校验通过"
 	}
 
 	return result
@@ -700,13 +702,13 @@ func (a *App) ManualDataCheckTable1(checkResult ManualCheckResult) DataCheckResu
 		`, checkResult.CheckResult, checkResult.CheckUser, time.Now(), checkResult.ObjID)
 
 		if err != nil {
-			result.Message = "附表1人工校验失败: " + err.Error()
+			result.Message = data_import.TableName1 + "人工校验失败: " + err.Error()
 			return result
 		}
 	}
 
 	result.Ok = true
-	result.Message = "附表1人工校验成功"
+	result.Message = data_import.TableName1 + "人工校验成功"
 	return result
 }
 
@@ -726,12 +728,12 @@ func (a *App) ManualDataCheckTable2(checkResult ManualCheckResult) DataCheckResu
 	`, checkResult.CheckResult, checkResult.CheckUser, time.Now(), checkResult.ObjID)
 
 	if err != nil {
-		result.Message = "附表2人工校验失败: " + err.Error()
+		result.Message = data_import.TableName2 + "人工校验失败: " + err.Error()
 		return result
 	}
 
 	result.Ok = true
-	result.Message = "附表2人工校验成功"
+	result.Message = data_import.TableName2 + "人工校验成功"
 	return result
 }
 
@@ -751,12 +753,12 @@ func (a *App) ManualDataCheckTable3(checkResult ManualCheckResult) DataCheckResu
 	`, checkResult.CheckResult, checkResult.CheckUser, time.Now(), checkResult.ObjID)
 
 	if err != nil {
-		result.Message = "附表3人工校验失败: " + err.Error()
+		result.Message = data_import.TableName3 + "人工校验失败: " + err.Error()
 		return result
 	}
 
 	result.Ok = true
-	result.Message = "附表3人工校验成功"
+	result.Message = data_import.TableName3 + "人工校验成功"
 	return result
 }
 
@@ -776,12 +778,12 @@ func (a *App) ManualDataCheckAttachment2(checkResult ManualCheckResult) DataChec
 	`, checkResult.CheckResult, checkResult.CheckUser, time.Now(), checkResult.ObjID)
 
 	if err != nil {
-		result.Message = "附件2人工校验失败: " + err.Error()
+		result.Message = data_import.TableAttachment2 + "人工校验失败: " + err.Error()
 		return result
 	}
 
 	result.Ok = true
-	result.Message = "附件2人工校验成功"
+	result.Message = data_import.TableAttachment2 + "人工校验成功"
 	return result
 }
 
@@ -849,13 +851,13 @@ func (a *App) GetDataCheckListTable1(page int, pageSize int) interface{} {
 	total += count2 + count3
 
 	// 获取附表1主表数据
-	mainData := a.getTableCheckDataWithTableName("enterprise_coal_consumption_main", "附表1主表", pageSize, offset)
+	mainData := a.getTableCheckDataWithTableName("enterprise_coal_consumption_main", data_import.TableName1+"主表", pageSize, offset)
 
 	// 获取附表1用途数据
-	usageData := a.getTableCheckDataWithTableName("enterprise_coal_consumption_usage", "附表1用途", pageSize, offset)
+	usageData := a.getTableCheckDataWithTableName("enterprise_coal_consumption_usage", data_import.TableName1+"用途", pageSize, offset)
 
 	// 获取附表1设备数据
-	equipData := a.getTableCheckDataWithTableName("enterprise_coal_consumption_equip", "附表1设备", pageSize, offset)
+	equipData := a.getTableCheckDataWithTableName("enterprise_coal_consumption_equip", data_import.TableName1+"设备", pageSize, offset)
 
 	// 合并数据
 	var allData []interface{}
@@ -895,7 +897,7 @@ func (a *App) GetDataCheckListTable2(page int, pageSize int) interface{} {
 	}
 
 	// 获取数据列表
-	data := a.getTableCheckDataWithTableName("critical_coal_equipment_consumption", "附表2", pageSize, offset)
+	data := a.getTableCheckDataWithTableName("critical_coal_equipment_consumption", data_import.TableName2, pageSize, offset)
 
 	return map[string]interface{}{
 		"total": total,
@@ -923,7 +925,7 @@ func (a *App) GetDataCheckListTable3(page int, pageSize int) interface{} {
 	}
 
 	// 获取数据列表
-	data := a.getTableCheckDataWithTableName("fixed_assets_investment_project", "附表3", pageSize, offset)
+	data := a.getTableCheckDataWithTableName("fixed_assets_investment_project", data_import.TableName3, pageSize, offset)
 
 	return map[string]interface{}{
 		"total": total,
@@ -951,7 +953,7 @@ func (a *App) GetDataCheckListAttachment2(page int, pageSize int) interface{} {
 	}
 
 	// 获取数据列表
-	data := a.getTableCheckDataWithTableName("coal_consumption_report", "附件2", pageSize, offset)
+	data := a.getTableCheckDataWithTableName("coal_consumption_report", data_import.TableAttachment2, pageSize, offset)
 
 	return map[string]interface{}{
 		"total": total,

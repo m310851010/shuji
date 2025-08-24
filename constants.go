@@ -47,3 +47,19 @@ const (
 	// SM4块大小（字节）
 	SM4_BLOCK_SIZE = 16
 )
+
+
+// 文件类型常量
+const (
+	TableName1      = "规上企业"
+	TableName2      = "其他单位"
+	TableName3      = "新上项目"
+	TableAttachment2 = "区域综合"
+)
+
+const (
+	TableType1      = "table1"
+	TableType2      = "table2"
+	TableType3      = "table3"
+	TableTypeAttachment2 = "attachment2"
+)

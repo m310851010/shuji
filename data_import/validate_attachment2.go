@@ -166,7 +166,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 
 	// 第一步: 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		s.app.InsertImportRecord(fileName, "附件2", "上传失败", "文件不存在")
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", "文件不存在")
 		return db.QueryResult{
 			Ok:      false,
 			Message: "文件不存在",
@@ -176,7 +176,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	// 第二步: 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, "附件2", "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("读取Excel文件失败: %v", err),
@@ -187,7 +187,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	// 第三步: 文件是否和模板文件匹配
 	mainData, err := s.parseAttachment2Excel(f)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, "附件2", "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("解析Excel文件失败: %v", err),
@@ -196,7 +196,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 
 	// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
 	if isCover {
-		cacheResult := s.app.CacheFileExists(fileName)
+		cacheResult := s.app.CacheFileExists(TableTypeAttachment2, filePath)
 		if cacheResult.Ok {
 			// 文件已存在，直接返回，需要前端确认
 			return db.QueryResult{
@@ -210,7 +210,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	// 第五步: 按行读取文件数据并校验
 	validationErrors := s.validateAttachment2Data(mainData)
 	if len(validationErrors) > 0 {
-		s.app.InsertImportRecord(fileName, "附件2", "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")),
@@ -219,16 +219,16 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 
 	if len(validationErrors) == 0 {
 		// 第六步: 复制文件到缓存目录（只有校验通过才复制）
-		copyResult := s.app.CopyFileToCache(filePath)
+		copyResult := s.app.CopyFileToCache(TableTypeAttachment2, fileName)
 		if !copyResult.Ok {
-			s.app.InsertImportRecord(fileName, "附件2", "上传失败", fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message))
+			s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message))
 			return db.QueryResult{
 				Ok:      false,
 				Message: fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message),
 			}
 		}
 
-		s.app.InsertImportRecord(fileName, "附件2", "上传成功", "数据校验通过")
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传成功", "数据校验通过")
 	}
 
 	return db.QueryResult{
@@ -241,66 +241,18 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 func (s *DataImportService) validateAttachment2Data(mainData []map[string]interface{}) []string {
 	errors := []string{}
 
-	// 1. 检查省份和年份是否为空
+	// 在一个循环中完成所有验证
 	for i, data := range mainData {
 		// Excel中的实际行号：数据从第8行开始（表头第4行+3行说明+1行数据）
 		excelRowNum := 8 + i
+
+		// 1. 检查必填字段
 		fieldErrors := s.validateRequiredFields(data, Attachment2RequiredFields, excelRowNum)
 		errors = append(errors, fieldErrors...)
-	}
 
-	// 2. 检查区域与当前单位是否相符
-	regionErrors := s.validateAttachment2Region(mainData)
-	errors = append(errors, regionErrors...)
-
-	return errors
-}
-
-// validateAttachment2Region 检查附件2区域与当前单位是否相符
-func (s *DataImportService) validateAttachment2Region(data []map[string]interface{}) []string {
-	errors := []string{}
-
-	// 获取当前单位信息
-	result := s.GetAreaConfig()
-	if !result.Ok {
-		// 如果获取失败，跳过区域校验
-		return errors
-	}
-
-	// 解析返回的数据
-	var currentProvince, currentCity, currentCountry string
-	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-		row := data[0]
-		currentProvince = s.getStringValue(row["province_name"])
-		currentCity = s.getStringValue(row["city_name"])
-		currentCountry = s.getStringValue(row["country_name"])
-	} else {
-		// 如果没有配置，跳过区域校验
-		return errors
-	}
-
-	for i, row := range data {
-		// Excel中的实际行号：数据从第8行开始（表头第4行+3行说明+1行数据）
-		excelRowNum := 8 + i
-		provinceName := s.getStringValue(row["province_name"])
-		cityName := s.getStringValue(row["city_name"])
-		countryName := s.getStringValue(row["country_name"])
-
-		// 检查区域是否与当前单位相符
-		if provinceName != "" && currentProvince != "" && provinceName != currentProvince {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			continue
-		}
-
-		if cityName != "" && currentCity != "" && cityName != currentCity {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			continue
-		}
-
-		if countryName != "" && currentCountry != "" && countryName != currentCountry {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			continue
-		}
+		// 2. 检查区域与当前单位是否相符
+		regionErrors := s.validateRegionOnly(data, excelRowNum)
+		errors = append(errors, regionErrors...)
 	}
 
 	return errors

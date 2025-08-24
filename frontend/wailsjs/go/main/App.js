@@ -6,8 +6,8 @@ export function AbsolutePath(arg1) {
   return window['go']['main']['App']['AbsolutePath'](arg1);
 }
 
-export function CacheFileExists(arg1) {
-  return window['go']['main']['App']['CacheFileExists'](arg1);
+export function CacheFileExists(arg1, arg2) {
+  return window['go']['main']['App']['CacheFileExists'](arg1, arg2);
 }
 
 export function CancelImport(arg1) {
@@ -18,8 +18,8 @@ export function CheckAndExportToExcel(arg1) {
   return window['go']['main']['App']['CheckAndExportToExcel'](arg1);
 }
 
-export function CopyFileToCache(arg1) {
-  return window['go']['main']['App']['CopyFileToCache'](arg1);
+export function CopyFileToCache(arg1, arg2) {
+  return window['go']['main']['App']['CopyFileToCache'](arg1, arg2);
 }
 
 export function Copyfile(arg1, arg2) {

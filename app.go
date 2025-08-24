@@ -91,13 +91,32 @@ func CreateApp(fs embed.FS) *App {
 	log.Printf("exePath 路径: %s", exePath)
 	log.Printf("基础路径: %s", Env.BasePath)
 
-	// 检查缓存目录是否存在, 不存在则创建
-	cacheDir := filepath.Join(Env.BasePath, CACHE_FILE_DIR_NAME)
+	createCacheDirs(Env.BasePath)
+	return app
+}
+
+// 检查并创建缓存目录及子目录
+func createCacheDirs(basePath string) {
+	cacheDir := filepath.Join(basePath, CACHE_FILE_DIR_NAME)
+	subDirs := []string{
+		TableType1,
+		TableType2,
+		TableType3,
+		TableTypeAttachment2,
+	}
+
+	// 检查并创建缓存主目录
 	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
 		os.MkdirAll(cacheDir, os.ModePerm)
 	}
 
-	return app
+	// 循环检查并创建各子目录
+	for _, dirName := range subDirs {
+		subDir := filepath.Join(cacheDir, dirName)
+		if _, err := os.Stat(subDir); os.IsNotExist(err) {
+			os.MkdirAll(subDir, os.ModePerm)
+		}
+	}
 }
 
 func extractEmbeddedFiles(fs embed.FS) {
@@ -376,8 +395,8 @@ func (a *App) GetCurrentOSUser() string {
 }
 
 // CacheFileExists 检查缓存文件是否存在
-func (a *App) CacheFileExists(fileName string) db.QueryResult {
-	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, fileName))
+func (a *App) CacheFileExists(tableType string, fileName string) db.QueryResult {
+	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, tableType, fileName))
 	_, err := os.Stat(cachePath)
 	if err == nil {
 		return db.QueryResult{Ok: true, Message: "缓存文件存在", Data: cachePath}
@@ -389,8 +408,8 @@ func (a *App) CacheFileExists(fileName string) db.QueryResult {
 }
 
 // CopyFileToCache 复制文件到缓存目录
-func (a *App) CopyFileToCache(src string) db.QueryResult {
-	cachePath, err := CopyCacheFile(src)
+func (a *App) CopyFileToCache(tableType string, filePath string) db.QueryResult {
+	cachePath, err := CopyCacheFile(filePath, tableType)
 	if err != nil {
 		return db.QueryResult{Ok: false, Message: err.Error()}
 	}

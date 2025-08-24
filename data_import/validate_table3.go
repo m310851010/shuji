@@ -166,7 +166,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 
 	// 第一步: 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		s.app.InsertImportRecord(fileName, "附表3", "上传失败", "文件不存在")
+		s.app.InsertImportRecord(fileName, TableType3, "上传失败", "文件不存在")
 		return db.QueryResult{
 			Ok:      false,
 			Message: "文件不存在",
@@ -176,7 +176,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	// 第二步: 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
+		s.app.InsertImportRecord(fileName, TableType3, "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("读取Excel文件失败: %v", err),
@@ -187,7 +187,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	// 第三步: 文件是否和模板文件匹配
 	mainData, err := s.parseTable3Excel(f)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
+		s.app.InsertImportRecord(fileName, TableType3, "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("解析Excel文件失败: %v", err),
@@ -196,22 +196,22 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 
 	// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
 	if isCover {
-        // 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
-        cacheResult := s.app.CacheFileExists(fileName)
-        if cacheResult.Ok {
-            // 文件已存在，直接返回，需要前端确认
-            return db.QueryResult{
-                Ok:      false,
-                Message: "文件已存在，需要确认是否覆盖",
-                Data:    "FILE_EXISTS",
-            }
-        }
-    }
+		// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+		cacheResult := s.app.CacheFileExists(TableType3, fileName)
+		if cacheResult.Ok {
+			// 文件已存在，直接返回，需要前端确认
+			return db.QueryResult{
+				Ok:      false,
+				Message: "文件已存在，需要确认是否覆盖",
+				Data:    "FILE_EXISTS",
+			}
+		}
+	}
 
 	// 第五步: 按行读取文件数据并校验
 	validationErrors := s.validateTable3Data(mainData)
 	if len(validationErrors) > 0 {
-		s.app.InsertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
+		s.app.InsertImportRecord(fileName, TableType3, "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")),
@@ -220,15 +220,15 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 
 	// 第六步: 复制文件到缓存目录（只有校验通过才复制）
 	if len(validationErrors) == 0 {
-		copyResult := s.app.CopyFileToCache(filePath)
+		copyResult := s.app.CopyFileToCache(TableType3, filePath)
 		if !copyResult.Ok {
-			s.app.InsertImportRecord(fileName, "附表3", "上传失败", fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message))
+			s.app.InsertImportRecord(fileName, TableType3, "上传失败", fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message))
 			return db.QueryResult{
 				Ok:      false,
 				Message: fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message),
 			}
 		}
-		s.app.InsertImportRecord(fileName, "附表3", "上传成功", "数据校验通过")
+		s.app.InsertImportRecord(fileName, TableType3, "上传成功", "数据校验通过")
 	}
 
 	return db.QueryResult{
@@ -241,88 +241,26 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 func (s *DataImportService) validateTable3Data(mainData []map[string]interface{}) []string {
 	errors := []string{}
 
-	// 1. 检查项目名称和项目代码是否为空
+	// 用于存储已检查的项目信息（用于重复数据检查）
+	projectMap := make(map[string]int)
+
+	// 在一个循环中完成所有验证
 	for i, data := range mainData {
 		// Excel中的实际行号：数据从第4行开始（表头第3行+1行数据）
 		excelRowNum := 4 + i
+
+		// 1. 检查必填字段
 		fieldErrors := s.validateRequiredFields(data, Table3RequiredFields, excelRowNum)
 		errors = append(errors, fieldErrors...)
-	}
 
-	// 2. 检查区域与当前单位是否相符
-	regionErrors := s.validateTable3Region(mainData)
-	errors = append(errors, regionErrors...)
+		// 2. 检查区域与当前单位是否相符
+		regionErrors := s.validateRegionOnly(data, excelRowNum)
+		errors = append(errors, regionErrors...)
 
-	// 3. 检查固定资产投资项目重复数据
-	duplicateErrors := s.validateTable3DuplicateData(mainData)
-	errors = append(errors, duplicateErrors...)
-
-	return errors
-}
-
-// validateTable3Region 检查附表3区域与当前单位是否相符
-func (s *DataImportService) validateTable3Region(data []map[string]interface{}) []string {
-	errors := []string{}
-
-	// 获取当前单位信息
-	result := s.GetAreaConfig()
-	if !result.Ok {
-		// 如果获取失败，跳过区域校验
-		return errors
-	}
-
-	// 解析返回的数据
-	var currentProvince, currentCity, currentCountry string
-	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-		row := data[0]
-		currentProvince = s.getStringValue(row["province_name"])
-		currentCity = s.getStringValue(row["city_name"])
-		currentCountry = s.getStringValue(row["country_name"])
-	} else {
-		// 如果没有配置，跳过区域校验
-		return errors
-	}
-
-	for i, row := range data {
-		// Excel中的实际行号：数据从第4行开始（表头第3行+1行数据）
-		excelRowNum := 4 + i
-		provinceName := s.getStringValue(row["province_name"])
-		cityName := s.getStringValue(row["city_name"])
-		countryName := s.getStringValue(row["country_name"])
-
-		// 检查区域是否与当前单位相符
-		if provinceName != "" && currentProvince != "" && provinceName != currentProvince {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			continue
-		}
-
-		if cityName != "" && currentCity != "" && cityName != currentCity {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			continue
-		}
-
-		if countryName != "" && currentCountry != "" && countryName != currentCountry {
-			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
-			continue
-		}
-	}
-
-	return errors
-}
-
-// validateTable3DuplicateData 检查附表3重复数据
-func (s *DataImportService) validateTable3DuplicateData(data []map[string]interface{}) []string {
-	errors := []string{}
-
-	// 用于存储已检查的项目信息
-	projectMap := make(map[string]int)
-
-	for i, row := range data {
-		// Excel中的实际行号：数据从第4行开始（表头第3行+1行数据）
-		excelRowNum := 4 + i
-		projectName := s.getStringValue(row["project_name"])
-		projectCode := s.getStringValue(row["project_code"])
-		approvalNumber := s.getStringValue(row["document_number"])
+		// 3. 检查固定资产投资项目重复数据
+		projectName := s.getStringValue(data["project_name"])
+		projectCode := s.getStringValue(data["project_code"])
+		approvalNumber := s.getStringValue(data["document_number"])
 
 		// 生成唯一标识
 		key := fmt.Sprintf("%s|%s|%s", projectName, projectCode, approvalNumber)

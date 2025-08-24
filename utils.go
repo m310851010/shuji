@@ -127,21 +127,22 @@ func GetCurrentOSUser() string {
 }
 
 // CopyCacheFile 复制缓存文件
-func CopyCacheFile(filePath string) (string, error) {
+func CopyCacheFile(filePath string, tableType string) (string, error) {
 	fileName := filepath.Base(filePath)
-// 	// 生成缓存文件名，规则：原文件名 + ___ + 时间戳 + 原扩展名
-// 	ext := filepath.Ext(fileName)
-// 	nameWithoutExt := strings.TrimSuffix(fileName, ext)
-// 	newFileName := fmt.Sprintf("%s___%d%s", nameWithoutExt, time.Now().UnixNano(), ext)
-	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, fileName))
+	// 	// 生成缓存文件名，规则：原文件名 + ___ + 时间戳 + 原扩展名
+	// 	ext := filepath.Ext(fileName)
+	// 	nameWithoutExt := strings.TrimSuffix(fileName, ext)
+	// 	newFileName := fmt.Sprintf("%s___%d%s", nameWithoutExt, time.Now().UnixNano(), ext)
+	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, tableType, fileName))
+
+	log.Printf("复制文件: %s -> %s", filePath, cachePath)
 
 	// 检查缓存目录是否存在, 不存在则创建
-	cacheDir := filepath.Join(Env.BasePath, CACHE_FILE_DIR_NAME)
+	cacheDir := filepath.Join(Env.BasePath, CACHE_FILE_DIR_NAME, tableType)
 	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
 		os.MkdirAll(cacheDir, os.ModePerm)
 	}
 
-	log.Printf("复制文件: %s -> %s", filePath, cachePath)
 	if err := copyFile(filePath, cachePath); err != nil {
 		return "", err
 	}

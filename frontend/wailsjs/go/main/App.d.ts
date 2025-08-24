@@ -5,13 +5,13 @@ import {db} from '../models';
 
 export function AbsolutePath(arg1:string):Promise<main.FlagResult>;
 
-export function CacheFileExists(arg1:string):Promise<db.QueryResult>;
+export function CacheFileExists(arg1:string,arg2:string):Promise<db.QueryResult>;
 
 export function CancelImport(arg1:string):Promise<any>;
 
 export function CheckAndExportToExcel(arg1:string):Promise<boolean>;
 
-export function CopyFileToCache(arg1:string):Promise<db.QueryResult>;
+export function CopyFileToCache(arg1:string,arg2:string):Promise<db.QueryResult>;
 
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
 

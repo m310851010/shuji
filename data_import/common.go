@@ -6,6 +6,21 @@ import (
 	"strings"
 )
 
+// 文件类型常量
+const (
+	TableName1       = "规上企业"
+	TableName2       = "其他单位"
+	TableName3       = "新上项目"
+	TableAttachment2 = "区域综合"
+)
+
+const (
+	TableType1      = "table1"
+	TableType2      = "table2"
+	TableType3      = "table3"
+	TableTypeAttachment2 = "attachment2"
+)
+
 // App 应用接口，用于访问数据库和其他功能
 type App interface {
 	GetDB() *db.Database
@@ -13,8 +28,8 @@ type App interface {
 	InsertImportRecord(fileName, fileType, importState, describe string)
 	IsEnterpriseListExist() (bool, error)
 	GetEnterpriseNameByCreditCode(creditCode string) (string, error)
-	CacheFileExists(fileName string) db.QueryResult
-	CopyFileToCache(src string) db.QueryResult
+	CacheFileExists(tableType string, fileName string) db.QueryResult
+	CopyFileToCache(tableType string, fileName string) db.QueryResult
 	IsEquipmentListExist() (bool, error)
 	GetEquipmentByCreditCode(creditCode string) db.QueryResult
 }
@@ -228,18 +243,142 @@ func (s *DataImportService) validateEnterpriseNameCreditCodeCorrespondence(unitN
 	return errors
 }
 
+// validateEnterpriseAndCreditCode 企业名称和统一社会信用代码校验（从表1、表2提取的通用逻辑）
+func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]interface{}, excelRowNum int) []string {
+	errors := []string{}
+
+	unitName, _ := data["unit_name"].(string)
+	creditCode, _ := data["credit_code"].(string)
+
+	if unitName != "" && creditCode != "" {
+		// 第一步: 调用s.app.IsEnterpriseListExist(), 检查企业清单是否存在, 不存在直接校验通过
+		hasEnterpriseList, err := s.app.IsEnterpriseListExist()
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("第%d行：企业清单检查失败", excelRowNum))
+			return errors
+		}
+
+		if hasEnterpriseList {
+			// 第二步: 如果企业清单存在, 调用s.app.GetEnterpriseNameByCreditCode,检查统一信用代码是否有对应的企业名称, 未查询到企业名称校验失败
+			dbUnitName, err := s.app.GetEnterpriseNameByCreditCode(creditCode)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("第%d行：%s企业，统一信用代码%s未在清单表里", excelRowNum, unitName, creditCode))
+				return errors
+			}
+
+			// 第三步: 如果查询到企业名了，比较企业名称是否相同
+			if dbUnitName != unitName {
+				errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和上传的企业名称不对应", excelRowNum, creditCode))
+			}
+		}
+	}
+
+	return errors
+}
+
+// validateRegionCorrespondence 省市县和统一社会信用代码对应关系校验（从表1、表2提取的通用逻辑）
+func (s *DataImportService) validateRegionCorrespondence(data map[string]interface{}, excelRowNum int) []string {
+	errors := []string{}
+
+	provinceName, _ := data["province_name"].(string)
+	cityName, _ := data["city_name"].(string)
+	countryName, _ := data["country_name"].(string)
+	creditCodeForRegion, _ := data["credit_code"].(string)
+
+	if provinceName != "" && cityName != "" && countryName != "" && creditCodeForRegion != "" {
+		// 第一步: 调用s.app.IsEquipmentListExist(), 清单存在时调用s.app.GetEquipmentByCreditCode(统一社会信用代码),清单不存在时, 调用s.app.GetAreaConfig(), 获取province_name, city_name, country_name
+		hasEquipmentList, err := s.app.IsEquipmentListExist()
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("第%d行：装置清单检查失败", excelRowNum))
+			return errors
+		}
+
+		var expectedProvince, expectedCity, expectedCountry string
+
+		if hasEquipmentList {
+			// 清单存在时，从装置清单获取省市县信息
+			equipmentResult := s.app.GetEquipmentByCreditCode(creditCodeForRegion)
+			if equipmentResult.Ok && equipmentResult.Data != nil {
+				if equipmentData, ok := equipmentResult.Data.(map[string]interface{}); ok {
+					expectedProvince = s.getStringValue(equipmentData["province_name"])
+					expectedCity = s.getStringValue(equipmentData["city_name"])
+					expectedCountry = s.getStringValue(equipmentData["country_name"])
+				}
+			}
+		} else {
+			// 清单不存在时，从区域配置获取省市县信息
+			areaResult := s.app.GetAreaConfig()
+			areaData := areaResult.Data.([]map[string]interface{})
+			expectedProvince = s.getStringValue(areaData[0]["province_name"])
+			expectedCity = s.getStringValue(areaData[0]["city_name"])
+			expectedCountry = s.getStringValue(areaData[0]["country_name"])
+		}
+
+		// 第二步: 用province_name, city_name, country_name和单位所在省市县比较是否相等
+		// 1.检查省是否匹配, 失败,返回
+		if expectedProvince != "" && provinceName != expectedProvince {
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+			return errors
+		}
+		// 2.检查市, city_name有值时,是否匹配, 无值时返回成功
+		if expectedCity != "" && cityName != expectedCity {
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+			return errors
+		}
+		// 3.检查县, country_name有值时,是否匹配, 无值时返回成功
+		if expectedCountry != "" && countryName != expectedCountry {
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+			return errors
+		}
+	}
+
+	return errors
+}
+
+// validateRegionOnly 仅省市县校验（从表3、附件2提取的通用逻辑）
+func (s *DataImportService) validateRegionOnly(data map[string]interface{}, excelRowNum int) []string {
+	errors := []string{}
+
+	provinceName, _ := data["province_name"].(string)
+	cityName, _ := data["city_name"].(string)
+	countryName, _ := data["country_name"].(string)
+
+	// 判断在省市县非空时检验
+	if provinceName != "" && cityName != "" && countryName != "" {
+		// 调用s.app.GetAreaConfig(), 获取province_name, city_name, country_name
+		areaResult := s.app.GetAreaConfig()
+		areaData := areaResult.Data.([]map[string]interface{})
+		row := areaData[0]
+		expectedProvince := s.getStringValue(row["province_name"])
+		expectedCity := s.getStringValue(row["city_name"])
+		expectedCountry := s.getStringValue(row["country_name"])
+
+		// 用province_name, city_name, country_name和文件中的省、市、县比较是否相等
+		// 注意：city_name和country_name有可能为空, 为空时不校验这俩字段
+		// 1.检查省是否匹配, 失败,返回
+		if expectedProvince != "" && provinceName != expectedProvince {
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+			return errors
+		}
+		// 2.检查市, city_name有值时,是否匹配, 无值时返回成功
+		if expectedCity != "" && cityName != expectedCity {
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+			return errors
+		}
+		// 3.检查县, country_name有值时,是否匹配, 无值时返回成功
+		if expectedCountry != "" && countryName != expectedCountry {
+			errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+			return errors
+		}
+	}
+
+	return errors
+}
+
 // GetAreaConfig 获取区域配置 - 直接调用App的方法
 func (s *DataImportService) GetAreaConfig() db.QueryResult {
 	return s.app.GetAreaConfig()
 }
-
-// 文件类型常量
-const (
-	FileTypeTable1      = "附表1"
-	FileTypeTable2      = "附表2"
-	FileTypeTable3      = "附表3"
-	FileTypeAttachment2 = "附件2"
-)
 
 // 导入状态常量
 const (

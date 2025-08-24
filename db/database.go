@@ -100,7 +100,7 @@ func NewDatabase(dbPath string, password string) (*Database, error) {
 
 		fmt.Printf("配置 %d 连接成功\n", i+1)
 		// 连接成功，设置连接池参数
-		db.SetMaxOpenConns(50)
+		db.SetMaxOpenConns(150)
 		db.SetMaxIdleConns(5)
 		db.SetConnMaxLifetime(time.Hour)
 
@@ -114,7 +114,7 @@ func NewDatabase(dbPath string, password string) (*Database, error) {
 	}
 
 	// 设置连接池参数
-	db.SetMaxOpenConns(50)
+	db.SetMaxOpenConns(150)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(time.Hour)
 
@@ -157,8 +157,6 @@ func (d *Database) Exec(query string, args ...interface{}) (QueryResult, error) 
 
 	lastID, _ := result.LastInsertId()
 	rowsAffected, _ := result.RowsAffected()
-
-	log.Printf("SQL执行成功, sql: %s, args: %v", query, args)
 
 	return QueryResult{
 		Ok: true,
