@@ -579,8 +579,6 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 	return errors
 }
 
-
-
 // coverAttachment2Data 覆盖附件2数据
 func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface{}, fileName string) error {
 	if len(mainData) == 0 {
@@ -606,15 +604,24 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 
 // updateAttachment2DataByRegionAndYear 根据地区和时间更新附件2数据
 func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName string, record map[string]interface{}) error {
-	// 先删除旧数据
-	query := "DELETE FROM coal_consumption_report WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?"
-	_, err := s.app.GetDB().Exec(query, statDate, provinceName, cityName, countryName)
-	if err != nil {
-		return err
-	}
+	// 对数值字段进行SM4加密
+	encryptedValues := s.encryptAttachment2NumericFields(record)
 
-	// 插入新数据
-	return s.insertAttachment2Data(record)
+	query := `UPDATE coal_consumption_report SET 
+		total_coal = ?, raw_coal = ?, washed_coal = ?, other_coal = ?, 
+		power_generation = ?, heating = ?, coal_washing = ?, coking = ?,
+		oil_refining = ?, gas_production = ?, industry = ?, raw_materials = ?, 
+		other_uses = ?, coke = ?
+		WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?`
+
+	_, err := s.app.GetDB().Exec(query,
+		encryptedValues["total_coal"], encryptedValues["raw_coal"], encryptedValues["washed_coal"],
+		encryptedValues["other_coal"], encryptedValues["power_generation"], encryptedValues["heating"],
+		encryptedValues["coal_washing"], encryptedValues["coking"], encryptedValues["oil_refining"],
+		encryptedValues["gas_production"], encryptedValues["industry"], encryptedValues["raw_materials"],
+		encryptedValues["other_uses"], encryptedValues["coke"], statDate, provinceName, cityName, countryName)
+
+	return err
 }
 
 // isAttachment2FileImported 检查附件2文件是否已导入
@@ -643,7 +650,27 @@ func (s *DataImportService) isAttachment2FileImported(mainData []map[string]inte
 // saveAttachment2Data 保存附件2数据到数据库
 func (s *DataImportService) saveAttachment2Data(mainData []map[string]interface{}) error {
 	for _, record := range mainData {
-		err := s.insertAttachment2Data(record)
+		statDate := s.getStringValue(record["stat_date"])
+		provinceName := s.getStringValue(record["province_name"])
+		cityName := s.getStringValue(record["city_name"])
+		countryName := s.getStringValue(record["country_name"])
+
+		// 检查是否已存在数据
+		query := "SELECT COUNT(1) as count FROM coal_consumption_report WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?"
+		result, err := s.app.GetDB().QueryRow(query, statDate, provinceName, cityName, countryName)
+		if err != nil {
+			return err
+		}
+
+		count := result.Data.(map[string]interface{})["count"].(int64)
+		if count > 0 {
+			// 已存在数据，执行更新
+			err = s.updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName, record)
+		} else {
+			// 不存在数据，执行插入
+			err = s.insertAttachment2Data(record)
+		}
+
 		if err != nil {
 			return err
 		}

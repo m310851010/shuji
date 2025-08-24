@@ -758,8 +758,6 @@ func (s *DataImportService) validateTable3DatabaseRules(mainData []map[string]in
 	return errors
 }
 
-
-
 // coverTable3Data 覆盖附表3数据
 func (s *DataImportService) coverTable3Data(mainData []map[string]interface{}, fileName string) error {
 	if len(mainData) == 0 {
@@ -783,15 +781,43 @@ func (s *DataImportService) coverTable3Data(mainData []map[string]interface{}, f
 
 // updateTable3DataByProjectCodeAndUnit 根据项目代码和建设单位更新附表3数据
 func (s *DataImportService) updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit string, record map[string]interface{}) error {
-	// 先删除旧数据
-	query := "DELETE FROM fixed_assets_investment_project WHERE project_code = ? AND construction_unit = ?"
-	_, err := s.app.GetDB().Exec(query, projectCode, constructionUnit)
-	if err != nil {
-		return err
-	}
+	// 对数值字段进行SM4加密
+	encryptedValues := s.encryptTable3NumericFields(record)
 
-	// 插入新数据
-	return s.insertTable3Data(record)
+	query := `UPDATE fixed_assets_investment_project SET 
+		stat_date = ?, project_name = ?, main_construction_content = ?,
+		province_name = ?, city_name = ?, country_name = ?, trade_a = ?, trade_c = ?, 
+		examination_approval_time = ?, scheduled_time = ?, actual_time = ?,
+		examination_authority = ?, document_number = ?, equivalent_value = ?,
+		equivalent_cost = ?, pq_total_coal_consumption = ?, pq_coal_consumption = ?, 
+		pq_coke_consumption = ?, pq_blue_coke_consumption = ?, sce_total_coal_consumption = ?,
+		sce_coal_consumption = ?, sce_coke_consumption = ?, sce_blue_coke_consumption = ?,
+		is_substitution = ?, substitution_source = ?, substitution_quantity = ?, 
+		pq_annual_coal_quantity = ?, sce_annual_coal_quantity = ?, total_coal = ?, 
+		raw_coal = ?, washed_coal = ?, other_coal = ?, power_generation = ?, 
+		heating = ?, coal_washing = ?, coking = ?, oil_refining = ?, gas_production = ?,
+		industry = ?, raw_materials = ?, other_uses = ?, coke = ?
+		WHERE project_code = ? AND construction_unit = ?`
+
+	_, err := s.app.GetDB().Exec(query,
+		record["stat_date"], record["project_name"], record["main_construction_content"],
+		record["province_name"], record["city_name"], record["country_name"],
+		record["trade_a"], record["trade_c"], record["examination_approval_time"],
+		record["scheduled_time"], record["actual_time"], record["examination_authority"],
+		record["document_number"], encryptedValues["equivalent_value"], encryptedValues["equivalent_cost"],
+		encryptedValues["pq_total_coal_consumption"], encryptedValues["pq_coal_consumption"],
+		encryptedValues["pq_coke_consumption"], encryptedValues["pq_blue_coke_consumption"],
+		encryptedValues["sce_total_coal_consumption"], encryptedValues["sce_coal_consumption"],
+		encryptedValues["sce_coke_consumption"], encryptedValues["sce_blue_coke_consumption"],
+		record["is_substitution"], record["substitution_source"], encryptedValues["substitution_quantity"],
+		encryptedValues["pq_annual_coal_quantity"], encryptedValues["sce_annual_coal_quantity"],
+		encryptedValues["total_coal"], encryptedValues["raw_coal"], encryptedValues["washed_coal"],
+		encryptedValues["other_coal"], encryptedValues["power_generation"], encryptedValues["heating"],
+		encryptedValues["coal_washing"], encryptedValues["coking"], encryptedValues["oil_refining"],
+		encryptedValues["gas_production"], encryptedValues["industry"], encryptedValues["raw_materials"],
+		encryptedValues["other_uses"], encryptedValues["coke"], projectCode, constructionUnit)
+
+	return err
 }
 
 // isTable3FileImported 检查附表3文件是否已导入
@@ -818,7 +844,25 @@ func (s *DataImportService) isTable3FileImported(mainData []map[string]interface
 // saveTable3Data 保存附表3数据到数据库
 func (s *DataImportService) saveTable3Data(mainData []map[string]interface{}) error {
 	for _, record := range mainData {
-		err := s.insertTable3Data(record)
+		projectCode := s.getStringValue(record["project_code"])
+		constructionUnit := s.getStringValue(record["construction_unit"])
+
+		// 检查是否已存在数据
+		query := "SELECT COUNT(1) as count FROM fixed_assets_investment_project WHERE project_code = ? AND construction_unit = ?"
+		result, err := s.app.GetDB().QueryRow(query, projectCode, constructionUnit)
+		if err != nil {
+			return err
+		}
+
+		count := result.Data.(map[string]interface{})["count"].(int64)
+		if count > 0 {
+			// 已存在数据，执行更新
+			err = s.updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit, record)
+		} else {
+			// 不存在数据，执行插入
+			err = s.insertTable3Data(record)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -954,5 +998,3 @@ func (s *DataImportService) encryptTable3NumericFields(record map[string]interfa
 	}
 	return s.encryptNumericFields(record, numericFields)
 }
-
-
