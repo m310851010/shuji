@@ -22,7 +22,7 @@ func (s *DataImportService) parseTable1Excel(f *excelize.File) ([]map[string]int
 	// 解析主表数据（企业基本信息）
 	mainData, err := s.parseTable1MainSheet(f, sheets[0])
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("和%s模板不匹配, 主表: %v", TableName1, err)
+		return nil, nil, nil, fmt.Errorf("和%s模板不匹配, 企业基本信息: %v", TableName1, err)
 	}
 
 	// 解析用途数据（煤炭消费主要用途情况）
@@ -79,7 +79,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传文件：%s", i+1, expected, actual)
+			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传数据为:%s", i+1, expected, actual)
 		}
 		headerMap[i] = s.mapTable1HeaderToField(expected)
 	}
@@ -208,7 +208,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传文件：%s", i+1, expected, actual)
+			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传数据为:%s", i+1, expected, actual)
 		}
 		headerMap[i] = s.mapTable1UsageHeaderToField(expected)
 	}
@@ -299,7 +299,7 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传文件：%s", i+1, expected, actual)
+			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传数据为:%s", i+1, expected, actual)
 		}
 		headerMap[i] = s.mapTable1EquipHeaderToField(expected)
 	}
@@ -444,8 +444,7 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 	// 第三步: 文件是否和模板文件匹配
 	mainData, usageData, equipData, err := s.parseTable1Excel(f)
 	if err != nil {
-		errorMessage := fmt.Sprintf("解析文件失败: %v", err)
-		fmt.Println(errorMessage)
+		errorMessage := err.Error()
 		s.app.InsertImportRecord(fileName, TableType1, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
@@ -510,7 +509,7 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 
 	// 0. 检查主表数据条数
 	if len(mainData) == 0 {
-		errors = append(errors, "单位基本信息不能为空，请核对并重新上传数据")
+		errors = append(errors, "单位基本信息不能为空")
 		return errors
 	}
 	if len(mainData) > 1 {
@@ -575,14 +574,14 @@ func (s *DataImportService) validateTable1RequiredFieldsWithRowNumbers(data map[
 	// 校验第一部分字段
 	for fieldName, displayName := range part1Fields {
 		if value, ok := data[fieldName].(string); !ok || value == "" {
-			errors = append(errors, fmt.Sprintf("第%d行：%s不能为空，请核对并重新上传数据", rowNum1, displayName))
+			errors = append(errors, fmt.Sprintf("第%d行：%s不能为空", rowNum1, displayName))
 		}
 	}
 
 	// 校验第二部分字段
 	for fieldName, displayName := range part2Fields {
 		if value, ok := data[fieldName].(string); !ok || value == "" {
-			errors = append(errors, fmt.Sprintf("第%d行：%s不能为空，请核对并重新上传数据", rowNum2, displayName))
+			errors = append(errors, fmt.Sprintf("第%d行：%s不能为空", rowNum2, displayName))
 		}
 	}
 

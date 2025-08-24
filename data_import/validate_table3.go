@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -129,7 +130,7 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 	}
 
 	// 解析数据行（跳过表头下的第一行）
-	for i := startRow + 1; i < len(rows); i++ {
+	for i := startRow + 2; i < len(rows); i++ {
 		row := rows[i]
 		if len(row) < 2 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
 			continue // 跳过空行
@@ -166,20 +167,24 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 
 	// 第一步: 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		s.app.InsertImportRecord(fileName, TableType3, "上传失败", "文件不存在")
+		errorMessage := fmt.Sprintf("文件不存在: %v", err)
+		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: "文件不存在",
+			Data:    []string{errorMessage},
+			Message: errorMessage,
 		}
 	}
 
 	// 第二步: 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, TableType3, "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
+		errorMessage := fmt.Sprintf("读取Excel文件失败: %v", err)
+		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("读取Excel文件失败: %v", err),
+			Data:    []string{errorMessage},
+			Message: errorMessage,
 		}
 	}
 	defer f.Close()
@@ -187,10 +192,12 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	// 第三步: 文件是否和模板文件匹配
 	mainData, err := s.parseTable3Excel(f)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, TableType3, "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
+		errorMessage := fmt.Sprintf("解析Excel文件失败: %v", err)
+		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("解析Excel文件失败: %v", err),
+			Data:    []string{errorMessage},
+			Message: errorMessage,
 		}
 	}
 
@@ -211,10 +218,12 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	// 第五步: 按行读取文件数据并校验
 	validationErrors := s.validateTable3Data(mainData)
 	if len(validationErrors) > 0 {
-		s.app.InsertImportRecord(fileName, TableType3, "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
+		errorMessage := fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; "))
+		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")),
+			Data:    validationErrors,
+			Message: errorMessage,
 		}
 	}
 
@@ -222,10 +231,12 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	if len(validationErrors) == 0 {
 		copyResult := s.app.CopyFileToCache(TableType3, filePath)
 		if !copyResult.Ok {
-			s.app.InsertImportRecord(fileName, TableType3, "上传失败", fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message))
+			errorMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)
+			s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
 			return db.QueryResult{
 				Ok:      false,
-				Message: fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message),
+				Data:    []string{errorMessage},
+				Message: errorMessage,
 			}
 		}
 		s.app.InsertImportRecord(fileName, TableType3, "上传成功", "数据校验通过")
@@ -239,10 +250,14 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 
 // validateTable3Data 校验附表3数据
 func (s *DataImportService) validateTable3Data(mainData []map[string]interface{}) []string {
+	log.Println("validateTable3Data: %v", mainData)
+
 	errors := []string{}
 
 	// 用于存储已检查的项目信息（用于重复数据检查）
-	projectMap := make(map[string]int)
+	projectNameMap := make(map[string]int)
+	projectCodeMap := make(map[string]int)
+	approvalNumberMap := make(map[string]int)
 
 	// 在一个循环中完成所有验证
 	for i, data := range mainData {
@@ -253,23 +268,45 @@ func (s *DataImportService) validateTable3Data(mainData []map[string]interface{}
 		fieldErrors := s.validateRequiredFields(data, Table3RequiredFields, excelRowNum)
 		errors = append(errors, fieldErrors...)
 
-		// 2. 检查区域与当前单位是否相符
+		// 2. 检查时间字段（拟投产时间和实际投产时间至少选择其一）
+		timeErrors := s.validateTable3TimeFields(data, excelRowNum)
+		errors = append(errors, timeErrors...)
+
+		// 3. 检查区域与当前单位是否相符
 		regionErrors := s.validateRegionOnly(data, excelRowNum)
 		errors = append(errors, regionErrors...)
 
-		// 3. 检查固定资产投资项目重复数据
+		// 4. 检查固定资产投资项目重复数据
 		projectName := s.getStringValue(data["project_name"])
 		projectCode := s.getStringValue(data["project_code"])
 		approvalNumber := s.getStringValue(data["document_number"])
 
-		// 生成唯一标识
-		key := fmt.Sprintf("%s|%s|%s", projectName, projectCode, approvalNumber)
+		// 分别检查项目名称、项目代码、审查意见文号的唯一性
+		if projectName != "" {
+			if existingIndex, exists := projectNameMap[projectName]; exists {
+				existingExcelRowNum := 4 + existingIndex
+				errors = append(errors, fmt.Sprintf("第%d行：项目名称重复（与第%d行重复）", excelRowNum, existingExcelRowNum))
+			} else {
+				projectNameMap[projectName] = i
+			}
+		}
 
-		if existingIndex, exists := projectMap[key]; exists {
-			existingExcelRowNum := 4 + existingIndex
-			errors = append(errors, fmt.Sprintf("第%d行：[项目名称、项目代码、审查意见文号]数据重复（与第%d行重复）", excelRowNum, existingExcelRowNum))
-		} else {
-			projectMap[key] = i
+		if projectCode != "" {
+			if existingIndex, exists := projectCodeMap[projectCode]; exists {
+				existingExcelRowNum := 4 + existingIndex
+				errors = append(errors, fmt.Sprintf("第%d行：项目代码重复（与第%d行重复）", excelRowNum, existingExcelRowNum))
+			} else {
+				projectCodeMap[projectCode] = i
+			}
+		}
+
+		if approvalNumber != "" {
+			if existingIndex, exists := approvalNumberMap[approvalNumber]; exists {
+				existingExcelRowNum := 4 + existingIndex
+				errors = append(errors, fmt.Sprintf("第%d行：审查意见文号重复（与第%d行重复）", excelRowNum, existingExcelRowNum))
+			} else {
+				approvalNumberMap[approvalNumber] = i
+			}
 		}
 	}
 

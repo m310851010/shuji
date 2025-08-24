@@ -106,10 +106,10 @@
           width: 800,
           content: () => (
             <>
-              <div>
-                以下文件已存在，是否覆盖？
-              </div>
-              <div style="height: 350px; overflow: auto">
+              <h3 style="color: #f5222d;margin-bottom:15px;text-align:center">
+                以下文件已被上传，是否覆盖？
+              </h3>
+              <div style="max-height: 350px; overflow: auto">
                 <TodoCoverTable fileList={confirmCoverList.value} onUpdateFileList={(val: any) => {
                   todoCoverList.value = val
                 }} />
@@ -160,7 +160,7 @@
   function showImportResult(checkResults: any[]) {
     openInfoModal({
       width: 800,
-      content: () => <ShowImportResult style={{height: '400px', overflow: 'auto'}} resultList={checkResults} />
+      content: () => <ShowImportResult style={{maxHeight: '400px', overflow: 'auto'}} resultList={checkResults} />
     })
   }
 

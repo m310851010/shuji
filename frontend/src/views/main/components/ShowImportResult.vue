@@ -1,5 +1,5 @@
 <template>
-  <a-table :dataSource="resultList" :columns="columns" rowKey="fileName" bordered :pagination="false">
+  <a-table :dataSource="resultList" :columns="columns" rowKey="fileName" bordered :pagination="false" size="small">
     <template #bodyCell="{ column, record }">
       <template v-if="column.dataIndex === 'ok'">
         <a-tag :color="record.ok ? 'green' : 'red'">
@@ -35,12 +35,13 @@ const columns = [
     dataIndex: 'fileName',
     key: 'fileName',
     width: 280,
+    ellipsis: true,
   },
   {
     title: '导入状态',
     dataIndex: 'ok',
     key: 'ok',
-    width: 100,
+    width: 80,
   },
   {
     title: '备注',

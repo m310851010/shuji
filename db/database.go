@@ -18,7 +18,7 @@ type Database struct {
 
 // retryOnBusy 在数据库锁定错误时重试操作
 func (d *Database) retryOnBusy(operation func() error) error {
-	maxRetries := 5
+	maxRetries := 20
 	retryDelay := time.Millisecond * 100
 
 	for i := 0; i < maxRetries; i++ {

@@ -15,9 +15,9 @@ const (
 )
 
 const (
-	TableType1      = "table1"
-	TableType2      = "table2"
-	TableType3      = "table3"
+	TableType1           = "table1"
+	TableType2           = "table2"
+	TableType3           = "table3"
 	TableTypeAttachment2 = "attachment2"
 )
 
@@ -168,7 +168,7 @@ func (s *DataImportService) parseDateValue(value string) string {
 func (s *DataImportService) validateRequiredField(data map[string]interface{}, fieldName, fieldDisplayName string, rowIndex int) []string {
 	errors := []string{}
 	if value, ok := data[fieldName].(string); !ok || value == "" {
-		errors = append(errors, fmt.Sprintf("第%d行：%s不能为空，请核对并重新上传数据", rowIndex+1, fieldDisplayName))
+		errors = append(errors, fmt.Sprintf("第%d行：%s不能为空", rowIndex+1, fieldDisplayName))
 	}
 	return errors
 }
@@ -180,6 +180,21 @@ func (s *DataImportService) validateRequiredFields(data map[string]interface{}, 
 		fieldErrors := s.validateRequiredField(data, fieldName, displayName, rowIndex)
 		errors = append(errors, fieldErrors...)
 	}
+	return errors
+}
+
+// validateTable3TimeFields 校验附表3时间字段（拟投产时间和实际投产时间至少选择其一）
+func (s *DataImportService) validateTable3TimeFields(data map[string]interface{}, excelRowNum int) []string {
+	errors := []string{}
+
+	scheduledTime, _ := data["scheduled_time"].(string)
+	actualTime, _ := data["actual_time"].(string)
+
+	// 检查拟投产时间和实际投产时间是否都为空
+	if scheduledTime == "" && actualTime == "" {
+		errors = append(errors, fmt.Sprintf("第%d行：拟投产时间和实际投产时间至少选择其一填写", excelRowNum))
+	}
+
 	return errors
 }
 
@@ -438,7 +453,6 @@ var (
 		"project_name":              "项目名称",
 		"project_code":              "项目代码",
 		"document_number":           "审查意见文号",
-		"stat_date":                 "年份",
 		"construction_unit":         "建设单位",
 		"main_construction_content": "主要建设内容",
 		"province_name":             "项目所在省",
@@ -447,8 +461,6 @@ var (
 		"trade_a":                   "所属行业大类",
 		"trade_c":                   "所属行业小类",
 		"examination_approval_time": "节能审查批复时间",
-		"scheduled_time":            "拟投产时间",
-		"actual_time":               "实际投产时间",
 		"examination_authority":     "节能审查机关",
 		"equivalent_value":          "当量值",
 		"equivalent_cost":           "等价值",
