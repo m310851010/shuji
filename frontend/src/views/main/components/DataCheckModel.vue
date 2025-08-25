@@ -4,11 +4,17 @@
   </a-flex>
 
   <div class="box-grey no-bg" style="height: 340px">
-    <a-flex align="center" justify="space-between" :vertical="true" class="h-100">
+
+    <div v-if="model.passed == null">
+      <h1 style="text-align: center;margin-top: 100px; color: #999">点击上面“校验”按钮开始模型校验</h1>
+    </div>
+
+    <a-flex v-else align="center" justify="space-between" :vertical="true" class="h-100">
       <div></div>
-      <div style="font-size: 24px" :style="{ color: passed ? '#52c41a' : '#ff4d4f' }">数据{{ passed ? '已' : '未' }}通过模型校验</div>
+      <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">数据{{ model.passed ? '已' : '未' }}通过模型校验</div>
+      <div v-if="model.errorMessage">{{ model.errorMessage }}</div>
       <div>
-        <a-button type="primary" v-if="!passed" @click="handleDownloadReport">下载模型报告</a-button>
+        <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">下载模型报告</a-button>
       </div>
     </a-flex>
   </div>
@@ -19,8 +25,7 @@ import {openInfoModal, openModal} from '@/components/useModal';
   import TodoCoverTable from './TodoCoverTable.vue';
 import {getFileName} from '@/util';
 import {ModelDataCheckReportDownload} from '@wailsjs/go';
-
-  const passed = ref(false);
+import { db, main } from '@wailsjs/models';
 
   const model = defineModel({
     type: Object,
@@ -39,9 +44,15 @@ import {ModelDataCheckReportDownload} from '@wailsjs/go';
 
 
   const handleCheckClick = async () => {
-    const handleResult = (hasFailedFiles: boolean) => {
-      passed.value = !hasFailedFiles;
+    const handleResult = (result: db.QueryResult) => {
+      model.value.canDownloadReport = result.data.hasFailedFiles;
+      model.value.passed = !result.data.hasFailedFiles;
       model.value.isChecking = false;
+      if  (model.value.canDownloadReport) {
+        model.value.errorMessage = result.message;
+      } else {
+        model.value.errorMessage = '';
+      }
     }
 
     model.value.isChecking = true;
@@ -83,15 +94,15 @@ import {ModelDataCheckReportDownload} from '@wailsjs/go';
         ),
         onOk: async () => {
           await model.value.coverFunc(todoCoverList);
-          handleResult(hasFailedFiles);
+          handleResult(result);
         },
         onCancel: async () => {
           await model.value.coverFunc([]);
-          handleResult(hasFailedFiles);
+          handleResult(result);
         }
       });
     }
 
-    handleResult(hasFailedFiles);
+    handleResult(result);
   }
 </script>

@@ -436,7 +436,17 @@ func (s *DataImportService) validateAttachment2OverallRulesForRow(data map[strin
 	return errors
 }
 
-// validateAttachment2DatabaseRules 校验附件2数据库验证规则
+// attachment2CacheManager 附件2缓存管理器实例
+var attachment2CacheManager *Attachment2CacheManager
+
+// initAttachment2CacheManager 初始化附件2缓存管理器
+func (s *DataImportService) initAttachment2CacheManager() {
+	if attachment2CacheManager == nil {
+		attachment2CacheManager = NewAttachment2CacheManager(s)
+	}
+}
+
+// validateAttachment2DatabaseRules 校验附件2数据库验证规则（优化版本）
 func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[string]interface{}) []ValidationError {
 	errors := []ValidationError{}
 
@@ -460,90 +470,29 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 	cityName := s.getStringValue(area["city_name"])
 	countryName := s.getStringValue(area["country_name"])
 
-	// 构建查询条件
-	var whereClause string
-	var args []interface{}
-
-	if countryName != "" {
-		// 有县，查询该县下的所有数据
-		whereClause = "WHERE province_name = ? AND city_name = ? AND country_name = ?"
-		args = []interface{}{provinceName, cityName, countryName}
-	} else if cityName != "" {
-		// 有市无县，查询该市下的所有县的数据
-		whereClause = "WHERE province_name = ? AND city_name = ?"
-		args = []interface{}{provinceName, cityName}
-	} else if provinceName != "" {
-		// 只有省，查询该省下的所有市的数据
-		whereClause = "WHERE province_name = ?"
-		args = []interface{}{provinceName}
-	} else {
-		// 没有区域信息，跳过验证
-		return errors
-	}
-
 	// 获取当前数据的年份
 	statDate := s.getStringValue(mainData[0]["stat_date"])
 	if statDate == "" {
 		return errors
 	}
 
-	// 查询下级所有同一年份的数据
-	query := fmt.Sprintf(`
-		SELECT 
-			total_coal, raw_coal, washed_coal, other_coal,
-			power_generation, heating, coal_washing, coking, oil_refining, gas_production,
-			industry, raw_materials, other_uses, coke
-		FROM coal_consumption_report 
-		%s AND stat_date = ?
-	`, whereClause)
-	args = append(args, statDate)
+	// 初始化缓存管理器
+	s.initAttachment2CacheManager()
 
-	result, err := s.app.GetDB().Query(query, args...)
-	if err != nil || result.Data == nil {
+	// 预加载数据库缓存（只在第一次调用时从数据库加载，后续直接使用缓存）
+	err := attachment2CacheManager.PreloadDatabaseCache()
+	if err != nil {
 		return errors
 	}
 
-	subData, ok := result.Data.([]map[string]interface{})
-	if !ok || len(subData) == 0 {
-		return errors
-	}
-
-	// 计算下级数据总和
-	var subTotalCoal, subRawCoal, subWashedCoal, subOtherCoal float64
-	var subPowerGeneration, subHeating, subCoalWashing, subCoking, subOilRefining, subGasProduction float64
-	var subIndustry, subRawMaterials, subOtherUses, subCoke float64
-
-	for _, record := range subData {
-		// 解密数值字段
-		totalCoal, _ := s.parseFloat(s.decryptValue(record["total_coal"]))
-		rawCoal, _ := s.parseFloat(s.decryptValue(record["raw_coal"]))
-		washedCoal, _ := s.parseFloat(s.decryptValue(record["washed_coal"]))
-		otherCoal, _ := s.parseFloat(s.decryptValue(record["other_coal"]))
-		powerGeneration, _ := s.parseFloat(s.decryptValue(record["power_generation"]))
-		heating, _ := s.parseFloat(s.decryptValue(record["heating"]))
-		coalWashing, _ := s.parseFloat(s.decryptValue(record["coal_washing"]))
-		coking, _ := s.parseFloat(s.decryptValue(record["coking"]))
-		oilRefining, _ := s.parseFloat(s.decryptValue(record["oil_refining"]))
-		gasProduction, _ := s.parseFloat(s.decryptValue(record["gas_production"]))
-		industry, _ := s.parseFloat(s.decryptValue(record["industry"]))
-		rawMaterials, _ := s.parseFloat(s.decryptValue(record["raw_materials"]))
-		otherUses, _ := s.parseFloat(s.decryptValue(record["other_uses"]))
-		coke, _ := s.parseFloat(s.decryptValue(record["coke"]))
-
-		subTotalCoal += totalCoal
-		subRawCoal += rawCoal
-		subWashedCoal += washedCoal
-		subOtherCoal += otherCoal
-		subPowerGeneration += powerGeneration
-		subHeating += heating
-		subCoalWashing += coalWashing
-		subCoking += coking
-		subOilRefining += oilRefining
-		subGasProduction += gasProduction
-		subIndustry += industry
-		subRawMaterials += rawMaterials
-		subOtherUses += otherUses
-		subCoke += coke
+	// 从缓存获取数据
+	cacheKey := attachment2CacheManager.GetDatabaseCacheKey(provinceName, cityName, countryName, statDate)
+	cache, exists := attachment2CacheManager.GetDatabaseCache(cacheKey)
+	if !exists {
+		// 如果缓存中不存在，返回空缓存
+		cache = &Attachment2DatabaseCache{
+			CacheKey: cacheKey,
+		}
 	}
 
 	// 计算当前数据总和
@@ -586,47 +535,47 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 	// 校验规则：同年份本单位所上传数值*120%应≥下级单位相加之和
 	threshold := 1.2
 
-	// 校验各个字段
-	if currentTotalCoal*threshold < subTotalCoal {
+	// 校验各个字段（使用缓存数据）
+	if currentTotalCoal*threshold < cache.TotalCoal {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤合计数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentRawCoal*threshold < subRawCoal {
+	if currentRawCoal*threshold < cache.RawCoal {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "原煤数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentWashedCoal*threshold < subWashedCoal {
+	if currentWashedCoal*threshold < cache.WashedCoal {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "洗精煤数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentOtherCoal*threshold < subOtherCoal {
+	if currentOtherCoal*threshold < cache.OtherCoal {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentPowerGeneration*threshold < subPowerGeneration {
+	if currentPowerGeneration*threshold < cache.PowerGen {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "火力发电数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentHeating*threshold < subHeating {
+	if currentHeating*threshold < cache.Heating {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "供热数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentCoalWashing*threshold < subCoalWashing {
+	if currentCoalWashing*threshold < cache.CoalWashing {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤炭洗选数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentCoking*threshold < subCoking {
+	if currentCoking*threshold < cache.Coking {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼焦数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentOilRefining*threshold < subOilRefining {
+	if currentOilRefining*threshold < cache.OilRefining {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼油及煤制油数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentGasProduction*threshold < subGasProduction {
+	if currentGasProduction*threshold < cache.GasProd {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "制气数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentIndustry*threshold < subIndustry {
+	if currentIndustry*threshold < cache.Industry {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentRawMaterials*threshold < subRawMaterials {
+	if currentRawMaterials*threshold < cache.RawMaterials {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentOtherUses*threshold < subOtherUses {
+	if currentOtherUses*threshold < cache.OtherUses {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他用途数值*120%应大于等于下级单位相加之和"})
 	}
-	if currentCoke*threshold < subCoke {
+	if currentCoke*threshold < cache.Coke {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "焦炭数值*120%应大于等于下级单位相加之和"})
 	}
 
@@ -659,6 +608,9 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 				return fmt.Errorf("插入数据失败: %v", err)
 			}
 		}
+
+		// 更新内存缓存
+		attachment2CacheManager.UpdateDatabaseCache(statDate, provinceName, cityName, countryName, record)
 	}
 
 	return nil
@@ -666,6 +618,9 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 
 // updateAttachment2DataByRegionAndYear 根据地区和时间更新附件2数据
 func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName string, record map[string]interface{}) (int64, error) {
+	// 先获取旧数据用于缓存更新
+	oldData, err := s.getAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName)
+
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptAttachment2NumericFields(record)
 
@@ -693,17 +648,67 @@ func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provi
 	}
 
 	// 从QueryResult中获取受影响的行数
+	var affectedRows int64 = 0
 	if result.Ok && result.Data != nil {
 		if dataMap, ok := result.Data.(map[string]interface{}); ok {
 			if rowsAffected, exists := dataMap["rowsAffected"]; exists {
-				if affectedRows, ok := rowsAffected.(int64); ok {
-					return affectedRows, nil
+				if affected, ok := rowsAffected.(int64); ok {
+					affectedRows = affected
 				}
 			}
 		}
 	}
 
-	return 0, nil
+	// 如果更新成功且有旧数据，更新缓存
+	if affectedRows > 0 && oldData != nil {
+		s.updateAttachment2DatabaseCacheForUpdate(statDate, provinceName, cityName, countryName, oldData, record)
+		// 更新数据存在性缓存
+		attachment2CacheManager.CacheDataExists(statDate, provinceName, cityName, countryName, true)
+	}
+
+	return affectedRows, nil
+}
+
+// getAttachment2DataByRegionAndYear 根据地区和时间获取附件2数据
+func (s *DataImportService) getAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName string) (map[string]interface{}, error) {
+	query := `SELECT 
+		total_coal, raw_coal, washed_coal, other_coal,
+		power_generation, heating, coal_washing, coking, oil_refining, gas_production,
+		industry, raw_materials, other_uses, coke
+	FROM coal_consumption_report 
+	WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?`
+
+	result, err := s.app.GetDB().QueryRow(query, statDate, provinceName, cityName, countryName)
+	if err != nil || result.Data == nil {
+		return nil, err
+	}
+
+	// 解密数值字段
+	record := result.Data.(map[string]interface{})
+	decryptedRecord := make(map[string]interface{})
+
+	decryptedRecord["total_coal"] = s.decryptValue(record["total_coal"])
+	decryptedRecord["raw_coal"] = s.decryptValue(record["raw_coal"])
+	decryptedRecord["washed_coal"] = s.decryptValue(record["washed_coal"])
+	decryptedRecord["other_coal"] = s.decryptValue(record["other_coal"])
+	decryptedRecord["power_generation"] = s.decryptValue(record["power_generation"])
+	decryptedRecord["heating"] = s.decryptValue(record["heating"])
+	decryptedRecord["coal_washing"] = s.decryptValue(record["coal_washing"])
+	decryptedRecord["coking"] = s.decryptValue(record["coking"])
+	decryptedRecord["oil_refining"] = s.decryptValue(record["oil_refining"])
+	decryptedRecord["gas_production"] = s.decryptValue(record["gas_production"])
+	decryptedRecord["industry"] = s.decryptValue(record["industry"])
+	decryptedRecord["raw_materials"] = s.decryptValue(record["raw_materials"])
+	decryptedRecord["other_uses"] = s.decryptValue(record["other_uses"])
+	decryptedRecord["coke"] = s.decryptValue(record["coke"])
+
+	return decryptedRecord, nil
+}
+
+// updateAttachment2DatabaseCacheForUpdate 更新附件2数据库缓存（用于UPDATE操作）
+func (s *DataImportService) updateAttachment2DatabaseCacheForUpdate(statDate, provinceName, cityName, countryName string, oldRecord, newRecord map[string]interface{}) {
+	// 使用缓存管理器更新缓存
+	attachment2CacheManager.UpdateDatabaseCacheForUpdate(statDate, provinceName, cityName, countryName, oldRecord, newRecord)
 }
 
 // calculateUnitLevel 计算单位等级
@@ -731,13 +736,8 @@ func (s *DataImportService) isAttachment2FileImported(mainData []map[string]inte
 		cityName := s.getStringValue(record["city_name"])
 		countryName := s.getStringValue(record["country_name"])
 
-		query := "SELECT COUNT(1) as count FROM coal_consumption_report WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?"
-		result, err := s.app.GetDB().QueryRow(query, statDate, provinceName, cityName, countryName)
-		if err != nil || result.Data == nil {
-			continue
-		}
-
-		if result.Data.(map[string]interface{})["count"].(int64) > 0 {
+		// 直接检查内存缓存，内存中没有就是不存在
+		if attachment2CacheManager.IsDataExistsInCache(statDate, provinceName, cityName, countryName) {
 			return true // 检查到立即停止表示已导入
 		}
 	}
@@ -753,24 +753,19 @@ func (s *DataImportService) saveAttachment2Data(mainData []map[string]interface{
 		cityName := s.getStringValue(record["city_name"])
 		countryName := s.getStringValue(record["country_name"])
 
-		// 检查是否已存在数据
-		query := "SELECT COUNT(1) as count FROM coal_consumption_report WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?"
-		result, err := s.app.GetDB().QueryRow(query, statDate, provinceName, cityName, countryName)
-		if err != nil {
-			return err
-		}
-
-		count := result.Data.(map[string]interface{})["count"].(int64)
-		if count > 0 {
+		// 直接检查内存缓存，内存中没有就是不存在
+		if attachment2CacheManager.IsDataExistsInCache(statDate, provinceName, cityName, countryName) {
 			// 已存在数据，执行更新
-			_, err = s.updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName, record)
+			_, err := s.updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName, record)
+			if err != nil {
+				return err
+			}
 		} else {
 			// 不存在数据，执行插入
-			err = s.insertAttachment2Data(record)
-		}
-
-		if err != nil {
-			return err
+			err := s.insertAttachment2Data(record)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -785,6 +780,13 @@ func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]in
 		if err != nil {
 			return err
 		}
+
+		// 更新内存缓存
+		statDate := s.getStringValue(record["stat_date"])
+		provinceName := s.getStringValue(record["province_name"])
+		cityName := s.getStringValue(record["city_name"])
+		countryName := s.getStringValue(record["country_name"])
+		attachment2CacheManager.UpdateDatabaseCache(statDate, provinceName, cityName, countryName, record)
 	}
 
 	return nil
@@ -816,6 +818,13 @@ func (s *DataImportService) insertAttachment2Data(record map[string]interface{})
 	if err != nil {
 		return fmt.Errorf("保存数据失败: %v", err)
 	}
+
+	// 更新数据存在性缓存
+	statDate := s.getStringValue(record["stat_date"])
+	provinceName := s.getStringValue(record["province_name"])
+	cityName := s.getStringValue(record["city_name"])
+	countryName := s.getStringValue(record["country_name"])
+	attachment2CacheManager.CacheDataExists(statDate, provinceName, cityName, countryName, true)
 
 	return nil
 }
