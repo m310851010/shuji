@@ -2,7 +2,6 @@ package data_import
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -115,25 +114,23 @@ func (s *DataImportService) ModelDataCheckTable3() db.QueryResult {
 				continue
 			}
 
-			log.Println("mainData==", mainData)
-
 			// 4. 调用校验函数,对每一行数据验证
-			// errors := s.validateTable3DataForModel(mainData)
-			// if len(errors) > 0 {
-			// 	// 校验失败，在Excel文件中错误行最后添加错误信息
-			// 	err = s.addValidationErrorsToExcelTable3(filePath, errors, mainData)
-			// 	if err != nil {
-			// 		validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
-			// 	}
-			// 	failedFiles = append(failedFiles, filePath)
-			// 	// 将验证错误转换为字符串用于显示
-			// 	var errorMessages []string
-			// 	for _, err := range errors {
-			// 		errorMessages = append(errorMessages, err.Message)
-			// 	}
-			// 	validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
-			// 	continue
-			// }
+			errors := s.validateTable3DataForModel(mainData)
+			if len(errors) > 0 {
+				// 校验失败，在Excel文件中错误行最后添加错误信息
+				err = s.addValidationErrorsToExcelTable3(filePath, errors, mainData)
+				if err != nil {
+					validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
+				}
+				failedFiles = append(failedFiles, filePath)
+				// 将验证错误转换为字符串用于显示
+				var errorMessages []string
+				for _, err := range errors {
+					errorMessages = append(errorMessages, err.Message)
+				}
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
+				continue
+			}
 
 			// 5. 校验通过后,检查文件是否已导入
 			if s.isTable3FileImported(mainData) {
