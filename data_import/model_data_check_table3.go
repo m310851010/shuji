@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -97,7 +98,7 @@ func (s *DataImportService) ModelDataCheckTable3() db.QueryResult {
 			hasExcelFile = true
 			filePath := filepath.Join(cacheDir, file.Name())
 
-			// 解析Excel文件 (skipValidate=true)
+			// 解析Excel文件
 			f, err := excelize.OpenFile(filePath)
 			if err != nil {
 				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 读取失败: %v", file.Name(), err)})
@@ -114,23 +115,25 @@ func (s *DataImportService) ModelDataCheckTable3() db.QueryResult {
 				continue
 			}
 
+			log.Println("mainData==", mainData)
+
 			// 4. 调用校验函数,对每一行数据验证
-			errors := s.validateTable3DataForModel(mainData)
-			if len(errors) > 0 {
-				// 校验失败，在Excel文件中错误行最后添加错误信息
-				err = s.addValidationErrorsToExcelTable3(filePath, errors, mainData)
-				if err != nil {
-					validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
-				}
-				failedFiles = append(failedFiles, filePath)
-				// 将验证错误转换为字符串用于显示
-				var errorMessages []string
-				for _, err := range errors {
-					errorMessages = append(errorMessages, err.Message)
-				}
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
-				continue
-			}
+			// errors := s.validateTable3DataForModel(mainData)
+			// if len(errors) > 0 {
+			// 	// 校验失败，在Excel文件中错误行最后添加错误信息
+			// 	err = s.addValidationErrorsToExcelTable3(filePath, errors, mainData)
+			// 	if err != nil {
+			// 		validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
+			// 	}
+			// 	failedFiles = append(failedFiles, filePath)
+			// 	// 将验证错误转换为字符串用于显示
+			// 	var errorMessages []string
+			// 	for _, err := range errors {
+			// 		errorMessages = append(errorMessages, err.Message)
+			// 	}
+			// 	validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
+			// 	continue
+			// }
 
 			// 5. 校验通过后,检查文件是否已导入
 			if s.isTable3FileImported(mainData) {
@@ -139,7 +142,7 @@ func (s *DataImportService) ModelDataCheckTable3() db.QueryResult {
 			}
 
 			// 6. 如果没有导入过,把数据保存到相应的数据库表中
-			err = s.saveTable3Data(mainData)
+			err = s.saveTable3DataForModel(mainData)
 			if err != nil {
 				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 保存数据失败: %v", file.Name(), err)})
 				failedFiles = append(failedFiles, filePath)
@@ -191,7 +194,7 @@ func (s *DataImportService) ModelDataCheckTable3() db.QueryResult {
 func (s *DataImportService) validateTable3DataForModel(mainData []map[string]interface{}) []ValidationError {
 	errors := []ValidationError{}
 
-	// 1. 逐行校验数值字段
+	// 逐行校验数值字段、新增校验规则和整体规则（行内字段间逻辑关系）
 	for _, data := range mainData {
 		// 获取记录的实际Excel行号
 		excelRowNum := s.getExcelRowNumber(data)
@@ -200,18 +203,10 @@ func (s *DataImportService) validateTable3DataForModel(mainData []map[string]int
 		valueErrors := s.validateTable3NumericFields(data, excelRowNum)
 		errors = append(errors, valueErrors...)
 
-		// 新增校验规则
-		newRuleErrors := s.validateTable3NewRules(data, excelRowNum)
-		errors = append(errors, newRuleErrors...)
+		// 整体规则校验（行内字段间逻辑关系）
+		overallErrors := s.validateTable3OverallRulesForRow(data, excelRowNum)
+		errors = append(errors, overallErrors...)
 	}
-
-	// 2. Excel文件内整体校验规则
-	overallErrors := s.validateTable3OverallRules(mainData)
-	errors = append(errors, overallErrors...)
-
-	// 3. 数据库验证
-	dbErrors := s.validateTable3DatabaseRules(mainData)
-	errors = append(errors, dbErrors...)
 
 	return errors
 }
@@ -370,389 +365,38 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	return errors
 }
 
-// validateTable3NewRules 校验附表3新增校验规则
-func (s *DataImportService) validateTable3NewRules(data map[string]interface{}, rowNum int) []ValidationError {
+// validateTable3OverallRulesForRow 校验附表3单行整体规则（行内字段间逻辑关系）
+func (s *DataImportService) validateTable3OverallRulesForRow(data map[string]interface{}, rowNum int) []ValidationError {
 	errors := []ValidationError{}
 
-	// 1. 分品种煤炭消费摸底部分校验
-	totalCoal, _ := s.parseFloat(s.getStringValue(data["total_coal"]))
-	rawCoal, _ := s.parseFloat(s.getStringValue(data["raw_coal"]))
-	washedCoal, _ := s.parseFloat(s.getStringValue(data["washed_coal"]))
-	otherCoal, _ := s.parseFloat(s.getStringValue(data["other_coal"]))
+	// 获取当前行的数值
+	equivalentValue, _ := s.parseFloat(s.getStringValue(data["equivalent_value"]))
+	equivalentCost, _ := s.parseFloat(s.getStringValue(data["equivalent_cost"]))
+	sceTotalCoalConsumption, _ := s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
+	pqTotalCoalConsumption, _ := s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
+	pqAnnualCoalQuantity, _ := s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
+	sceAnnualCoalQuantity, _ := s.parseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
 
-	// ①≧0
-	if totalCoal < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能为负数"})
-	}
-	if rawCoal < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能为负数"})
-	}
-	if washedCoal < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能为负数"})
-	}
-	if otherCoal < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能为负数"})
-	}
-
-	// ②≦200000
-	if totalCoal > 200000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能大于200000"})
-	}
-	if rawCoal > 200000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能大于200000"})
-	}
-	if washedCoal > 200000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能大于200000"})
-	}
-	if otherCoal > 200000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能大于200000"})
-	}
-
-	// ③煤合计=原煤+洗精煤+其他
-	expectedTotal := rawCoal + washedCoal + otherCoal
-	if totalCoal != expectedTotal {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应等于原煤+洗精煤+其他"})
-	}
-
-	// 2. 分用途煤炭消费摸底部分校验
-	powerGeneration, _ := s.parseFloat(s.getStringValue(data["power_generation"]))
-	heating, _ := s.parseFloat(s.getStringValue(data["heating"]))
-	coalWashing, _ := s.parseFloat(s.getStringValue(data["coal_washing"]))
-	coking, _ := s.parseFloat(s.getStringValue(data["coking"]))
-	oilRefining, _ := s.parseFloat(s.getStringValue(data["oil_refining"]))
-	gasProduction, _ := s.parseFloat(s.getStringValue(data["gas_production"]))
-	industry, _ := s.parseFloat(s.getStringValue(data["industry"]))
-	rawMaterials, _ := s.parseFloat(s.getStringValue(data["raw_materials"]))
-	otherUses, _ := s.parseFloat(s.getStringValue(data["other_uses"]))
-
-	// ①≧0
-	if powerGeneration < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能为负数"})
-	}
-	if heating < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能为负数"})
-	}
-	if coalWashing < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能为负数"})
-	}
-	if coking < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能为负数"})
-	}
-	if oilRefining < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能为负数"})
-	}
-	if gasProduction < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能为负数"})
-	}
-	if industry < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能为负数"})
-	}
-	if rawMaterials < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能为负数"})
-	}
-	if otherUses < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能为负数"})
-	}
-
-	// ②≦100000
-	if powerGeneration > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能大于100000"})
-	}
-	if heating > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能大于100000"})
-	}
-	if coalWashing > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能大于100000"})
-	}
-	if coking > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能大于100000"})
-	}
-	if oilRefining > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能大于100000"})
-	}
-	if gasProduction > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能大于100000"})
-	}
-	if industry > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能大于100000"})
-	}
-	if rawMaterials > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能大于100000"})
-	}
-	if otherUses > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能大于100000"})
-	}
-
-	// ③工业≧工业（#用作原料、材料）
-	if industry < rawMaterials {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业应大于等于工业（#用作原料、材料）"})
-	}
-
-	// 3. 焦炭消费摸底部分校验
-	coke, _ := s.parseFloat(s.getStringValue(data["coke"]))
-
-	// ①≧0
-	if coke < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能为负数"})
-	}
-
-	// ②≦100000
-	if coke > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能大于100000"})
-	}
-
-	return errors
-}
-
-// validateTable3OverallRules 校验附表3整体规则
-func (s *DataImportService) validateTable3OverallRules(mainData []map[string]interface{}) []ValidationError {
-	errors := []ValidationError{}
-
-	if len(mainData) == 0 {
-		return errors
-	}
-
-	// 计算整个Excel文件的总量
-	var totalEquivalentValue float64
-	var totalEquivalentCost float64
-	var totalSceTotalCoalConsumption float64
-	var totalPqTotalCoalConsumption float64
-	var totalPqAnnualCoalQuantity float64
-	var totalSceAnnualCoalQuantity float64
-
-	for _, data := range mainData {
-		equivalentValue, _ := s.parseFloat(s.getStringValue(data["equivalent_value"]))
-		equivalentCost, _ := s.parseFloat(s.getStringValue(data["equivalent_cost"]))
-		sceTotalCoalConsumption, _ := s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
-		pqTotalCoalConsumption, _ := s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
-		pqAnnualCoalQuantity, _ := s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
-		sceAnnualCoalQuantity, _ := s.parseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
-
-		totalEquivalentValue += equivalentValue
-		totalEquivalentCost += equivalentCost
-		totalSceTotalCoalConsumption += sceTotalCoalConsumption
-		totalPqTotalCoalConsumption += pqTotalCoalConsumption
-		totalPqAnnualCoalQuantity += pqAnnualCoalQuantity
-		totalSceAnnualCoalQuantity += sceAnnualCoalQuantity
-	}
-
-	// ①年综合能源消费量与年煤品消费量（折标量）
+	// ①年综合能源消费量与年煤品消费量（折标量）的逻辑关系
 	// 年综合能源消费量（当量值）≧年煤品消费量（折标量）
-	if totalEquivalentValue < totalSceTotalCoalConsumption {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "年综合能源消费量（当量值）应大于等于年煤品消费量（折标量）"})
+	if equivalentValue < sceTotalCoalConsumption {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能源消费量（当量值）应大于等于年煤品消费量（折标量）"})
 	}
 
 	// 年综合能源消费量（等价值）≧年煤品消费量（折标量）
-	if totalEquivalentCost < totalSceTotalCoalConsumption {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "年综合能源消费量（等价值）应大于等于年煤品消费量（折标量）"})
+	if equivalentCost < sceTotalCoalConsumption {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能源消费量（等价值）应大于等于年煤品消费量（折标量）"})
 	}
 
-	// ②年煤品消费量与原料用煤情况
+	// ②年煤品消费量与原料用煤情况的逻辑关系
 	// 煤品消费总量（实物量）≧年原料用煤量（实物量）
-	if totalPqTotalCoalConsumption < totalPqAnnualCoalQuantity {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤品消费总量（实物量）应大于等于年原料用煤量（实物量）"})
+	if pqTotalCoalConsumption < pqAnnualCoalQuantity {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（实物量）应大于等于年原料用煤量（实物量）"})
 	}
 
 	// 煤品消费总量（折标量）≧年原料用煤量（折标量）
-	if totalSceTotalCoalConsumption < totalSceAnnualCoalQuantity {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤品消费总量（折标量）应大于等于年原料用煤量（折标量）"})
-	}
-
-	return errors
-}
-
-// validateTable3DatabaseRules 校验附表3数据库验证规则
-func (s *DataImportService) validateTable3DatabaseRules(mainData []map[string]interface{}) []ValidationError {
-	errors := []ValidationError{}
-
-	if len(mainData) == 0 {
-		return errors
-	}
-
-	// 获取当前用户的省市县级别
-	areaResult := s.app.GetAreaConfig()
-	if !areaResult.Ok || areaResult.Data == nil {
-		return errors
-	}
-
-	areaData, ok := areaResult.Data.([]map[string]interface{})
-	if !ok || len(areaData) == 0 {
-		return errors
-	}
-
-	area := areaData[0]
-	provinceName := s.getStringValue(area["province_name"])
-	cityName := s.getStringValue(area["city_name"])
-	countryName := s.getStringValue(area["country_name"])
-
-	// 构建查询条件
-	var whereClause string
-	var args []interface{}
-
-	if countryName != "" {
-		// 有县，查询该县下的所有数据
-		whereClause = "WHERE province_name = ? AND city_name = ? AND country_name = ?"
-		args = []interface{}{provinceName, cityName, countryName}
-	} else if cityName != "" {
-		// 有市无县，查询该市下的所有县的数据
-		whereClause = "WHERE province_name = ? AND city_name = ?"
-		args = []interface{}{provinceName, cityName}
-	} else if provinceName != "" {
-		// 只有省，查询该省下的所有市的数据
-		whereClause = "WHERE province_name = ?"
-		args = []interface{}{provinceName}
-	} else {
-		// 没有区域信息，跳过验证
-		return errors
-	}
-
-	// 获取当前数据的年份
-	statDate := s.getStringValue(mainData[0]["stat_date"])
-	if statDate == "" {
-		return errors
-	}
-
-	// 查询下级所有同一年份的数据
-	query := fmt.Sprintf(`
-		SELECT 
-			total_coal, raw_coal, washed_coal, other_coal,
-			power_generation, heating, coal_washing, coking, oil_refining, gas_production,
-			industry, raw_materials, other_uses, coke
-		FROM fixed_assets_investment_project 
-		%s AND stat_date = ?
-	`, whereClause)
-	args = append(args, statDate)
-
-	result, err := s.app.GetDB().Query(query, args...)
-	if err != nil || result.Data == nil {
-		return errors
-	}
-
-	subData, ok := result.Data.([]map[string]interface{})
-	if !ok || len(subData) == 0 {
-		return errors
-	}
-
-	// 计算下级数据总和
-	var subTotalCoal, subRawCoal, subWashedCoal, subOtherCoal float64
-	var subPowerGeneration, subHeating, subCoalWashing, subCoking, subOilRefining, subGasProduction float64
-	var subIndustry, subRawMaterials, subOtherUses, subCoke float64
-
-	for _, record := range subData {
-		// 解密数值字段
-		totalCoal, _ := s.parseFloat(s.decryptValue(record["total_coal"]))
-		rawCoal, _ := s.parseFloat(s.decryptValue(record["raw_coal"]))
-		washedCoal, _ := s.parseFloat(s.decryptValue(record["washed_coal"]))
-		otherCoal, _ := s.parseFloat(s.decryptValue(record["other_coal"]))
-		powerGeneration, _ := s.parseFloat(s.decryptValue(record["power_generation"]))
-		heating, _ := s.parseFloat(s.decryptValue(record["heating"]))
-		coalWashing, _ := s.parseFloat(s.decryptValue(record["coal_washing"]))
-		coking, _ := s.parseFloat(s.decryptValue(record["coking"]))
-		oilRefining, _ := s.parseFloat(s.decryptValue(record["oil_refining"]))
-		gasProduction, _ := s.parseFloat(s.decryptValue(record["gas_production"]))
-		industry, _ := s.parseFloat(s.decryptValue(record["industry"]))
-		rawMaterials, _ := s.parseFloat(s.decryptValue(record["raw_materials"]))
-		otherUses, _ := s.parseFloat(s.decryptValue(record["other_uses"]))
-		coke, _ := s.parseFloat(s.decryptValue(record["coke"]))
-
-		subTotalCoal += totalCoal
-		subRawCoal += rawCoal
-		subWashedCoal += washedCoal
-		subOtherCoal += otherCoal
-		subPowerGeneration += powerGeneration
-		subHeating += heating
-		subCoalWashing += coalWashing
-		subCoking += coking
-		subOilRefining += oilRefining
-		subGasProduction += gasProduction
-		subIndustry += industry
-		subRawMaterials += rawMaterials
-		subOtherUses += otherUses
-		subCoke += coke
-	}
-
-	// 计算当前数据总和
-	var currentTotalCoal, currentRawCoal, currentWashedCoal, currentOtherCoal float64
-	var currentPowerGeneration, currentHeating, currentCoalWashing, currentCoking, currentOilRefining, currentGasProduction float64
-	var currentIndustry, currentRawMaterials, currentOtherUses, currentCoke float64
-
-	for _, record := range mainData {
-		totalCoal, _ := s.parseFloat(s.getStringValue(record["total_coal"]))
-		rawCoal, _ := s.parseFloat(s.getStringValue(record["raw_coal"]))
-		washedCoal, _ := s.parseFloat(s.getStringValue(record["washed_coal"]))
-		otherCoal, _ := s.parseFloat(s.getStringValue(record["other_coal"]))
-		powerGeneration, _ := s.parseFloat(s.getStringValue(record["power_generation"]))
-		heating, _ := s.parseFloat(s.getStringValue(record["heating"]))
-		coalWashing, _ := s.parseFloat(s.getStringValue(record["coal_washing"]))
-		coking, _ := s.parseFloat(s.getStringValue(record["coking"]))
-		oilRefining, _ := s.parseFloat(s.getStringValue(record["oil_refining"]))
-		gasProduction, _ := s.parseFloat(s.getStringValue(record["gas_production"]))
-		industry, _ := s.parseFloat(s.getStringValue(record["industry"]))
-		rawMaterials, _ := s.parseFloat(s.getStringValue(record["raw_materials"]))
-		otherUses, _ := s.parseFloat(s.getStringValue(record["other_uses"]))
-		coke, _ := s.parseFloat(s.getStringValue(record["coke"]))
-
-		currentTotalCoal += totalCoal
-		currentRawCoal += rawCoal
-		currentWashedCoal += washedCoal
-		currentOtherCoal += otherCoal
-		currentPowerGeneration += powerGeneration
-		currentHeating += heating
-		currentCoalWashing += coalWashing
-		currentCoking += coking
-		currentOilRefining += oilRefining
-		currentGasProduction += gasProduction
-		currentIndustry += industry
-		currentRawMaterials += rawMaterials
-		currentOtherUses += otherUses
-		currentCoke += coke
-	}
-
-	// 校验规则：同年份本单位所上传数值*120%应≥下级单位相加之和
-	threshold := 1.2
-
-	// 校验各个字段
-	if currentTotalCoal*threshold < subTotalCoal {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤合计数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentRawCoal*threshold < subRawCoal {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "原煤数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentWashedCoal*threshold < subWashedCoal {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "洗精煤数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentOtherCoal*threshold < subOtherCoal {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentPowerGeneration*threshold < subPowerGeneration {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "火力发电数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentHeating*threshold < subHeating {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "供热数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentCoalWashing*threshold < subCoalWashing {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤炭洗选数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentCoking*threshold < subCoking {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼焦数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentOilRefining*threshold < subOilRefining {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼油及煤制油数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentGasProduction*threshold < subGasProduction {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "制气数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentIndustry*threshold < subIndustry {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentRawMaterials*threshold < subRawMaterials {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentOtherUses*threshold < subOtherUses {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他用途数值*120%应大于等于下级单位相加之和"})
-	}
-	if currentCoke*threshold < subCoke {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "焦炭数值*120%应大于等于下级单位相加之和"})
+	if sceTotalCoalConsumption < sceAnnualCoalQuantity {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（折标量）应大于等于年原料用煤量（折标量）"})
 	}
 
 	return errors
@@ -769,10 +413,18 @@ func (s *DataImportService) coverTable3Data(mainData []map[string]interface{}, f
 		projectCode := s.getStringValue(record["project_code"])
 		constructionUnit := s.getStringValue(record["construction_unit"])
 
-		// 根据项目代码+建设单位做where条件更新数据
-		err := s.updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit, record)
+		// 先尝试更新，通过受影响行数判断是否存在
+		affectedRows, err := s.updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit, record)
 		if err != nil {
 			return fmt.Errorf("更新数据失败: %v", err)
+		}
+
+		// 如果受影响行数为0，说明数据不存在，执行插入
+		if affectedRows == 0 {
+			err = s.insertTable3Data(record)
+			if err != nil {
+				return fmt.Errorf("插入数据失败: %v", err)
+			}
 		}
 	}
 
@@ -780,12 +432,12 @@ func (s *DataImportService) coverTable3Data(mainData []map[string]interface{}, f
 }
 
 // updateTable3DataByProjectCodeAndUnit 根据项目代码和建设单位更新附表3数据
-func (s *DataImportService) updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit string, record map[string]interface{}) error {
+func (s *DataImportService) updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit string, record map[string]interface{}) (int64, error) {
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptTable3NumericFields(record)
 
 	query := `UPDATE fixed_assets_investment_project SET 
-		stat_date = ?, project_name = ?, main_construction_content = ?,
+		stat_date = ?, project_name = ?, project_code = ?, construction_unit = ?, main_construction_content = ?,
 		province_name = ?, city_name = ?, country_name = ?, trade_a = ?, trade_c = ?, 
 		examination_approval_time = ?, scheduled_time = ?, actual_time = ?,
 		examination_authority = ?, document_number = ?, equivalent_value = ?,
@@ -793,14 +445,11 @@ func (s *DataImportService) updateTable3DataByProjectCodeAndUnit(projectCode, co
 		pq_coke_consumption = ?, pq_blue_coke_consumption = ?, sce_total_coal_consumption = ?,
 		sce_coal_consumption = ?, sce_coke_consumption = ?, sce_blue_coke_consumption = ?,
 		is_substitution = ?, substitution_source = ?, substitution_quantity = ?, 
-		pq_annual_coal_quantity = ?, sce_annual_coal_quantity = ?, total_coal = ?, 
-		raw_coal = ?, washed_coal = ?, other_coal = ?, power_generation = ?, 
-		heating = ?, coal_washing = ?, coking = ?, oil_refining = ?, gas_production = ?,
-		industry = ?, raw_materials = ?, other_uses = ?, coke = ?
+		pq_annual_coal_quantity = ?, sce_annual_coal_quantity = ?
 		WHERE project_code = ? AND construction_unit = ?`
 
-	_, err := s.app.GetDB().Exec(query,
-		record["stat_date"], record["project_name"], record["main_construction_content"],
+	result, err := s.app.GetDB().Exec(query,
+		record["stat_date"], record["project_name"], record["project_code"], record["construction_unit"], record["main_construction_content"],
 		record["province_name"], record["city_name"], record["country_name"],
 		record["trade_a"], record["trade_c"], record["examination_approval_time"],
 		record["scheduled_time"], record["actual_time"], record["examination_authority"],
@@ -811,13 +460,24 @@ func (s *DataImportService) updateTable3DataByProjectCodeAndUnit(projectCode, co
 		encryptedValues["sce_coke_consumption"], encryptedValues["sce_blue_coke_consumption"],
 		record["is_substitution"], record["substitution_source"], encryptedValues["substitution_quantity"],
 		encryptedValues["pq_annual_coal_quantity"], encryptedValues["sce_annual_coal_quantity"],
-		encryptedValues["total_coal"], encryptedValues["raw_coal"], encryptedValues["washed_coal"],
-		encryptedValues["other_coal"], encryptedValues["power_generation"], encryptedValues["heating"],
-		encryptedValues["coal_washing"], encryptedValues["coking"], encryptedValues["oil_refining"],
-		encryptedValues["gas_production"], encryptedValues["industry"], encryptedValues["raw_materials"],
-		encryptedValues["other_uses"], encryptedValues["coke"], projectCode, constructionUnit)
+		projectCode, constructionUnit)
 
-	return err
+	if err != nil {
+		return 0, err
+	}
+
+	// 从QueryResult中获取受影响的行数
+	if result.Ok && result.Data != nil {
+		if dataMap, ok := result.Data.(map[string]interface{}); ok {
+			if rowsAffected, exists := dataMap["rowsAffected"]; exists {
+				if affectedRows, ok := rowsAffected.(int64); ok {
+					return affectedRows, nil
+				}
+			}
+		}
+	}
+
+	return 0, nil
 }
 
 // isTable3FileImported 检查附表3文件是否已导入
@@ -857,12 +517,25 @@ func (s *DataImportService) saveTable3Data(mainData []map[string]interface{}) er
 		count := result.Data.(map[string]interface{})["count"].(int64)
 		if count > 0 {
 			// 已存在数据，执行更新
-			err = s.updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit, record)
+			_, err = s.updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit, record)
 		} else {
 			// 不存在数据，执行插入
 			err = s.insertTable3Data(record)
 		}
 
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// saveTable3DataForModel 模型校验专用保存附表3数据到数据库（只使用INSERT）
+func (s *DataImportService) saveTable3DataForModel(mainData []map[string]interface{}) error {
+	for _, record := range mainData {
+		// 直接执行插入操作，不检查数据是否已存在
+		err := s.insertTable3Data(record)
 		if err != nil {
 			return err
 		}
@@ -886,9 +559,8 @@ func (s *DataImportService) insertTable3Data(record map[string]interface{}) erro
 		equivalent_cost, pq_total_coal_consumption, pq_coal_consumption, pq_coke_consumption, pq_blue_coke_consumption,
 		sce_total_coal_consumption, sce_coal_consumption, sce_coke_consumption, sce_blue_coke_consumption,
 		is_substitution, substitution_source, substitution_quantity, pq_annual_coal_quantity, sce_annual_coal_quantity,
-		total_coal, raw_coal, washed_coal, other_coal, power_generation, heating, coal_washing, coking,
-		oil_refining, gas_production, industry, raw_materials, other_uses, coke, create_time
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		create_time, create_user
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := s.app.GetDB().Exec(query,
 		record["obj_id"], record["stat_date"], record["project_name"], record["project_code"],
@@ -901,10 +573,7 @@ func (s *DataImportService) insertTable3Data(record map[string]interface{}) erro
 		encryptedValues["sce_coal_consumption"], encryptedValues["sce_coke_consumption"], encryptedValues["sce_blue_coke_consumption"],
 		record["is_substitution"], record["substitution_source"], encryptedValues["substitution_quantity"],
 		encryptedValues["pq_annual_coal_quantity"], encryptedValues["sce_annual_coal_quantity"],
-		encryptedValues["total_coal"], encryptedValues["raw_coal"], encryptedValues["washed_coal"], encryptedValues["other_coal"],
-		encryptedValues["power_generation"], encryptedValues["heating"], encryptedValues["coal_washing"], encryptedValues["coking"],
-		encryptedValues["oil_refining"], encryptedValues["gas_production"], encryptedValues["industry"],
-		encryptedValues["raw_materials"], encryptedValues["other_uses"], encryptedValues["coke"], record["create_time"])
+		record["create_time"], s.app.GetCurrentOSUser())
 	if err != nil {
 		return fmt.Errorf("保存数据失败: %v", err)
 	}
@@ -988,13 +657,19 @@ func (s *DataImportService) addValidationErrorsToExcelTable3(filePath string, er
 // encryptTable3NumericFields 加密附表3数值字段
 func (s *DataImportService) encryptTable3NumericFields(record map[string]interface{}) map[string]interface{} {
 	numericFields := []string{
-		"equivalent_value", "equivalent_cost",
-		"pq_total_coal_consumption", "pq_coal_consumption", "pq_coke_consumption", "pq_blue_coke_consumption",
-		"sce_total_coal_consumption", "sce_coal_consumption", "sce_coke_consumption", "sce_blue_coke_consumption",
-		"substitution_quantity", "pq_annual_coal_quantity", "sce_annual_coal_quantity",
-		"total_coal", "raw_coal", "washed_coal", "other_coal",
-		"power_generation", "heating", "coal_washing", "coking", "oil_refining", "gas_production",
-		"industry", "raw_materials", "other_uses", "coke",
+		"equivalent_value",
+		"equivalent_cost",
+		"pq_total_coal_consumption",
+		"pq_coal_consumption",
+		"pq_coke_consumption",
+		"pq_blue_coke_consumption",
+		"sce_total_coal_consumption",
+		"sce_coal_consumption",
+		"sce_coke_consumption",
+		"sce_blue_coke_consumption",
+		"substitution_quantity",
+		"pq_annual_coal_quantity",
+		"sce_annual_coal_quantity",
 	}
 	return s.encryptNumericFields(record, numericFields)
 }

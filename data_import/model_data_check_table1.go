@@ -38,14 +38,13 @@ func (s *DataImportService) ModelDataCheckReportDownload(tableType string) db.Qu
 		}
 	}
 
-	srcFile, err := os.Open(zipFilePath)
-	if err != nil {
+	if selectPath == "" {
 		return db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("下载模型校验结果失败: %v", err),
+			Message: "下载模型报告失败: 未选择文件",
 		}
 	}
-	defer srcFile.Close()
+
 	dstFile, err := os.Create(selectPath)
 	if err != nil {
 		return db.QueryResult{
@@ -54,6 +53,15 @@ func (s *DataImportService) ModelDataCheckReportDownload(tableType string) db.Qu
 		}
 	}
 	defer dstFile.Close()
+
+	srcFile, err := os.Open(zipFilePath)
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("下载模型校验结果失败: %v", err),
+		}
+	}
+	defer srcFile.Close()
 
 	_, err = io.Copy(dstFile, srcFile)
 
@@ -747,9 +755,15 @@ func (s *DataImportService) validateTable1EquipNumericFields(data map[string]int
 // encryptTable1MainNumericFields 加密附表1主表数值字段
 func (s *DataImportService) encryptTable1MainNumericFields(record map[string]interface{}) map[string]interface{} {
 	numericFields := []string{
-		"annual_energy_equivalent_value", "annual_energy_equivalent_cost", "annual_raw_material_energy",
-		"annual_total_coal_consumption", "annual_total_coal_products", "annual_raw_coal",
-		"annual_raw_coal_consumption", "annual_clean_coal_consumption", "annual_other_coal_consumption",
+		"annual_energy_equivalent_value",
+		"annual_energy_equivalent_cost",
+		"annual_raw_material_energy",
+		"annual_total_coal_consumption",
+		"annual_total_coal_products",
+		"annual_raw_coal",
+		"annual_raw_coal_consumption",
+		"annual_clean_coal_consumption",
+		"annual_other_coal_consumption",
 		"annual_coke_consumption",
 	}
 	return s.encryptNumericFields(record, numericFields)

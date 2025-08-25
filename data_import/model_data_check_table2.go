@@ -2,7 +2,6 @@ package data_import
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -108,7 +107,6 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 			}
 
 			mainData, err := s.parseTable2Excel(f, true)
-			log.Println("主表数据==", mainData)
 			f.Close()
 
 			if err != nil {
@@ -194,6 +192,7 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 func (s *DataImportService) validateTable2DataForModel(mainData []map[string]interface{}) []ValidationError {
 	errors := []ValidationError{}
 
+	// 逐行校验数值字段
 	for _, data := range mainData {
 		// 获取记录的实际Excel行号
 		excelRowNum := s.getExcelRowNumber(data)
@@ -213,7 +212,6 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	// 1. 累计使用时间、设计年限校验
 	// 应为0-50（含0和50）间的整数
 	totalRuntime, _ := s.parseFloat(s.getStringValue(data["usage_time"]))
-	log.Println("累计使用时间===", totalRuntime, "  ", rowNum)
 	designLife, _ := s.parseFloat(s.getStringValue(data["design_life"]))
 
 	if totalRuntime < 0 || totalRuntime > 50 {
@@ -404,8 +402,6 @@ func (s *DataImportService) addValidationErrorsToExcelTable2(filePath string, er
 
 // encryptTable2NumericFields 加密附表2数值字段
 func (s *DataImportService) encryptTable2NumericFields(record map[string]interface{}) map[string]interface{} {
-	numericFields := []string{
-		"design_life", "capacity", "annual_coal_consumption",
-	}
+	numericFields := []string{"annual_coal_consumption"}
 	return s.encryptNumericFields(record, numericFields)
 }

@@ -2,7 +2,6 @@ package data_import
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -99,7 +98,7 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 		for key, value := range unitInfo {
 			dataRow[key] = value
 		}
-        dataRow["_excel_row"] = i + 1
+		dataRow["_excel_row"] = i + 1
 
 		// 添加设备信息
 		for j, cell := range row {
@@ -115,7 +114,6 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 		}
 	}
 
-	log.Println("数据===", mainData)
 	return mainData, nil
 }
 
@@ -224,7 +222,6 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 
 	// 第三步: 文件是否和模板文件匹配
 	mainData, err := s.parseTable2Excel(f, false)
-	log.Println("数据===", mainData)
 	if err != nil {
 		s.app.InsertImportRecord(fileName, TableType2, "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
 		return db.QueryResult{

@@ -2,7 +2,6 @@ package data_import
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -148,7 +147,7 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 			}
 		}
 
-        dataRow["_excel_row"] = i + 1
+		dataRow["_excel_row"] = i + 1
 
 		// 只添加有项目名称的数据行
 		if projectName, ok := dataRow["project_code"].(string); ok && projectName != "" {
@@ -248,7 +247,6 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 
 // validateTable3Data 校验附表3数据
 func (s *DataImportService) validateTable3Data(mainData []map[string]interface{}) []string {
-	log.Println("validateTable3Data: %v", mainData)
 
 	errors := []string{}
 
