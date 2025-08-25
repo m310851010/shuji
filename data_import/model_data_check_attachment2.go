@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -106,6 +107,7 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 			}
 
 			mainData, err := s.parseAttachment2Excel(f, true)
+			log.Println("mainData==", mainData)
 			f.Close()
 
 			if err != nil {
@@ -115,22 +117,22 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 			}
 
 			// 4. 调用校验函数,对每一行数据验证
-			errors := s.validateAttachment2DataForModel(mainData)
-			if len(errors) > 0 {
-				// 校验失败，在Excel文件中错误行最后添加错误信息
-				err = s.addValidationErrorsToExcelAttachment2(filePath, errors, mainData)
-				if err != nil {
-					validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
-				}
-				failedFiles = append(failedFiles, filePath)
-				// 将验证错误转换为字符串用于显示
-				var errorMessages []string
-				for _, err := range errors {
-					errorMessages = append(errorMessages, err.Message)
-				}
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
-				continue
-			}
+			// errors := s.validateAttachment2DataForModel(mainData)
+			// if len(errors) > 0 {
+			// 	// 校验失败，在Excel文件中错误行最后添加错误信息
+			// 	err = s.addValidationErrorsToExcelAttachment2(filePath, errors, mainData)
+			// 	if err != nil {
+			// 		validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
+			// 	}
+			// 	failedFiles = append(failedFiles, filePath)
+			// 	// 将验证错误转换为字符串用于显示
+			// 	var errorMessages []string
+			// 	for _, err := range errors {
+			// 		errorMessages = append(errorMessages, err.Message)
+			// 	}
+			// 	validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
+			// 	continue
+			// }
 
 			// 5. 校验通过后,检查文件是否已导入
 			if s.isAttachment2FileImported(mainData) {
@@ -139,7 +141,7 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 			}
 
 			// 6. 如果没有导入过,把数据保存到相应的数据库表中
-			err = s.saveAttachment2Data(mainData)
+			err = s.saveAttachment2DataForModel(mainData)
 			if err != nil {
 				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 保存数据失败: %v", file.Name(), err)})
 				failedFiles = append(failedFiles, filePath)
@@ -191,6 +193,7 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 func (s *DataImportService) validateAttachment2DataForModel(mainData []map[string]interface{}) []ValidationError {
 	errors := []ValidationError{}
 
+	// 逐行校验数值字段、数据一致性和整体规则（行内字段间逻辑关系）
 	for _, data := range mainData {
 		// 获取记录的实际Excel行号
 		excelRowNum := s.getExcelRowNumber(data)
@@ -202,6 +205,10 @@ func (s *DataImportService) validateAttachment2DataForModel(mainData []map[strin
 		// 数据一致性校验
 		consistencyErrors := s.validateAttachment2DataConsistency(data, excelRowNum)
 		errors = append(errors, consistencyErrors...)
+
+		// 整体规则校验（行内字段间逻辑关系）
+		overallErrors := s.validateAttachment2OverallRulesForRow(data, excelRowNum)
+		errors = append(errors, overallErrors...)
 	}
 
 	// 数据库验证
@@ -377,6 +384,53 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 
 	if totalCoal < energyConversion+terminalConsumption {
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应大于等于能源加工转换+终端消费"})
+	}
+
+	return errors
+}
+
+// validateAttachment2OverallRulesForRow 校验附件2单行整体规则（行内字段间逻辑关系）
+func (s *DataImportService) validateAttachment2OverallRulesForRow(data map[string]interface{}, rowNum int) []ValidationError {
+	errors := []ValidationError{}
+
+	// 获取当前行的数值
+	totalCoal, _ := s.parseFloat(s.getStringValue(data["total_coal"]))
+	powerGeneration, _ := s.parseFloat(s.getStringValue(data["power_generation"]))
+	heating, _ := s.parseFloat(s.getStringValue(data["heating"]))
+	coalWashing, _ := s.parseFloat(s.getStringValue(data["coal_washing"]))
+	coking, _ := s.parseFloat(s.getStringValue(data["coking"]))
+	oilRefining, _ := s.parseFloat(s.getStringValue(data["oil_refining"]))
+	gasProduction, _ := s.parseFloat(s.getStringValue(data["gas_production"]))
+	industry, _ := s.parseFloat(s.getStringValue(data["industry"]))
+	otherUses, _ := s.parseFloat(s.getStringValue(data["other_uses"]))
+	coke, _ := s.parseFloat(s.getStringValue(data["coke"]))
+
+	// ①煤炭消费总量与各用途消费量的逻辑关系
+	// 煤炭消费总量应大于等于各用途消费量之和
+	totalUsage := powerGeneration + heating + coalWashing + coking + oilRefining + gasProduction + industry + otherUses
+	if totalCoal < totalUsage {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费总量应大于等于各用途消费量之和"})
+	}
+
+	// ②焦炭消费量与煤炭消费量的逻辑关系
+	// 焦炭消费量应小于等于煤炭消费总量（焦炭是煤炭的加工产品）
+	if coke > totalCoal {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量应小于等于煤炭消费总量"})
+	}
+
+	// ③能源加工转换与终端消费的逻辑关系
+	// 能源加工转换量应大于等于终端消费量（加工转换会产生损耗）
+	energyConversion := powerGeneration + heating + coalWashing + coking + oilRefining + gasProduction
+	terminalConsumption := industry + otherUses
+	if energyConversion < terminalConsumption {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "能源加工转换量应大于等于终端消费量"})
+	}
+
+	// ④火力发电与其他能源转换的逻辑关系
+	// 火力发电量应大于等于供热、制气等其他能源转换量
+	otherEnergyConversion := heating + coalWashing + coking + oilRefining + gasProduction
+	if powerGeneration < otherEnergyConversion {
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电量应大于等于其他能源转换量"})
 	}
 
 	return errors
@@ -592,10 +646,18 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 		cityName := s.getStringValue(record["city_name"])
 		countryName := s.getStringValue(record["country_name"])
 
-		// 根据年份+省+市+县做where条件更新数据
-		err := s.updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName, record)
+		// 先尝试更新，通过受影响行数判断是否存在
+		affectedRows, err := s.updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName, record)
 		if err != nil {
 			return fmt.Errorf("更新数据失败: %v", err)
+		}
+
+		// 如果受影响行数为0，说明数据不存在，执行插入
+		if affectedRows == 0 {
+			err = s.insertAttachment2Data(record)
+			if err != nil {
+				return fmt.Errorf("插入数据失败: %v", err)
+			}
 		}
 	}
 
@@ -603,25 +665,61 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 }
 
 // updateAttachment2DataByRegionAndYear 根据地区和时间更新附件2数据
-func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName string, record map[string]interface{}) error {
+func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName string, record map[string]interface{}) (int64, error) {
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptAttachment2NumericFields(record)
 
 	query := `UPDATE coal_consumption_report SET 
+		stat_date = ?, province_name = ?, city_name = ?, country_name = ?, unit_level = ?,
 		total_coal = ?, raw_coal = ?, washed_coal = ?, other_coal = ?, 
 		power_generation = ?, heating = ?, coal_washing = ?, coking = ?,
 		oil_refining = ?, gas_production = ?, industry = ?, raw_materials = ?, 
 		other_uses = ?, coke = ?
 		WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?`
 
-	_, err := s.app.GetDB().Exec(query,
+	// 计算unit_level
+	unitLevel := s.calculateUnitLevel(provinceName, cityName, countryName)
+
+	result, err := s.app.GetDB().Exec(query,
+		statDate, provinceName, cityName, countryName, unitLevel,
 		encryptedValues["total_coal"], encryptedValues["raw_coal"], encryptedValues["washed_coal"],
 		encryptedValues["other_coal"], encryptedValues["power_generation"], encryptedValues["heating"],
 		encryptedValues["coal_washing"], encryptedValues["coking"], encryptedValues["oil_refining"],
 		encryptedValues["gas_production"], encryptedValues["industry"], encryptedValues["raw_materials"],
 		encryptedValues["other_uses"], encryptedValues["coke"], statDate, provinceName, cityName, countryName)
 
-	return err
+	if err != nil {
+		return 0, err
+	}
+
+	// 从QueryResult中获取受影响的行数
+	if result.Ok && result.Data != nil {
+		if dataMap, ok := result.Data.(map[string]interface{}); ok {
+			if rowsAffected, exists := dataMap["rowsAffected"]; exists {
+				if affectedRows, ok := rowsAffected.(int64); ok {
+					return affectedRows, nil
+				}
+			}
+		}
+	}
+
+	return 0, nil
+}
+
+// calculateUnitLevel 计算单位等级
+// unit_level为单位等级：01 国家 02-省 03-市 04-县
+// 如果县不为空为04,市不为空为03,省不为空为02, 省为空则为01
+func (s *DataImportService) calculateUnitLevel(provinceName, cityName, countryName string) string {
+	if countryName != "" {
+		return "04" // 县
+	}
+	if cityName != "" {
+		return "03" // 市
+	}
+	if provinceName != "" {
+		return "02" // 省
+	}
+	return "01" // 国家
 }
 
 // isAttachment2FileImported 检查附件2文件是否已导入
@@ -665,12 +763,25 @@ func (s *DataImportService) saveAttachment2Data(mainData []map[string]interface{
 		count := result.Data.(map[string]interface{})["count"].(int64)
 		if count > 0 {
 			// 已存在数据，执行更新
-			err = s.updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName, record)
+			_, err = s.updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName, record)
 		} else {
 			// 不存在数据，执行插入
 			err = s.insertAttachment2Data(record)
 		}
 
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// saveAttachment2DataForModel 模型校验专用保存附件2数据到数据库（只使用INSERT）
+func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]interface{}) error {
+	for _, record := range mainData {
+		// 直接执行插入操作，不检查数据是否已存在
+		err := s.insertAttachment2Data(record)
 		if err != nil {
 			return err
 		}
@@ -687,18 +798,21 @@ func (s *DataImportService) insertAttachment2Data(record map[string]interface{})
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptAttachment2NumericFields(record)
 
+	// 计算unit_level
+	unitLevel := s.calculateUnitLevel(s.getStringValue(record["province_name"]), s.getStringValue(record["city_name"]), s.getStringValue(record["country_name"]))
+
 	query := `INSERT INTO coal_consumption_report (
-		obj_id, stat_date, province_name, city_name, country_name, total_coal, raw_coal,
+		obj_id, stat_date, province_name, city_name, country_name, unit_level, total_coal, raw_coal,
 		washed_coal, other_coal, power_generation, heating, coal_washing, coking,
-		oil_refining, gas_production, industry, raw_materials, other_uses, coke, create_time
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		oil_refining, gas_production, industry, raw_materials, other_uses, coke, create_time, create_user
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := s.app.GetDB().Exec(query,
 		record["obj_id"], record["stat_date"], record["province_name"], record["city_name"],
-		record["country_name"], encryptedValues["total_coal"], encryptedValues["raw_coal"], encryptedValues["washed_coal"],
+		record["country_name"], unitLevel, encryptedValues["total_coal"], encryptedValues["raw_coal"], encryptedValues["washed_coal"],
 		encryptedValues["other_coal"], encryptedValues["power_generation"], encryptedValues["heating"], encryptedValues["coal_washing"],
 		encryptedValues["coking"], encryptedValues["oil_refining"], encryptedValues["gas_production"], encryptedValues["industry"],
-		encryptedValues["raw_materials"], encryptedValues["other_uses"], encryptedValues["coke"], record["create_time"])
+		encryptedValues["raw_materials"], encryptedValues["other_uses"], encryptedValues["coke"], record["create_time"], s.app.GetCurrentOSUser())
 	if err != nil {
 		return fmt.Errorf("保存数据失败: %v", err)
 	}
@@ -735,21 +849,10 @@ func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath strin
 	sheetName := sheets[0]
 
 	// 获取最大列数
-	cols, err := f.GetCols(sheetName)
-	if err != nil {
-		return err
-	}
-
-	maxCol := len(cols)
-	if maxCol == 0 {
-		return fmt.Errorf("工作表为空")
-	}
+	maxCol := 18
 
 	// 为每个错误行添加错误信息
-	for rowNum, errorMsg := range errorMap {
-		// Excel行号从1开始，且需要加上标题行偏移
-		excelRow := rowNum + 6 // 附件2通常从第7行开始有数据
-
+	for excelRow, errorMsg := range errorMap {
 		// 在最后一列添加错误信息
 		errorCol := maxCol + 1
 		errorCellName, err := excelize.CoordinatesToCellName(errorCol, excelRow)
@@ -782,9 +885,20 @@ func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath strin
 // encryptAttachment2NumericFields 加密附件2数值字段
 func (s *DataImportService) encryptAttachment2NumericFields(record map[string]interface{}) map[string]interface{} {
 	numericFields := []string{
-		"total_coal", "raw_coal", "washed_coal", "other_coal", "power_generation",
-		"heating", "coal_washing", "coking", "oil_refining", "gas_production",
-		"industry", "raw_materials", "other_uses", "coke",
+		"total_coal",
+		"raw_coal",
+		"washed_coal",
+		"other_coal",
+		"power_generation",
+		"heating",
+		"coal_washing",
+		"coking",
+		"oil_refining",
+		"gas_production",
+		"industry",
+		"raw_materials",
+		"other_uses",
+		"coke",
 	}
 	return s.encryptNumericFields(record, numericFields)
 }

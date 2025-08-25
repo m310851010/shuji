@@ -178,6 +178,7 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 
 		// 添加制表单位信息
 		dataRow["report_unit"] = reportUnit
+		dataRow["_excel_row"] = i + 1 // 0索引转换为1索引
 
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
@@ -287,9 +288,9 @@ func (s *DataImportService) validateAttachment2Data(mainData []map[string]interf
 	errors := []string{}
 
 	// 在一个循环中完成所有验证
-	for i, data := range mainData {
+	for _, data := range mainData {
 		// Excel中的实际行号：数据从第8行开始（表头第4行+3行说明+1行数据）
-		excelRowNum := 8 + i
+		excelRowNum := s.getExcelRowNumber(data)
 
 		// 1. 检查必填字段
 		fieldErrors := s.validateRequiredFields(data, Attachment2RequiredFields, excelRowNum)

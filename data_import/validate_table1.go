@@ -518,16 +518,10 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 	// 1. 在一个循环中完成所有验证
 	for _, data := range mainData {
 		// 使用记录的实际Excel行号
-		excelRowNum := 7 // 企业基本信息固定在第7行
-		if rowNum, ok := data["_excel_row"].(int); ok {
-			excelRowNum = rowNum
-		}
+		excelRowNum := s.getExcelRowNumber(data)
 
 		// 获取第二部分表格的行号
-		excelRowNum2 := excelRowNum // 默认使用第一部分的行号
-		if rowNum2, ok := data["_excel_row2"].(int); ok {
-			excelRowNum2 = rowNum2
-		}
+		excelRowNum2 := data["_excel_row2"].(int)
 
 		// 1.1 校验必填字段
 		fieldErrors := s.validateTable1RequiredFieldsWithRowNumbers(data, excelRowNum, excelRowNum2)
