@@ -139,10 +139,9 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 				continue
 			}
 
-	        
 			// 6. 如果没有导入过,把数据保存到相应的数据库表中
 			err = s.saveAttachment2DataForModel(mainData)
-			
+
 			if err != nil {
 				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 保存数据失败: %v", file.Name(), err)})
 				failedFiles = append(failedFiles, filePath)
@@ -444,8 +443,8 @@ var attachment2CacheManager *Attachment2CacheManager
 func (s *DataImportService) initAttachment2CacheManager() {
 	if attachment2CacheManager == nil {
 		attachment2CacheManager = NewAttachment2CacheManager(s)
-        // 预加载数据库缓存（只在第一次调用时从数据库加载，后续直接使用缓存）
-        attachment2CacheManager.PreloadDatabaseCache()
+		// 预加载数据库缓存（只在第一次调用时从数据库加载，后续直接使用缓存）
+		attachment2CacheManager.PreloadDatabaseCache()
 	}
 }
 
@@ -754,10 +753,10 @@ func (s *DataImportService) saveAttachment2Data(mainData []map[string]interface{
 				return err
 			}
 		} else {
-		
+
 			// 不存在数据，执行插入
 			err := s.insertAttachment2Data(record)
-			
+
 			if err != nil {
 				return err
 			}
@@ -770,10 +769,10 @@ func (s *DataImportService) saveAttachment2Data(mainData []map[string]interface{
 // saveAttachment2DataForModel 模型校验专用保存附件2数据到数据库（只使用INSERT）
 func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]interface{}) error {
 	for _, record := range mainData {
-	
+
 		// 直接执行插入操作，不检查数据是否已存在
 		err := s.insertAttachment2Data(record)
-		
+
 		if err != nil {
 			return err
 		}
@@ -783,9 +782,9 @@ func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]in
 		provinceName := s.getStringValue(record["province_name"])
 		cityName := s.getStringValue(record["city_name"])
 		countryName := s.getStringValue(record["country_name"])
-		
+
 		attachment2CacheManager.UpdateDatabaseCache(statDate, provinceName, cityName, countryName, record)
-		
+
 	}
 
 	return nil
@@ -800,27 +799,24 @@ func (s *DataImportService) insertAttachment2Data(record map[string]interface{})
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptAttachment2NumericFields(record)
 
-
 	// 计算unit_level
 	unitLevel := s.calculateUnitLevel(s.getStringValue(record["province_name"]), s.getStringValue(record["city_name"]), s.getStringValue(record["country_name"]))
-
 
 	query := `INSERT INTO coal_consumption_report (
 		obj_id, stat_date, province_name, city_name, country_name, unit_level, total_coal, raw_coal,
 		washed_coal, other_coal, power_generation, heating, coal_washing, coking,
-		oil_refining, gas_production, industry, raw_materials, other_uses, coke, create_time, create_user
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		oil_refining, gas_production, industry, raw_materials, other_uses, coke, create_time, create_user, is_check
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := s.app.GetDB().Exec(query,
 		record["obj_id"], record["stat_date"], record["province_name"], record["city_name"],
 		record["country_name"], unitLevel, encryptedValues["total_coal"], encryptedValues["raw_coal"], encryptedValues["washed_coal"],
 		encryptedValues["other_coal"], encryptedValues["power_generation"], encryptedValues["heating"], encryptedValues["coal_washing"],
 		encryptedValues["coking"], encryptedValues["oil_refining"], encryptedValues["gas_production"], encryptedValues["industry"],
-		encryptedValues["raw_materials"], encryptedValues["other_uses"], encryptedValues["coke"], record["create_time"], s.app.GetCurrentOSUser())
+		encryptedValues["raw_materials"], encryptedValues["other_uses"], encryptedValues["coke"], record["create_time"], s.app.GetCurrentOSUser(), EncryptedOne)
 	if err != nil {
 		return fmt.Errorf("保存数据失败: %v", err)
 	}
-
 
 	// 更新数据存在性缓存
 	statDate := s.getStringValue(record["stat_date"])

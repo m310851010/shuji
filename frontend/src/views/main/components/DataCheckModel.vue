@@ -66,7 +66,7 @@ import { db, main } from '@wailsjs/models';
      })
       return;
     }
-    const {cover_files, hasFailedFiles} = result.data;
+    const {cover_files} = result.data;
 
     // 有覆盖文件
     if (cover_files.length) {

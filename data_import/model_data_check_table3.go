@@ -556,8 +556,8 @@ func (s *DataImportService) insertTable3Data(record map[string]interface{}) erro
 		equivalent_cost, pq_total_coal_consumption, pq_coal_consumption, pq_coke_consumption, pq_blue_coke_consumption,
 		sce_total_coal_consumption, sce_coal_consumption, sce_coke_consumption, sce_blue_coke_consumption,
 		is_substitution, substitution_source, substitution_quantity, pq_annual_coal_quantity, sce_annual_coal_quantity,
-		create_time, create_user
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		create_time, create_user, is_check
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := s.app.GetDB().Exec(query,
 		record["obj_id"], record["stat_date"], record["project_name"], record["project_code"],
@@ -570,7 +570,7 @@ func (s *DataImportService) insertTable3Data(record map[string]interface{}) erro
 		encryptedValues["sce_coal_consumption"], encryptedValues["sce_coke_consumption"], encryptedValues["sce_blue_coke_consumption"],
 		record["is_substitution"], record["substitution_source"], encryptedValues["substitution_quantity"],
 		encryptedValues["pq_annual_coal_quantity"], encryptedValues["sce_annual_coal_quantity"],
-		record["create_time"], s.app.GetCurrentOSUser())
+		record["create_time"], s.app.GetCurrentOSUser(), EncryptedOne)
 	if err != nil {
 		return fmt.Errorf("保存数据失败: %v", err)
 	}

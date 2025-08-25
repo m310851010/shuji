@@ -22,6 +22,41 @@ const (
 	TableAttachment2 = "区域综合"
 )
 
+// 加密状态常量 - 这些值需要在运行时初始化
+var (
+	EncryptedZero = "" // 加密后的"0"
+	EncryptedOne  = "" // 加密后的"1"
+)
+
+// initEncryptedConstants 初始化加密常量（包级别初始化）
+func initEncryptedConstants(app App) {
+	if EncryptedZero == "" {
+		encryptedZero, _ := app.SM4Encrypt("0")
+		EncryptedZero = encryptedZero
+	}
+
+	if EncryptedOne == "" {
+		encryptedOne, _ := app.SM4Encrypt("1")
+		EncryptedOne = encryptedOne
+	}
+}
+
+// getDecryptedStatus 获取解密后的状态值
+func (s *DataImportService) getDecryptedStatus(encryptedValue interface{}) string {
+	if encryptedValue == nil {
+		return ""
+	}
+
+	// 直接比较加密值，避免解密操作
+	if encryptedStr == EncryptedZero {
+		return "0"
+	}
+	if encryptedStr == EncryptedOne {
+		return "1"
+	}
+	return ""
+}
+
 // ValidationError 验证错误结构
 type ValidationError struct {
 	RowNumber int    `json:"row_number"`
@@ -60,63 +95,10 @@ type DataImportService struct {
 
 // NewDataImportService 创建数据导入服务
 func NewDataImportService(app App) *DataImportService {
+	// 确保加密常量已初始化
+	initEncryptedConstants(app)
+
 	return &DataImportService{app: app}
-}
-
-// checkTableHasData 检查表是否有数据的通用函数
-func (s *DataImportService) checkTableHasData(tableName string) bool {
-	query := fmt.Sprintf("SELECT COUNT(*) as count FROM %s", tableName)
-	result, err := s.app.GetDB().Query(query)
-	if err != nil {
-		return false
-	}
-
-	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-		if count, ok := data[0]["count"].(int64); ok {
-			return count > 0
-		}
-	}
-	return false
-}
-
-// clearTableData 清空表数据的通用函数
-func (s *DataImportService) clearTableData(tableName string) error {
-	query := fmt.Sprintf("DELETE FROM %s", tableName)
-	_, err := s.app.GetDB().Exec(query)
-	return err
-}
-
-// 通用Excel解析辅助函数
-
-// findTableStartRow 查找表格开始行
-func (s *DataImportService) findTableStartRow(rows [][]string, keywords ...string) int {
-	for i, row := range rows {
-		if len(row) > 0 {
-			firstCell := strings.TrimSpace(row[0])
-			for _, keyword := range keywords {
-				if strings.Contains(firstCell, keyword) {
-					return i
-				}
-			}
-		}
-	}
-	return -1
-}
-
-// findTableEndRow 查找表格结束行
-func (s *DataImportService) findTableEndRow(rows [][]string, startRow int, endKeywords ...string) int {
-	for i := startRow + 1; i < len(rows); i++ {
-		row := rows[i]
-		if len(row) > 0 {
-			firstCell := strings.TrimSpace(row[0])
-			for _, keyword := range endKeywords {
-				if strings.Contains(firstCell, keyword) {
-					return i
-				}
-			}
-		}
-	}
-	return len(rows)
 }
 
 // cleanCellValue 清理单元格值
@@ -149,38 +131,6 @@ func (s *DataImportService) parseNumericValue(value string) string {
 	}
 
 	return cleaned
-}
-
-// parseDateValue 解析日期值
-func (s *DataImportService) parseDateValue(value string) string {
-	value = s.cleanCellValue(value)
-	if value == "" {
-		return ""
-	}
-
-	// 尝试解析常见的日期格式
-	dateFormats := []string{
-		"2006-01-02",
-		"2006/01/02",
-		"2006.01.02",
-		"2006年01月02日",
-		"2006年1月2日",
-	}
-
-	for _, format := range dateFormats {
-		if len(value) >= len(format) {
-			// 简单匹配，实际项目中可能需要更复杂的日期解析
-			if strings.Contains(value, "年") && strings.Contains(value, "月") {
-				// 处理中文日期格式
-				value = strings.ReplaceAll(value, "年", "-")
-				value = strings.ReplaceAll(value, "月", "-")
-				value = strings.ReplaceAll(value, "日", "")
-				return value
-			}
-		}
-	}
-
-	return value
 }
 
 // validateRequiredField 校验必填字段的通用函数
@@ -223,58 +173,6 @@ func (s *DataImportService) getStringValue(value interface{}) string {
 		return ""
 	}
 	return fmt.Sprintf("%v", value)
-}
-
-// checkEnterpriseInList 检查企业是否在清单中
-func (s *DataImportService) checkEnterpriseInList(unitName, creditCode string) (bool, error) {
-	// 先通过统一信用代码查询enterprise_list表，获取企业名称
-	query := "SELECT unit_name FROM enterprise_list WHERE credit_code = ?"
-	result, err := s.app.GetDB().Query(query, creditCode)
-	if err != nil {
-		return false, err
-	}
-
-	// 如果没有找到该统一信用代码对应的企业，就不检查
-	if data, ok := result.Data.([]map[string]interface{}); !ok || len(data) == 0 {
-		return true, nil // 不在清单中，但不报错
-	}
-
-	// 如果找到了，比较企业名称是否相同
-	if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-		if dbUnitName, ok := data[0]["unit_name"].(string); ok {
-			return dbUnitName == unitName, nil // 相同则校验通过，不同则校验失败
-		}
-	}
-
-	return false, nil
-}
-
-// validateEnterpriseNameCreditCodeCorrespondence 通用的企业名称和统一信用代码对应关系校验函数（单条数据）
-func (s *DataImportService) validateEnterpriseNameCreditCodeCorrespondence(unitName, creditCode string, rowIndex int, isEnterpriseListCheck bool) []string {
-	errors := []string{}
-
-	if unitName != "" && creditCode != "" {
-		// 检查企业名称和统一信用代码是否对应
-		corresponds, err := s.checkEnterpriseInList(unitName, creditCode)
-		if err != nil {
-			if isEnterpriseListCheck {
-				errors = append(errors, fmt.Sprintf("第%d行：企业清单检查失败", rowIndex+1))
-			} else {
-				errors = append(errors, fmt.Sprintf("第%d行：企业名称和统一信用代码对应关系检查失败", rowIndex+1))
-			}
-			return errors
-		}
-
-		if !corresponds {
-			if isEnterpriseListCheck {
-				errors = append(errors, fmt.Sprintf("第%d行：%s企业，统一信用代码%s未在清单表里", rowIndex+1, unitName, creditCode))
-			} else {
-				errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和上传的企业名称不对应", rowIndex+1, creditCode))
-			}
-		}
-	}
-
-	return errors
 }
 
 // validateEnterpriseAndCreditCode 企业名称和统一社会信用代码校验（从表1、表2提取的通用逻辑）
@@ -411,17 +309,17 @@ func (s *DataImportService) GetAreaConfig() db.QueryResult {
 // decryptValue 解密数值
 func (s *DataImportService) decryptValue(value interface{}) string {
 	if value == nil {
-		return "0"
+		return ""
 	}
 
 	encryptedValue := s.getStringValue(value)
 	if encryptedValue == "" {
-		return "0"
+		return ""
 	}
 
 	decryptedValue, err := s.app.SM4Decrypt(encryptedValue)
 	if err != nil {
-		return "0"
+		return ""
 	}
 
 	return decryptedValue
@@ -472,9 +370,9 @@ var (
 		"trade_b":       "所属行业",
 		"trade_c":       "所属行业",
 		"stat_date":     "数据年份",
-		"coal_type":    "类型",
-		"row_no":      "编号",
-		"coal_no": "累计使用时间",
+		"coal_type":     "类型",
+		"row_no":        "编号",
+		"coal_no":       "累计使用时间",
 		"design_life":   "设计年限",
 		"capacity_unit": "容量单位",
 		"capacity":      "容量",

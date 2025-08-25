@@ -353,8 +353,8 @@ func (s *DataImportService) saveTable1Data(mainData, usageData, equipData []map[
 		province_name, city_name, country_name, annual_energy_equivalent_value, annual_energy_equivalent_cost,
 		annual_raw_material_energy, annual_total_coal_consumption, annual_total_coal_products,
 		annual_raw_coal, annual_raw_coal_consumption, annual_clean_coal_consumption,
-		annual_other_coal_consumption, annual_coke_consumption, create_user
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		annual_other_coal_consumption, annual_coke_consumption, create_user, is_check
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := s.app.GetDB().Exec(query,
 		mainRecord["obj_id"], mainRecord["unit_name"], mainRecord["stat_date"], mainRecord["tel"],
@@ -364,7 +364,7 @@ func (s *DataImportService) saveTable1Data(mainData, usageData, equipData []map[
 		encryptedValues["annual_raw_material_energy"], encryptedValues["annual_total_coal_consumption"],
 		encryptedValues["annual_total_coal_products"], encryptedValues["annual_raw_coal"], encryptedValues["annual_raw_coal_consumption"],
 		encryptedValues["annual_clean_coal_consumption"], encryptedValues["annual_other_coal_consumption"],
-		encryptedValues["annual_coke_consumption"], s.app.GetCurrentOSUser())
+		encryptedValues["annual_coke_consumption"], s.app.GetCurrentOSUser(), EncryptedOne)
 	if err != nil {
 		return fmt.Errorf("保存主表数据失败: %v", err)
 	}
@@ -381,14 +381,14 @@ func (s *DataImportService) saveTable1Data(mainData, usageData, equipData []map[
 
 		query := `INSERT INTO enterprise_coal_consumption_usage (
 			obj_id, fk_id, stat_date, create_time, main_usage, specific_usage, input_variety,
-			input_unit, input_quantity, output_energy_types, output_quantity, measurement_unit, remarks, row_no
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			input_unit, input_quantity, output_energy_types, output_quantity, measurement_unit, remarks, row_no, is_check
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		_, err := s.app.GetDB().Exec(query,
 			usage["obj_id"], usage["fk_id"], usage["stat_date"], usage["create_time"],
 			usage["main_usage"], usage["specific_usage"], usage["input_variety"], usage["input_unit"],
 			encryptedUsageValues["input_quantity"], usage["output_energy_types"], encryptedUsageValues["output_quantity"],
-			usage["measurement_unit"], usage["remarks"], usage["row_no"])
+			usage["measurement_unit"], usage["remarks"], usage["row_no"], EncryptedOne)
 		if err != nil {
 			return fmt.Errorf("保存用途数据失败: %v", err)
 		}
@@ -406,14 +406,14 @@ func (s *DataImportService) saveTable1Data(mainData, usageData, equipData []map[
 
 		query := `INSERT INTO enterprise_coal_consumption_equip (
 			obj_id, fk_id, stat_date, create_time, equip_type, equip_no, total_runtime,
-			design_life, energy_efficiency, capacity_unit, capacity, coal_type, annual_coal_consumption,row_no
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			design_life, energy_efficiency, capacity_unit, capacity, coal_type, annual_coal_consumption, row_no, is_check
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		_, err := s.app.GetDB().Exec(query,
 			equip["obj_id"], equip["fk_id"], equip["stat_date"], equip["create_time"],
 			equip["equip_type"], equip["equip_no"], encryptedEquipValues["total_runtime"], encryptedEquipValues["design_life"],
 			encryptedEquipValues["energy_efficiency"], equip["capacity_unit"], encryptedEquipValues["capacity"], equip["coal_type"],
-			encryptedEquipValues["annual_coal_consumption"], equip["row_no"])
+			encryptedEquipValues["annual_coal_consumption"], equip["row_no"], EncryptedOne)
 		if err != nil {
 			return fmt.Errorf("保存设备数据失败: %v", err)
 		}

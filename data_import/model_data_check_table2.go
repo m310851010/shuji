@@ -308,8 +308,8 @@ func (s *DataImportService) saveTable2Data(mainData []map[string]interface{}) er
 		query := `INSERT INTO critical_coal_equipment_consumption (
 			obj_id, stat_date, create_time, unit_name, credit_code, trade_a, trade_b, trade_c,
 			province_name, city_name, country_name, coal_type, coal_no, usage_time, design_life,
-			enecrgy_efficienct_bmk, capacity_unit, capacity, use_info, status, annual_coal_consumption, create_user, row_no
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			enecrgy_efficienct_bmk, capacity_unit, capacity, use_info, status, annual_coal_consumption, create_user, row_no, is_check
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		_, err := s.app.GetDB().Exec(query,
 			record["obj_id"], record["stat_date"], record["create_time"], record["unit_name"],
@@ -317,7 +317,7 @@ func (s *DataImportService) saveTable2Data(mainData []map[string]interface{}) er
 			record["province_name"], record["city_name"], record["country_name"], record["coal_type"],
 			record["coal_no"], record["usage_time"], encryptedValues["design_life"], record["enecrgy_efficienct_bmk"],
 			record["capacity_unit"], encryptedValues["capacity"], record["use_info"], record["status"],
-			encryptedValues["annual_coal_consumption"], s.app.GetCurrentOSUser(), record["row_no"])
+			encryptedValues["annual_coal_consumption"], s.app.GetCurrentOSUser(), record["row_no"], EncryptedOne)
 		if err != nil {
 			return fmt.Errorf("保存数据失败: %v", err)
 		}

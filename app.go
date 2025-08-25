@@ -537,6 +537,62 @@ func (a *App) GetImportRecordsByFileType(fileType string) db.QueryResult {
 	return service.GetImportRecordsByFileType(fileType)
 }
 
+// ==================== 人工校验 API ====================
+
+// QueryDataTable1 查询附表1数据
+func (a *App) QueryDataTable1() db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataTable1()
+}
+
+// QueryDataDetailTable1 查询附表1详细数据
+func (a *App) QueryDataDetailTable1(obj_id string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataDetailTable1(obj_id)
+}
+
+// ConfirmDataTable1 确认附表1数据
+func (a *App) ConfirmDataTable1(obj_id []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ConfirmDataTable1(obj_id)
+}
+
+// QueryDataTable2 查询附表2数据
+func (a *App) QueryDataTable2() db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataTable2()
+}
+
+// ConfirmDataTable2 确认附表2数据
+func (a *App) ConfirmDataTable2(obj_id []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ConfirmDataTable2(obj_id)
+}
+
+// QueryDataTable3 查询附表3数据
+func (a *App) QueryDataTable3() db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataTable3()
+}
+
+// ConfirmDataTable3 确认附表3数据
+func (a *App) ConfirmDataTable3(obj_id []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ConfirmDataTable3(obj_id)
+}
+
+// QueryDataAttachment2 查询附件2数据
+func (a *App) QueryDataAttachment2() db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataAttachment2()
+}
+
+// ConfirmDataAttachment2 确认附件2数据
+func (a *App) ConfirmDataAttachment2(obj_id []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.ConfirmDataAttachment2(obj_id)
+}
+
 // ========================SM4加密========================
 
 // SM4Encrypt 加密
