@@ -2,7 +2,6 @@ package data_import
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -85,6 +84,7 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 		}
 	}
 
+	s.initAttachment2CacheManager()
 	var validationErrors []ValidationError = []ValidationError{} // 错误信息
 	var importedFiles []string = []string{}                      // 导入的文件
 	var coverFiles []string = []string{}                         // 覆盖的文件
@@ -107,7 +107,6 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 			}
 
 			mainData, err := s.parseAttachment2Excel(f, true)
-			log.Println("mainData==", mainData)
 			f.Close()
 
 			if err != nil {
@@ -140,8 +139,10 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 				continue
 			}
 
+	        
 			// 6. 如果没有导入过,把数据保存到相应的数据库表中
 			err = s.saveAttachment2DataForModel(mainData)
+			
 			if err != nil {
 				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 保存数据失败: %v", file.Name(), err)})
 				failedFiles = append(failedFiles, filePath)
@@ -443,6 +444,8 @@ var attachment2CacheManager *Attachment2CacheManager
 func (s *DataImportService) initAttachment2CacheManager() {
 	if attachment2CacheManager == nil {
 		attachment2CacheManager = NewAttachment2CacheManager(s)
+        // 预加载数据库缓存（只在第一次调用时从数据库加载，后续直接使用缓存）
+        attachment2CacheManager.PreloadDatabaseCache()
 	}
 }
 
@@ -473,15 +476,6 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 	// 获取当前数据的年份
 	statDate := s.getStringValue(mainData[0]["stat_date"])
 	if statDate == "" {
-		return errors
-	}
-
-	// 初始化缓存管理器
-	s.initAttachment2CacheManager()
-
-	// 预加载数据库缓存（只在第一次调用时从数据库加载，后续直接使用缓存）
-	err := attachment2CacheManager.PreloadDatabaseCache()
-	if err != nil {
 		return errors
 	}
 
@@ -624,11 +618,11 @@ func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provi
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptAttachment2NumericFields(record)
 
-	query := `UPDATE coal_consumption_report SET 
+	query := `UPDATE coal_consumption_report SET
 		stat_date = ?, province_name = ?, city_name = ?, country_name = ?, unit_level = ?,
-		total_coal = ?, raw_coal = ?, washed_coal = ?, other_coal = ?, 
+		total_coal = ?, raw_coal = ?, washed_coal = ?, other_coal = ?,
 		power_generation = ?, heating = ?, coal_washing = ?, coking = ?,
-		oil_refining = ?, gas_production = ?, industry = ?, raw_materials = ?, 
+		oil_refining = ?, gas_production = ?, industry = ?, raw_materials = ?,
 		other_uses = ?, coke = ?
 		WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?`
 
@@ -671,11 +665,11 @@ func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provi
 
 // getAttachment2DataByRegionAndYear 根据地区和时间获取附件2数据
 func (s *DataImportService) getAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName string) (map[string]interface{}, error) {
-	query := `SELECT 
+	query := `SELECT
 		total_coal, raw_coal, washed_coal, other_coal,
 		power_generation, heating, coal_washing, coking, oil_refining, gas_production,
 		industry, raw_materials, other_uses, coke
-	FROM coal_consumption_report 
+	FROM coal_consumption_report
 	WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?`
 
 	result, err := s.app.GetDB().QueryRow(query, statDate, provinceName, cityName, countryName)
@@ -741,7 +735,6 @@ func (s *DataImportService) isAttachment2FileImported(mainData []map[string]inte
 			return true // 检查到立即停止表示已导入
 		}
 	}
-
 	return false
 }
 
@@ -761,8 +754,10 @@ func (s *DataImportService) saveAttachment2Data(mainData []map[string]interface{
 				return err
 			}
 		} else {
+		
 			// 不存在数据，执行插入
 			err := s.insertAttachment2Data(record)
+			
 			if err != nil {
 				return err
 			}
@@ -775,8 +770,10 @@ func (s *DataImportService) saveAttachment2Data(mainData []map[string]interface{
 // saveAttachment2DataForModel 模型校验专用保存附件2数据到数据库（只使用INSERT）
 func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]interface{}) error {
 	for _, record := range mainData {
+	
 		// 直接执行插入操作，不检查数据是否已存在
 		err := s.insertAttachment2Data(record)
+		
 		if err != nil {
 			return err
 		}
@@ -786,7 +783,9 @@ func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]in
 		provinceName := s.getStringValue(record["province_name"])
 		cityName := s.getStringValue(record["city_name"])
 		countryName := s.getStringValue(record["country_name"])
+		
 		attachment2CacheManager.UpdateDatabaseCache(statDate, provinceName, cityName, countryName, record)
+		
 	}
 
 	return nil
@@ -794,14 +793,17 @@ func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]in
 
 // insertAttachment2Data 插入附件2数据
 func (s *DataImportService) insertAttachment2Data(record map[string]interface{}) error {
+
 	record["obj_id"] = s.generateUUID()
 	record["create_time"] = time.Now().Format("2006-01-02 15:04:05")
 
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptAttachment2NumericFields(record)
 
+
 	// 计算unit_level
 	unitLevel := s.calculateUnitLevel(s.getStringValue(record["province_name"]), s.getStringValue(record["city_name"]), s.getStringValue(record["country_name"]))
+
 
 	query := `INSERT INTO coal_consumption_report (
 		obj_id, stat_date, province_name, city_name, country_name, unit_level, total_coal, raw_coal,
@@ -818,6 +820,7 @@ func (s *DataImportService) insertAttachment2Data(record map[string]interface{})
 	if err != nil {
 		return fmt.Errorf("保存数据失败: %v", err)
 	}
+
 
 	// 更新数据存在性缓存
 	statDate := s.getStringValue(record["stat_date"])
