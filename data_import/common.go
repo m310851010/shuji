@@ -48,10 +48,10 @@ func (s *DataImportService) getDecryptedStatus(encryptedValue interface{}) strin
 	}
 
 	// 直接比较加密值，避免解密操作
-	if encryptedStr == EncryptedZero {
+	if encryptedValue == EncryptedZero {
 		return "0"
 	}
-	if encryptedStr == EncryptedOne {
+	if encryptedValue == EncryptedOne {
 		return "1"
 	}
 	return ""

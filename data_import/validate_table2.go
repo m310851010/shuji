@@ -98,7 +98,7 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 		for key, value := range unitInfo {
 			dataRow[key] = value
 		}
-		dataRow["_excel_row"] = i + 1
+		dataRow["_excel_row"] = i + 1 // 0索引转换为1索引
 
 		// 添加设备信息
 		for j, cell := range row {

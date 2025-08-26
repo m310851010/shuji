@@ -8,8 +8,10 @@
             {{ item.label }}
           </a-radio-button>
         </a-radio-group>
-      </div>
 
+        
+      </div>
+     
       <a-radio-group v-model:value="tableTab" @change="handleTabChange">
         <a-radio-button v-for="item in TableOptions" :key="item.value" :value="item.value" class="tab-button">
           {{ item.label }}
@@ -17,6 +19,7 @@
       </a-radio-group>
     </a-flex>
   </div>
+
 
   <transition :name="transitionName" mode="out-in" :css="true">
     <div class="page-content" :key="tableTab + checkTab">
@@ -33,10 +36,21 @@ import {CheckType, CheckTypeOptions, TableOptions, TableType, TableTypeName} fro
   import DataCheckModel from './components/DataCheckModel.vue';
   import DataCheckManual from './components/DataCheckManual.vue';
 import {
+  ConfirmDataAttachment2,
+  ConfirmDataTable1,
+  ConfirmDataTable3,
   ModelDataCheckAttachment2,
-  ModelDataCheckTable1, ModelDataCheckTable2, ModelDataCheckTable3,
+  ModelDataCheckTable1,
+  ModelDataCheckTable2,
+  ModelDataCheckTable3,
   ModelDataCoverAttachment2,
-  ModelDataCoverTable1, ModelDataCoverTable2, ModelDataCoverTable3,
+  ModelDataCoverTable1,
+  ModelDataCoverTable2,
+  ModelDataCoverTable3,
+  QueryDataAttachment2, QueryDataDetailTable1,
+  QueryDataTable1,
+  QueryDataTable2,
+  QueryDataTable3,
   ValidateAttachment2File,
   ValidateTable1File,
   ValidateTable2File,
@@ -105,7 +119,51 @@ import {
     } as Record<string, any>;
   }
 
+const handleCheck2 = async () => {
+  console.log('开始查询')
+  const res1 = await QueryDataTable1()
+ 
 
+  console.log(res1)
+  const res2 = await QueryDataTable2()
+  console.log(res2)
+  const res3= await QueryDataTable3()
+  console.log(res3)
+  const resa= await QueryDataAttachment2()
+  console.log(resa)
+  if (res1.ok) {
+    console.log(res1.data)
+    if (res1.data?.length) {
+      const resDetail = await QueryDataDetailTable1(res1.data[0].obj_id)
+      if  (resDetail.ok) {
+        const {main, usage, equip} = resDetail.data;
+        console.log(resDetail.data)
+      } else {
+        console.log(resDetail.message)
+      }
+    }
+  } else {
+    console.log(res1.message)
+  }
+
+  if (res2.ok) {
+    console.log(res2.data)
+  } else {
+    console.log(res2.message)
+  }
+
+  if (res3.ok) {
+    console.log(res3.data)
+  } else {
+    console.log(res3.message)
+  }
+
+  if (resa.ok) {
+    console.log(resa.data)
+  } else {
+    console.log(resa.message)
+  }
+}
 </script>
 
 <style scoped>

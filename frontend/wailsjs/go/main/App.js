@@ -14,6 +14,22 @@ export function CancelImport(arg1) {
   return window['go']['main']['App']['CancelImport'](arg1);
 }
 
+export function ConfirmDataAttachment2(arg1) {
+  return window['go']['main']['App']['ConfirmDataAttachment2'](arg1);
+}
+
+export function ConfirmDataTable1(arg1) {
+  return window['go']['main']['App']['ConfirmDataTable1'](arg1);
+}
+
+export function ConfirmDataTable2(arg1) {
+  return window['go']['main']['App']['ConfirmDataTable2'](arg1);
+}
+
+export function ConfirmDataTable3(arg1) {
+  return window['go']['main']['App']['ConfirmDataTable3'](arg1);
+}
+
 export function CopyFileToCache(arg1, arg2) {
   return window['go']['main']['App']['CopyFileToCache'](arg1, arg2);
 }
@@ -180,6 +196,26 @@ export function OpenFileDialog(arg1) {
 
 export function OpenSaveDialog(arg1) {
   return window['go']['main']['App']['OpenSaveDialog'](arg1);
+}
+
+export function QueryDataAttachment2() {
+  return window['go']['main']['App']['QueryDataAttachment2']();
+}
+
+export function QueryDataDetailTable1(arg1) {
+  return window['go']['main']['App']['QueryDataDetailTable1'](arg1);
+}
+
+export function QueryDataTable1() {
+  return window['go']['main']['App']['QueryDataTable1']();
+}
+
+export function QueryDataTable2() {
+  return window['go']['main']['App']['QueryDataTable2']();
+}
+
+export function QueryDataTable3() {
+  return window['go']['main']['App']['QueryDataTable3']();
 }
 
 export function ReadFile(arg1, arg2) {

@@ -10,6 +10,14 @@ export function CacheFileExists(arg1:string,arg2:string):Promise<db.QueryResult>
 
 export function CancelImport(arg1:string):Promise<any>;
 
+export function ConfirmDataAttachment2(arg1:Array<string>):Promise<db.QueryResult>;
+
+export function ConfirmDataTable1(arg1:Array<string>):Promise<db.QueryResult>;
+
+export function ConfirmDataTable2(arg1:Array<string>):Promise<db.QueryResult>;
+
+export function ConfirmDataTable3(arg1:Array<string>):Promise<db.QueryResult>;
+
 export function CopyFileToCache(arg1:string,arg2:string):Promise<db.QueryResult>;
 
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
@@ -93,6 +101,16 @@ export function OpenExternal(arg1:string):Promise<void>;
 export function OpenFileDialog(arg1:main.FileDialogOptions):Promise<main.FileDialogResult>;
 
 export function OpenSaveDialog(arg1:main.FileDialogOptions):Promise<main.FileDialogResult>;
+
+export function QueryDataAttachment2():Promise<db.QueryResult>;
+
+export function QueryDataDetailTable1(arg1:string):Promise<db.QueryResult>;
+
+export function QueryDataTable1():Promise<db.QueryResult>;
+
+export function QueryDataTable2():Promise<db.QueryResult>;
+
+export function QueryDataTable3():Promise<db.QueryResult>;
 
 export function ReadFile(arg1:string,arg2:boolean):Promise<Array<number>>;
 

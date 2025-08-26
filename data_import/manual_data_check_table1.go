@@ -11,16 +11,10 @@ func (s *DataImportService) QueryDataTable1() db.QueryResult {
 	// 查询主表数据，只返回未确认的数据
 	query := `
 		SELECT 
-			obj_id, unit_name, stat_date, tel, credit_code, trade_a, trade_b, trade_c,
-			province_name, city_name, country_name,
-			annual_energy_equivalent_value, annual_energy_equivalent_cost, annual_raw_material_energy,
-			annual_total_coal_consumption, annual_total_coal_products, annual_raw_coal,
-			annual_raw_coal_consumption, annual_clean_coal_consumption, annual_other_coal_consumption,
-			annual_coke_consumption, create_time, create_user, is_confirm, is_check
+			obj_id, unit_name, stat_date, credit_code, create_time, create_user, is_confirm, is_check
 		FROM enterprise_coal_consumption_main 
 		ORDER BY create_time DESC
 	`
-
 	result, err := s.app.GetDB().Query(query)
 	if err != nil {
 		return db.QueryResult{
@@ -42,37 +36,22 @@ func (s *DataImportService) QueryDataTable1() db.QueryResult {
 		}
 	}
 
-	// 解密数值字段
+	// 处理数据字段
 	var data []map[string]interface{}
 	for _, record := range rawData {
-		decryptedRecord := map[string]interface{}{
-			"obj_id":                         record["obj_id"],
-			"unit_name":                      record["unit_name"],
-			"stat_date":                      record["stat_date"],
-			"tel":                            record["tel"],
-			"credit_code":                    record["credit_code"],
-			"trade_a":                        record["trade_a"],
-			"trade_b":                        record["trade_b"],
-			"trade_c":                        record["trade_c"],
-			"province_name":                  record["province_name"],
-			"city_name":                      record["city_name"],
-			"country_name":                   record["country_name"],
-			"annual_energy_equivalent_value": s.decryptValue(record["annual_energy_equivalent_value"]),
-			"annual_energy_equivalent_cost":  s.decryptValue(record["annual_energy_equivalent_cost"]),
-			"annual_raw_material_energy":     s.decryptValue(record["annual_raw_material_energy"]),
-			"annual_total_coal_consumption":  s.decryptValue(record["annual_total_coal_consumption"]),
-			"annual_total_coal_products":     s.decryptValue(record["annual_total_coal_products"]),
-			"annual_raw_coal":                s.decryptValue(record["annual_raw_coal"]),
-			"annual_raw_coal_consumption":    s.decryptValue(record["annual_raw_coal_consumption"]),
-			"annual_clean_coal_consumption":  s.decryptValue(record["annual_clean_coal_consumption"]),
-			"annual_other_coal_consumption":  s.decryptValue(record["annual_other_coal_consumption"]),
-			"annual_coke_consumption":        s.decryptValue(record["annual_coke_consumption"]),
-			"create_time":                    record["create_time"],
-			"create_user":                    record["create_user"],
-			"is_confirm":                     s.getDecryptedStatus(record["is_confirm"]),
-			"is_check":                       s.getDecryptedStatus(record["is_check"]),
+		// 格式化时间
+
+		processedRecord := map[string]interface{}{
+			"obj_id":      record["obj_id"],
+			"unit_name":   record["unit_name"],
+			"stat_date":   record["stat_date"],
+			"credit_code": record["credit_code"],
+			"create_time": record["create_time"],
+			"create_user": record["create_user"],
+			"is_confirm":  s.getDecryptedStatus(record["is_confirm"]),
+			"is_check":    s.getDecryptedStatus(record["is_check"]),
 		}
-		data = append(data, decryptedRecord)
+		data = append(data, processedRecord)
 	}
 
 	return db.QueryResult{
@@ -115,8 +94,7 @@ func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult 
 		}
 	}
 
-	creditCode := s.getStringValue(mainData["credit_code"])
-	statDate := s.getStringValue(mainData["stat_date"])
+	mainObjId := s.getStringValue(mainData["obj_id"])
 
 	// 解密主表数值字段
 	decryptedMainData := map[string]interface{}{
@@ -154,11 +132,11 @@ func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult 
 			input_quantity, output_energy_types, output_quantity, measurement_unit, remarks, row_no,
 			create_time, is_confirm, is_check
 		FROM enterprise_coal_consumption_usage 
-		WHERE fk_id = ? AND stat_date = ?
-		ORDER BY row_no
+		WHERE fk_id = ?
+		ORDER BY create_time DESC
 	`
 
-	usageResult, err := s.app.GetDB().Query(usageQuery, creditCode, statDate)
+	usageResult, err := s.app.GetDB().Query(usageQuery, mainObjId)
 	if err != nil {
 		return db.QueryResult{
 			Ok:      false,
@@ -200,11 +178,11 @@ func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult 
 			energy_efficiency, capacity_unit, capacity, coal_type, annual_coal_consumption, row_no,
 			create_time, is_confirm, is_check
 		FROM enterprise_coal_consumption_equip 
-		WHERE fk_id = ? AND stat_date = ?
-		ORDER BY row_no
+		WHERE fk_id = ?
+		ORDER BY create_time DESC
 	`
 
-	equipResult, err := s.app.GetDB().Query(equipQuery, creditCode, statDate)
+	equipResult, err := s.app.GetDB().Query(equipQuery, mainObjId)
 	if err != nil {
 		return db.QueryResult{
 			Ok:      false,
@@ -285,10 +263,7 @@ func (s *DataImportService) ConfirmDataTable1(obj_id []string) db.QueryResult {
 	usageQuery := fmt.Sprintf(`
 		UPDATE enterprise_coal_consumption_usage 
 		SET is_confirm = ? 
-		WHERE fk_id IN (
-			SELECT credit_code FROM enterprise_coal_consumption_main 
-			WHERE obj_id IN (%s)
-		)
+		WHERE fk_id IN (%s)
 	`, placeholders)
 
 	usageArgs := []interface{}{EncryptedOne}
@@ -306,10 +281,7 @@ func (s *DataImportService) ConfirmDataTable1(obj_id []string) db.QueryResult {
 	equipQuery := fmt.Sprintf(`
 		UPDATE enterprise_coal_consumption_equip 
 		SET is_confirm = ? 
-		WHERE fk_id IN (
-			SELECT credit_code FROM enterprise_coal_consumption_main 
-			WHERE obj_id IN (%s)
-		)
+		WHERE fk_id IN (%s)
 	`, placeholders)
 
 	equipArgs := []interface{}{EncryptedOne}
