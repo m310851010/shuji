@@ -24,6 +24,10 @@ func (s *DataImportService) parseTable2Excel(f *excelize.File, skipValidate bool
 		return nil, fmt.Errorf("和%s模板不匹配,  %v", TableName2, err)
 	}
 
+	if len(mainData) == 0 {
+		return nil, fmt.Errorf("上传文件没有检测到数据, 请检查文件是否正确")
+	}
+
 	return mainData, nil
 }
 
@@ -200,7 +204,7 @@ func (s *DataImportService) mapTable2HeaderToField(header string) string {
 func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db.QueryResult {
 	fileName := filepath.Base(filePath)
 
-	// 第一步: 检查文件是否存在
+	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		s.app.InsertImportRecord(fileName, TableType2, "上传失败", "文件不存在")
 		return db.QueryResult{
@@ -209,7 +213,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 		}
 	}
 
-	// 第二步: 文件是否可读取
+	// 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		s.app.InsertImportRecord(fileName, TableType2, "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
@@ -220,19 +224,20 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 	}
 	defer f.Close()
 
-	// 第三步: 文件是否和模板文件匹配
+	// 文件是否和模板文件匹配
 	mainData, err := s.parseTable2Excel(f, false)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, TableType2, "上传失败", fmt.Sprintf("解析Excel文件失败: %v", err))
+		errorMessage := fmt.Sprintf("解析Excel文件失败: %v", err)
+		s.app.InsertImportRecord(fileName, TableType2, "上传失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("解析Excel文件失败: %v", err),
+			Message: errorMessage,
 		}
 	}
 
-	// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+	// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
 	if isCover {
-		// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+		// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
 		cacheResult := s.app.CacheFileExists(TableType2, fileName)
 		if cacheResult.Ok {
 			// 文件已存在，直接返回，需要前端确认
@@ -244,7 +249,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 		}
 	}
 
-	// 第五步: 按行读取文件数据并校验
+	// 按行读取文件数据并校验
 	validationErrors := s.validateTable2DataWithEnterpriseCheck(mainData)
 	if len(validationErrors) > 0 {
 		s.app.InsertImportRecord(fileName, TableType2, "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
@@ -256,7 +261,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 	}
 
 	if len(validationErrors) == 0 {
-		// 第六步: 复制文件到缓存目录（只有校验通过才复制）
+		// 复制文件到缓存目录（只有校验通过才复制）
 		copyResult := s.app.CopyFileToCache(TableType2, filePath)
 		if !copyResult.Ok {
 			copyMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)
@@ -280,26 +285,72 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 func (s *DataImportService) validateTable2DataWithEnterpriseCheck(mainData []map[string]interface{}) []string {
 	errors := []string{}
 
+	firstRowData := mainData[0]
+	// 企业名称和统一信用代码校验
+	enterpriseErrors := s.validateEnterpriseAndCreditCode(firstRowData, 3, 4)
+	errors = append(errors, enterpriseErrors...)
+
+	// 省市县和统一社会信用代码对应关系校验
+	regionErrors := s.validateRegionTable2Correspondence(firstRowData, 4)
+	errors = append(errors, regionErrors...)
+
 	// 在一个循环中完成所有验证
 	for _, data := range mainData {
 		// Excel中的实际行号：设备数据从第7行开始（表头第5行+1行说明+1行数据）
 		excelRowNum := s.getExcelRowNumber(data)
 
-		// 1. 检查必填字段
+		// 检查必填字段
 		fieldErrors := s.validateRequiredFields(data, Table2RequiredFields, excelRowNum)
 		errors = append(errors, fieldErrors...)
 
-		// 2. 年耗煤量特殊校验（状态为"停用"时可以为空，其他情况下不能为空）
+		// 年耗煤量特殊校验（状态为"停用"时可以为空，其他情况下不能为空）
 		coalConsumptionErrors := s.validateTable2CoalConsumption(data, excelRowNum)
 		errors = append(errors, coalConsumptionErrors...)
+	}
 
-		// 3. 企业名称和统一信用代码校验
-		enterpriseErrors := s.validateEnterpriseAndCreditCode(data, excelRowNum)
-		errors = append(errors, enterpriseErrors...)
+	return errors
+}
 
-		// 4. 省市县和统一社会信用代码对应关系校验
-		regionErrors := s.validateRegionCorrespondence(data, excelRowNum)
-		errors = append(errors, regionErrors...)
+// validateRegionCorrespondence 省市县和统一社会信用代码对应关系校验
+func (s *DataImportService) validateRegionTable2Correspondence(data map[string]interface{}, excelRowNum int) []string {
+	errors := []string{}
+
+	provinceName, _ := data["province_name"].(string)
+	cityName, _ := data["city_name"].(string)
+	countryName, _ := data["country_name"].(string)
+	creditCodeForRegion, _ := data["credit_code"].(string)
+
+	if provinceName != "" && cityName != "" && countryName != "" && creditCodeForRegion != "" {
+		//  调用s.app.IsEquipmentListExist(), 清单存在时调用s.app.GetEquipmentByCreditCode(统一社会信用代码),清单不存在时, 调用s.app.GetAreaConfig(), 获取province_name, city_name, country_name
+		hasEquipmentList, err := s.app.IsEquipmentListExist()
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("第%d行：装置清单检查失败", excelRowNum))
+			return errors
+		}
+
+		var expectedProvince, expectedCity, expectedCountry string
+
+		if hasEquipmentList {
+			// 清单存在时，从装置清单获取省市县信息
+			equipmentResult := s.app.GetEquipmentByCreditCode(creditCodeForRegion)
+			if equipmentResult.Ok && equipmentResult.Data != nil {
+				if equipmentData, ok := equipmentResult.Data.(map[string]interface{}); ok {
+					expectedProvince = s.getStringValue(equipmentData["province_name"])
+					expectedCity = s.getStringValue(equipmentData["city_name"])
+					expectedCountry = s.getStringValue(equipmentData["country_name"])
+				}
+			}
+		} else {
+			// 清单不存在时，从区域配置获取省市县信息
+			areaResult := s.app.GetAreaConfig()
+			areaData := areaResult.Data.([]map[string]interface{})
+			expectedProvince = s.getStringValue(areaData[0]["province_name"])
+			expectedCity = s.getStringValue(areaData[0]["city_name"])
+			expectedCountry = s.getStringValue(areaData[0]["country_name"])
+		}
+
+		// 使用公共函数检查省市县是否匹配
+		return s.checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry, excelRowNum)
 	}
 
 	return errors

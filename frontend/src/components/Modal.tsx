@@ -56,16 +56,13 @@ export default defineComponent({
 
     const handleOk = async () => {
       if (props.onOk) {
-        const result = props.onOk();
-        if (result && typeof (result as Promise<void>).then === 'function') {
-          try {
-            await result;
-            // 关闭对话框并同步状态
-            open.value = false;
-          } catch (error) {
-            console.error('Modal onOk error:', error);
-            return; // 出错时不关闭对话框
-          }
+        const result = await props.onOk();
+
+        if (result !== false) {
+          open.value = false;
+          emit('update:open', false);
+          emit('ok');
+          return;
         }
         return;
       }

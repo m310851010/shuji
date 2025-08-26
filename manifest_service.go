@@ -390,23 +390,22 @@ func (a *App) IsEnterpriseListExist() (bool, error) {
 	return isEnterpriseListExist, nil
 }
 
-// GetEnterpriseNameByCreditCode 获取企业名称
-func (a *App) GetEnterpriseNameByCreditCode(creditCode string) (string, error) {
-	rows, err := a.db.QueryRow("SELECT unit_name FROM enterprise_list WHERE credit_code = ?", creditCode)
+// GetEnterpriseInfoByCreditCode 获取企业信息
+func (a *App) GetEnterpriseInfoByCreditCode(creditCode string) db.QueryResult {
+	rows, err := a.db.QueryRow("SELECT province_name, city_name, country_name, unit_name FROM enterprise_list WHERE credit_code = ?", creditCode)
 	if err != nil {
-		return "", fmt.Errorf("查询企业名称失败: %v", err)
+		return db.QueryResult{
+			Ok:      false,
+			Data:    nil,
+			Message: "查询企业信息失败: " + err.Error(),
+		}
 	}
 
-	if rows.Data == nil {
-		return "", nil
+	return db.QueryResult{
+		Ok:      true,
+		Data:    rows.Data,
+		Message: "查询企业信息成功",
 	}
-
-	unitName := rows.Data.(map[string]interface{})["unit_name"]
-	if unitName == nil {
-		return "", nil
-	}
-
-	return unitName.(string), nil
 }
 
 // 缓存装置清单是否存在
@@ -434,14 +433,6 @@ func (a *App) GetEquipmentByCreditCode(creditCode string) db.QueryResult {
 			Ok:      false,
 			Data:    nil,
 			Message: "查询装置清单失败: " + err.Error(),
-		}
-	}
-
-	if rows.Data == nil {
-		return db.QueryResult{
-			Ok:      false,
-			Data:    nil,
-			Message: "查询装置清单失败",
 		}
 	}
 

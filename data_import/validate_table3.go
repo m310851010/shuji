@@ -162,7 +162,7 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db.QueryResult {
 	fileName := filepath.Base(filePath)
 
-	// 第一步: 检查文件是否存在
+	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		errorMessage := fmt.Sprintf("文件不存在: %v", err)
 		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
@@ -173,7 +173,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 		}
 	}
 
-	// 第二步: 文件是否可读取
+	// 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		errorMessage := fmt.Sprintf("读取Excel文件失败: %v", err)
@@ -186,7 +186,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	}
 	defer f.Close()
 
-	// 第三步: 文件是否和模板文件匹配
+	// 文件是否和模板文件匹配
 	mainData, err := s.parseTable3Excel(f, false)
 	if err != nil {
 		errorMessage := fmt.Sprintf("解析Excel文件失败: %v", err)
@@ -198,9 +198,9 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 		}
 	}
 
-	// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+	// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
 	if isCover {
-		// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+		// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
 		cacheResult := s.app.CacheFileExists(TableType3, fileName)
 		if cacheResult.Ok {
 			// 文件已存在，直接返回，需要前端确认
@@ -212,7 +212,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 		}
 	}
 
-	// 第五步: 按行读取文件数据并校验
+	// 按行读取文件数据并校验
 	validationErrors := s.validateTable3Data(mainData)
 	if len(validationErrors) > 0 {
 		errorMessage := fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; "))
@@ -224,7 +224,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 		}
 	}
 
-	// 第六步: 复制文件到缓存目录（只有校验通过才复制）
+	// 复制文件到缓存目录（只有校验通过才复制）
 	if len(validationErrors) == 0 {
 		copyResult := s.app.CopyFileToCache(TableType3, filePath)
 		if !copyResult.Ok {
@@ -256,9 +256,9 @@ func (s *DataImportService) validateTable3Data(mainData []map[string]interface{}
 	approvalNumberMap := make(map[string]int)
 
 	// 在一个循环中完成所有验证
-	for i, data := range mainData {
+	for _, data := range mainData {
 		// Excel中的实际行号：数据从第4行开始（表头第3行+1行数据）
-		excelRowNum := 4 + i
+		excelRowNum := s.getExcelRowNumber(data)
 
 		// 1. 检查必填字段
 		fieldErrors := s.validateRequiredFields(data, Table3RequiredFields, excelRowNum)
@@ -280,28 +280,28 @@ func (s *DataImportService) validateTable3Data(mainData []map[string]interface{}
 		// 分别检查项目名称、项目代码、审查意见文号的唯一性
 		if projectName != "" {
 			if existingIndex, exists := projectNameMap[projectName]; exists {
-				existingExcelRowNum := 4 + existingIndex
+				existingExcelRowNum := existingIndex
 				errors = append(errors, fmt.Sprintf("第%d行：项目名称重复（与第%d行重复）", excelRowNum, existingExcelRowNum))
 			} else {
-				projectNameMap[projectName] = i
+				projectNameMap[projectName] = excelRowNum
 			}
 		}
 
 		if projectCode != "" {
 			if existingIndex, exists := projectCodeMap[projectCode]; exists {
-				existingExcelRowNum := 4 + existingIndex
+				existingExcelRowNum := existingIndex
 				errors = append(errors, fmt.Sprintf("第%d行：项目代码重复（与第%d行重复）", excelRowNum, existingExcelRowNum))
 			} else {
-				projectCodeMap[projectCode] = i
+				projectCodeMap[projectCode] = excelRowNum
 			}
 		}
 
 		if approvalNumber != "" {
 			if existingIndex, exists := approvalNumberMap[approvalNumber]; exists {
-				existingExcelRowNum := 4 + existingIndex
+				existingExcelRowNum := existingIndex
 				errors = append(errors, fmt.Sprintf("第%d行：审查意见文号重复（与第%d行重复）", excelRowNum, existingExcelRowNum))
 			} else {
-				approvalNumberMap[approvalNumber] = i
+				approvalNumberMap[approvalNumber] = excelRowNum
 			}
 		}
 	}

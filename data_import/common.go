@@ -76,7 +76,7 @@ type App interface {
 	GetAreaConfig() db.QueryResult
 	InsertImportRecord(fileName, fileType, importState, describe string)
 	IsEnterpriseListExist() (bool, error)
-	GetEnterpriseNameByCreditCode(creditCode string) (string, error)
+	GetEnterpriseInfoByCreditCode(creditCode string) db.QueryResult
 	CacheFileExists(tableType string, fileName string) db.QueryResult
 	CopyFileToCache(tableType string, fileName string) db.QueryResult
 	IsEquipmentListExist() (bool, error)
@@ -98,7 +98,18 @@ func NewDataImportService(app App) *DataImportService {
 	// 确保加密常量已初始化
 	initEncryptedConstants(app)
 
-	return &DataImportService{app: app}
+	return &DataImportService{
+		app: app,
+	}
+}
+
+// convertToInterfaceSlice 将字符串切片转换为接口切片
+func (s *DataImportService) convertToInterfaceSlice(strSlice []string) []interface{} {
+	result := make([]interface{}, len(strSlice))
+	for i, v := range strSlice {
+		result[i] = v
+	}
+	return result
 }
 
 // cleanCellValue 清理单元格值
@@ -176,7 +187,7 @@ func (s *DataImportService) getStringValue(value interface{}) string {
 }
 
 // validateEnterpriseAndCreditCode 企业名称和统一社会信用代码校验（从表1、表2提取的通用逻辑）
-func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]interface{}, excelRowNum int) []string {
+func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]interface{}, unitRowNum, regionRowNum int) []string {
 	errors := []string{}
 
 	unitName, _ := data["unit_name"].(string)
@@ -186,22 +197,36 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 		// 第一步: 调用s.app.IsEnterpriseListExist(), 检查企业清单是否存在, 不存在直接校验通过
 		hasEnterpriseList, err := s.app.IsEnterpriseListExist()
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("第%d行：企业清单检查失败", excelRowNum))
+			errors = append(errors, fmt.Sprintf("第%d行：企业清单检查失败", unitRowNum))
 			return errors
 		}
 
 		if hasEnterpriseList {
 			// 第二步: 如果企业清单存在, 调用s.app.GetEnterpriseNameByCreditCode,检查统一信用代码是否有对应的企业名称, 未查询到企业名称校验失败
-			dbUnitName, err := s.app.GetEnterpriseNameByCreditCode(creditCode)
-			if err != nil {
-				errors = append(errors, fmt.Sprintf("第%d行：%s企业，统一信用代码%s未在清单表里", excelRowNum, unitName, creditCode))
+			result := s.app.GetEnterpriseInfoByCreditCode(creditCode)
+			if !result.Ok || result.Data == nil {
+				errors = append(errors, fmt.Sprintf("第%d行：%s企业，统一信用代码%s未在清单表里", unitRowNum, unitName, creditCode))
 				return errors
 			}
 
-			// 第三步: 如果查询到企业名了，比较企业名称是否相同
+			enterpriseInfo := result.Data.(map[string]interface{})
+			dbUnitName := enterpriseInfo["unit_name"].(string)
+			dbProvinceName := enterpriseInfo["province_name"].(string)
+			dbCityName := enterpriseInfo["city_name"].(string)
+			dbCountryName := enterpriseInfo["country_name"].(string)
+
+			// 如果查询到企业名了，比较企业名称是否相同
 			if dbUnitName != unitName {
-				errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和上传的企业名称不对应", excelRowNum, creditCode))
+				errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和上传的企业名称不对应", unitRowNum, creditCode))
+				return errors
 			}
+
+			provinceName := s.getStringValue(data["province_name"])
+			cityName := s.getStringValue(data["city_name"])
+			countryName := s.getStringValue(data["country_name"])
+
+			// 如果查询到企业名了，比较省市县是否相同
+			errors = s.checkRegionMatch(provinceName, cityName, countryName, dbProvinceName, dbCityName, dbCountryName, regionRowNum)
 		}
 	}
 
@@ -231,74 +256,22 @@ func (s *DataImportService) checkRegionMatch(provinceName, cityName, countryName
 	return errors
 }
 
-// validateRegionCorrespondence 省市县和统一社会信用代码对应关系校验（从表1、表2提取的通用逻辑）
-func (s *DataImportService) validateRegionCorrespondence(data map[string]interface{}, excelRowNum int) []string {
-	errors := []string{}
-
-	provinceName, _ := data["province_name"].(string)
-	cityName, _ := data["city_name"].(string)
-	countryName, _ := data["country_name"].(string)
-	creditCodeForRegion, _ := data["credit_code"].(string)
-
-	if provinceName != "" && cityName != "" && countryName != "" && creditCodeForRegion != "" {
-		// 第一步: 调用s.app.IsEquipmentListExist(), 清单存在时调用s.app.GetEquipmentByCreditCode(统一社会信用代码),清单不存在时, 调用s.app.GetAreaConfig(), 获取province_name, city_name, country_name
-		hasEquipmentList, err := s.app.IsEquipmentListExist()
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("第%d行：装置清单检查失败", excelRowNum))
-			return errors
-		}
-
-		var expectedProvince, expectedCity, expectedCountry string
-
-		if hasEquipmentList {
-			// 清单存在时，从装置清单获取省市县信息
-			equipmentResult := s.app.GetEquipmentByCreditCode(creditCodeForRegion)
-			if equipmentResult.Ok && equipmentResult.Data != nil {
-				if equipmentData, ok := equipmentResult.Data.(map[string]interface{}); ok {
-					expectedProvince = s.getStringValue(equipmentData["province_name"])
-					expectedCity = s.getStringValue(equipmentData["city_name"])
-					expectedCountry = s.getStringValue(equipmentData["country_name"])
-				}
-			}
-		} else {
-			// 清单不存在时，从区域配置获取省市县信息
-			areaResult := s.app.GetAreaConfig()
-			areaData := areaResult.Data.([]map[string]interface{})
-			expectedProvince = s.getStringValue(areaData[0]["province_name"])
-			expectedCity = s.getStringValue(areaData[0]["city_name"])
-			expectedCountry = s.getStringValue(areaData[0]["country_name"])
-		}
-
-		// 第二步: 使用公共函数检查省市县是否匹配
-		return s.checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry, excelRowNum)
-	}
-
-	return errors
-}
-
 // validateRegionOnly 仅省市县校验（从表3、附件2提取的通用逻辑）
 func (s *DataImportService) validateRegionOnly(data map[string]interface{}, excelRowNum int) []string {
-	errors := []string{}
 
 	provinceName, _ := data["province_name"].(string)
 	cityName, _ := data["city_name"].(string)
 	countryName, _ := data["country_name"].(string)
 
-	// 判断在省市县非空时检验
-	if provinceName != "" && cityName != "" && countryName != "" {
-		// 调用s.app.GetAreaConfig(), 获取province_name, city_name, country_name
-		areaResult := s.app.GetAreaConfig()
-		areaData := areaResult.Data.([]map[string]interface{})
-		row := areaData[0]
-		expectedProvince := s.getStringValue(row["province_name"])
-		expectedCity := s.getStringValue(row["city_name"])
-		expectedCountry := s.getStringValue(row["country_name"])
+	// 调用s.app.GetAreaConfig(), 获取province_name, city_name, country_name
+	areaResult := s.app.GetAreaConfig()
+	row := areaResult.Data.(map[string]interface{})
+	expectedProvince := s.getStringValue(row["province_name"])
+	expectedCity := s.getStringValue(row["city_name"])
+	expectedCountry := s.getStringValue(row["country_name"])
 
-		// 使用公共函数检查省市县是否匹配
-		return s.checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry, excelRowNum)
-	}
-
-	return errors
+	// 使用公共函数检查省市县是否匹配
+	return s.checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry, excelRowNum)
 }
 
 // GetAreaConfig 获取区域配置 - 直接调用App的方法

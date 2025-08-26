@@ -200,7 +200,7 @@ func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult 
 					"stat_date":               equip["stat_date"],
 					"equip_type":              equip["equip_type"],
 					"equip_no":                equip["equip_no"],
-					"total_runtime":           equip["total_runtime"],
+					"total_runtime":           s.decryptValue(equip["total_runtime"]),
 					"design_life":             s.decryptValue(equip["design_life"]),
 					"energy_efficiency":       s.decryptValue(equip["energy_efficiency"]),
 					"capacity_unit":           equip["capacity_unit"],
@@ -299,13 +299,4 @@ func (s *DataImportService) ConfirmDataTable1(obj_id []string) db.QueryResult {
 		Ok:      true,
 		Message: fmt.Sprintf("成功确认 %d 条附表1数据", len(obj_id)),
 	}
-}
-
-// convertToInterfaceSlice 将字符串切片转换为接口切片
-func (s *DataImportService) convertToInterfaceSlice(strSlice []string) []interface{} {
-	result := make([]interface{}, len(strSlice))
-	for i, v := range strSlice {
-		result[i] = v
-	}
-	return result
 }

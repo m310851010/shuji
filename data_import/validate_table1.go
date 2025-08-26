@@ -515,6 +515,11 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 		return errors
 	}
 
+	firstRowData := mainData[0]
+	// 企业名称和统一信用代码校验
+	enterpriseErrors := s.validateEnterpriseAndCreditCode(firstRowData, 3, 3)
+	errors = append(errors, enterpriseErrors...)
+
 	// 1. 在一个循环中完成所有验证
 	for _, data := range mainData {
 		// 使用记录的实际Excel行号
@@ -526,15 +531,14 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 		// 1.1 校验必填字段
 		fieldErrors := s.validateTable1RequiredFieldsWithRowNumbers(data, excelRowNum, excelRowNum2)
 		errors = append(errors, fieldErrors...)
-
-		// 1.2 企业名称和统一信用代码校验
-		enterpriseErrors := s.validateEnterpriseAndCreditCode(data, excelRowNum)
-		errors = append(errors, enterpriseErrors...)
-
-		// 1.3 省市县和统一社会信用代码对应关系校验
-		regionErrors := s.validateRegionCorrespondence(data, excelRowNum)
-		errors = append(errors, regionErrors...)
 	}
+
+	return errors
+}
+
+// validateTable1RegionCorrespondence 校验附表1区域对应关系
+func (s *DataImportService) validateTable1RegionCorrespondence(data map[string]interface{}, excelRowNum int) []string {
+	errors := []string{}
 
 	return errors
 }

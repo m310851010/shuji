@@ -40,7 +40,7 @@ export function GetCurrentOSUser():Promise<string>;
 
 export function GetDB():Promise<db.Database>;
 
-export function GetEnterpriseNameByCreditCode(arg1:string):Promise<string>;
+export function GetEnterpriseInfoByCreditCode(arg1:string):Promise<db.QueryResult>;
 
 export function GetEnv():Promise<main.EnvResult>;
 

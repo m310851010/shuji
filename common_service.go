@@ -157,11 +157,18 @@ func (a *App) SaveAreaConfig(config AreaConfig) db.QueryResult {
 	return db.QueryResult{Ok: true, Message: "保存成功"}
 }
 
+var areaConfigData map[string]interface{}
+
 // 获取区域表(area_config)第一条数据
 func (a *App) GetAreaConfig() db.QueryResult {
-	result, err := a.db.Query("SELECT obj_id, province_name, city_name, country_name FROM area_config LIMIT 1")
+	if areaConfigData != nil {
+		return db.QueryResult{Ok: true, Data: areaConfigData, Message: "获取成功"}
+	}
+
+	result, err := a.db.QueryRow("SELECT obj_id, province_name, city_name, country_name FROM area_config LIMIT 1")
 	if err != nil {
 		return db.QueryResult{Ok: false, Message: "获取区域信息失败: " + err.Error()}
 	}
+
 	return db.QueryResult{Ok: true, Data: result.Data, Message: "获取成功"}
 }

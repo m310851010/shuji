@@ -200,7 +200,7 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 func (s *DataImportService) ValidateAttachment2File(filePath string, isCover bool) db.QueryResult {
 	fileName := filepath.Base(filePath)
 
-	// 第一步: 检查文件是否存在
+	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		errorMessage := fmt.Sprintf("文件不存在: %v", err)
 		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
@@ -211,7 +211,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 		}
 	}
 
-	// 第二步: 文件是否可读取
+	// 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		errorMessage := fmt.Sprintf("读取Excel文件失败: %v", err)
@@ -224,7 +224,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	}
 	defer f.Close()
 
-	// 第三步: 文件是否和模板文件匹配
+	// 文件是否和模板文件匹配
 	mainData, err := s.parseAttachment2Excel(f, false)
 	if err != nil {
 		errorMessage := err.Error()
@@ -237,7 +237,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	}
 
 	if isCover {
-		// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+		// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
 		cacheResult := s.app.CacheFileExists(TableTypeAttachment2, fileName)
 		if cacheResult.Ok {
 			// 文件已存在，直接返回，需要前端确认
@@ -249,7 +249,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 		}
 	}
 
-	// 第五步: 按行读取文件数据并校验
+	// 按行读取文件数据并校验
 	validationErrors := s.validateAttachment2Data(mainData)
 	if len(validationErrors) > 0 {
 		errorMessage := fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; "))
@@ -262,7 +262,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	}
 
 	if len(validationErrors) == 0 {
-		// 第六步: 复制文件到缓存目录（只有校验通过才复制）
+		// 复制文件到缓存目录（只有校验通过才复制）
 		copyResult := s.app.CopyFileToCache(TableTypeAttachment2, filePath)
 		if !copyResult.Ok {
 			errorMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)

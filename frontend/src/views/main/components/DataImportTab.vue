@@ -171,11 +171,16 @@
   };
 
   function showImportResult(checkResults: any[]) {
-    handleImportRecords();
     openInfoModal({
       width: 800,
       title: '导入结果',
-      content: () => <ShowImportResult style={{ maxHeight: '400px', overflow: 'auto' }} resultList={checkResults} />
+      content: () => <ShowImportResult style={{ maxHeight: '400px', overflow: 'auto' }} resultList={checkResults} />,
+      onOk: () => {
+        handleImportRecords();
+      },
+      onCancel: () => {
+        handleImportRecords();
+      }
     });
   }
 

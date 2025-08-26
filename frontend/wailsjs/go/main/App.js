@@ -74,8 +74,8 @@ export function GetDB() {
   return window['go']['main']['App']['GetDB']();
 }
 
-export function GetEnterpriseNameByCreditCode(arg1) {
-  return window['go']['main']['App']['GetEnterpriseNameByCreditCode'](arg1);
+export function GetEnterpriseInfoByCreditCode(arg1) {
+  return window['go']['main']['App']['GetEnterpriseInfoByCreditCode'](arg1);
 }
 
 export function GetEnv() {
