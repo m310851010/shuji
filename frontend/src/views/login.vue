@@ -27,9 +27,8 @@
     GetPasswordInfo,
     SetUserPassword,
     Login,
-    GetAreaConfig, QueryExportData
+    GetAreaConfig
   } from '@wailsjs/go';
-  import { main } from '@wailsjs/models';
   import { openInfoModal } from '@/components/useModal';
   interface FormState {
     password: string;
