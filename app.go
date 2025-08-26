@@ -61,6 +61,11 @@ func CreateApp(fs embed.FS) *App {
 	Env.AppFileName = filepath.Base(exePath)
 	Env.AssetsDir = "frontend/dist"
 
+	encryptedZero, _ := SM4Encrypt("0")
+	encryptedOne, _ := SM4Encrypt("1")
+	ENCRYPTED_ZERO = encryptedZero
+	ENCRYPTED_ONE = encryptedOne
+
 	app := NewApp()
 	app.fs = fs
 
@@ -123,15 +128,6 @@ func extractEmbeddedFiles(fs embed.FS) {
 	dbSrcPath := "frontend/dist/" + DB_FILE_NAME
 	if _, err := os.Stat(dbDstPath); os.IsNotExist(err) {
 		extractFile(fs, dbSrcPath, dbDstPath)
-	}
-}
-
-func extractFiles(fs embed.FS, srcDir, dstDir string) {
-	files, _ := fs.ReadDir(srcDir)
-	for _, file := range files {
-		fileName := file.Name()
-		dstPath := GetPath(dstDir + "/" + fileName)
-		extractFile(fs, srcDir+"/"+fileName, dstPath)
 	}
 }
 
@@ -270,16 +266,14 @@ func (a *App) FileExists(path string) FlagResult {
 
 func (a *App) Movefile(source string, target string) FlagResult {
 	log.Printf("Movefile: %s -> %s", source, target)
-
-	fullSource := GetPath(source)
-	fullTarget := GetPath(target)
-
-	if err := os.MkdirAll(filepath.Dir(fullTarget), os.ModePerm); err != nil {
-		return FlagResult{false, err.Error()}
+	copyResult := a.Copyfile(source, target)
+	if !copyResult.Ok {
+		return copyResult
 	}
 
-	if err := os.Rename(fullSource, fullTarget); err != nil {
-		return FlagResult{false, err.Error()}
+	removeResult := a.Removefile(source)
+	if !removeResult.Ok {
+		return removeResult
 	}
 
 	return FlagResult{true, "Success"}
@@ -429,6 +423,10 @@ func (a *App) CopyFileToCache(tableType string, filePath string) db.QueryResult 
 func (a *App) GetDB() *db.Database {
 	return a.db
 }
+
+// func (a *App) GetConstants() Constants {
+// 	return constants
+// }
 
 // ==================== 校验文件 API ====================
 

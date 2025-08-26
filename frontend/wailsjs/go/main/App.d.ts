@@ -24,9 +24,7 @@ export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
 
 export function ExitApp():Promise<void>;
 
-export function ExportAllData(arg1:string):Promise<main.ExportResult>;
-
-export function ExportData(arg1:string,arg2:string,arg3:Record<string, any>):Promise<main.ExportResult>;
+export function ExportDBData(arg1:string):Promise<db.QueryResult>;
 
 export function FileExists(arg1:string):Promise<main.FlagResult>;
 
@@ -45,8 +43,6 @@ export function GetEnterpriseInfoByCreditCode(arg1:string):Promise<db.QueryResul
 export function GetEnv():Promise<main.EnvResult>;
 
 export function GetEquipmentByCreditCode(arg1:string):Promise<db.QueryResult>;
-
-export function GetExportHistory(arg1:number,arg2:number):Promise<any>;
 
 export function GetFileInfo(arg1:string):Promise<main.FileInfo>;
 
@@ -111,6 +107,8 @@ export function QueryDataTable1():Promise<db.QueryResult>;
 export function QueryDataTable2():Promise<db.QueryResult>;
 
 export function QueryDataTable3():Promise<db.QueryResult>;
+
+export function QueryExportData():Promise<db.QueryResult>;
 
 export function ReadFile(arg1:string,arg2:boolean):Promise<Array<number>>;
 

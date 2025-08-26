@@ -9,81 +9,113 @@
     </div>
 
     <div style="text-align: center; margin-top: 20px">
-      <a-button type="primary">导出汇总数据（.db）</a-button>
+      <a-button type="primary" @click="handleExportClick">导出汇总数据（.db）</a-button>
     </div>
   </div>
 </template>
 
 <script setup lang="tsx">
-  import { TableColumnType, TableProps } from 'ant-design-vue';
+import {message, TableColumnType,} from 'ant-design-vue';
   import { useTableHeight } from '@/hook';
+import {ExportDBData, OpenSaveDialog, QueryExportData} from '@wailsjs/go';
+  import {main} from '@wailsjs/models';
+import dayjs from 'dayjs';
+import {TableType, TableTypeName} from '@/views/constant';
   const tableBoxRef = ref(null);
   const tableScroll = useTableHeight(tableBoxRef);
 
-  const dataSource = ref<Record<string, any>>([]);
+  const dataSource = ref<ExportItem[]>([]);
 
-  setTimeout(() => {
-    dataSource.value = Array.from({ length: 100 })
-      .fill(1)
-      .map((_, i) => {
-        return {
-          key: '1' + i,
-          tableType: '表1',
-          year: '2024',
-          importProgress: 32,
-          completeRate: 32,
-          manualCheck: '已完成',
-          modelCheck: '已完成'
-        };
-      });
-  });
+  function normalizeData(item: ExportItem[], tableTypeName: string) {
+    if (!item?.length) {
+      return [{tableTypeName, year:'', count: 0, is_checked_no: 0, is_checked_yes: 0, is_confirm_no:0, is_confirm_yes: 0}];
+    }
+    return item.map(item => {
+      item.tableTypeName = tableTypeName;
+      return item;
+    })
+  }
 
-  const columns: TableColumnType[] = [
+  onMounted(async () => {
+    const result = await QueryExportData();
+    console.log(result)
+    if (result.ok) {
+      let list: ExportItem[] = [];
+        Object.keys(result.data).forEach(key => {
+          const item = result.data[key as TableType];
+          list = list.concat(normalizeData(item, TableTypeName[key as TableType]));
+        })
+      dataSource.value = list
+    }
+  })
+
+  const columns: TableColumnType<ExportItem>[] = [
     {
       title: '年份',
-      dataIndex: 'year',
-      key: 'year',
+      dataIndex: 'stat_date',
+      key: 'stat_date',
       align: 'center'
-      // customCell: (_, index) => {
-      //   if (index === 2) {
-      //     return { rowSpan: 2 };
-      //   }
-      // }
+
     },
     {
-      title: '',
-      dataIndex: 'tableType',
-      key: 'tableType',
-      align: 'center'
+      title: '表格类型',
+      dataIndex: 'tableTypeName',
+      key: 'tableTypeName',
+      align: 'center',
     },
     {
       title: '导入进度',
-      dataIndex: 'importProgress',
-      key: 'importProgress',
-      align: 'center'
-    },
-    {
-      title: '完整率',
-      dataIndex: 'completeRate',
-      key: 'completeRate',
-      ellipsis: true,
-      align: 'center'
+      align: 'center',
+      customRender: ({record}) => {
+        return `${record.is_confirm_no + record.is_confirm_yes}/${record.count}`
+      }
     },
     {
       title: '人工校验',
-      dataIndex: 'manualCheck',
-      key: 'manualCheck',
-      ellipsis: true,
-      align: 'center'
+      align: 'center',
+      customRender: ({ record}) => {
+        return `${record.is_confirm_yes}/${record.count}`
+      }
     },
     {
       title: '模型校验',
-      dataIndex: 'modelCheck',
-      key: 'modelCheck',
       ellipsis: true,
-      align: 'center'
+      align: 'center',
+      customRender: ({ record}) => {
+        return `${record.is_checked_yes}/${record.count}`
+      }
     }
   ];
+  const handleExportClick = async () => {
+    const result = await OpenSaveDialog(new main.FileDialogOptions({
+      title: '导出汇总数据',
+      defaultFilename: `导出汇总数据-${dayjs().format('YYYY-MM-DD')}.db`,
+    }));
+
+    console.log(result);
+    if (result.canceled) {
+      console.log('用户取消保存');
+      return
+    }
+
+    const exportResult = await ExportDBData(result.filePaths[0])
+    console.log(exportResult);
+    if (exportResult.ok) {
+      message.success('导出成功');
+    } else {
+      message.error('导出失败:' + exportResult.message);
+    }
+  }
+
+  interface ExportItem {
+    tableTypeName: TableTypeName;
+    year: string;
+    is_confirm_no: number;
+    is_confirm_yes: number;
+    is_checked_no: number;
+    is_checked_yes: number;
+    count: number;
+  }
 </script>
 
 <style scoped></style>

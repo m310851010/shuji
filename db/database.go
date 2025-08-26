@@ -385,7 +385,7 @@ func (d *Database) QueryRow(query string, args ...interface{}) (QueryResult, err
 
 // Count 统计记录数
 func (d *Database) Count(tableName string, where string, args ...interface{}) (QueryResult, error) {
-	query := fmt.Sprintf("SELECT COUNT(*) as count FROM %s", tableName)
+	query := fmt.Sprintf("SELECT COUNT(1) as count FROM %s", tableName)
 	if where != "" {
 		query += " WHERE " + where
 	}

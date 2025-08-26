@@ -25,7 +25,7 @@
     <div class="page-content" :key="tableTab + checkTab">
       <template v-for="item in TableOptions">
         <DataCheckModel v-if="checkTab === CheckType.model && item.value === tableTab" v-model="modelCheckMap[item.value]" />
-        <DataCheckManual v-if="checkTab === CheckType.manual && item.value === tableTab" />
+        <DataCheckManual v-if="checkTab === CheckType.manual && item.value === tableTab" :tableType="item.value" />
       </template>
     </div>
   </transition>
@@ -36,9 +36,6 @@ import {CheckType, CheckTypeOptions, TableOptions, TableType, TableTypeName} fro
   import DataCheckModel from './components/DataCheckModel.vue';
   import DataCheckManual from './components/DataCheckManual.vue';
 import {
-  ConfirmDataAttachment2,
-  ConfirmDataTable1,
-  ConfirmDataTable3,
   ModelDataCheckAttachment2,
   ModelDataCheckTable1,
   ModelDataCheckTable2,
@@ -47,14 +44,6 @@ import {
   ModelDataCoverTable1,
   ModelDataCoverTable2,
   ModelDataCoverTable3,
-  QueryDataAttachment2, QueryDataDetailTable1,
-  QueryDataTable1,
-  QueryDataTable2,
-  QueryDataTable3,
-  ValidateAttachment2File,
-  ValidateTable1File,
-  ValidateTable2File,
-  ValidateTable3File
 } from '@wailsjs/go';
 
   let previousIndex: number = 0;
@@ -118,52 +107,6 @@ import {
       [TableType.attachment2]: data_4
     } as Record<string, any>;
   }
-
-const handleCheck2 = async () => {
-  console.log('开始查询')
-  const res1 = await QueryDataTable1()
- 
-
-  console.log(res1)
-  const res2 = await QueryDataTable2()
-  console.log(res2)
-  const res3= await QueryDataTable3()
-  console.log(res3)
-  const resa= await QueryDataAttachment2()
-  console.log(resa)
-  if (res1.ok) {
-    console.log(res1.data)
-    if (res1.data?.length) {
-      const resDetail = await QueryDataDetailTable1(res1.data[0].obj_id)
-      if  (resDetail.ok) {
-        const {main, usage, equip} = resDetail.data;
-        console.log(resDetail.data)
-      } else {
-        console.log(resDetail.message)
-      }
-    }
-  } else {
-    console.log(res1.message)
-  }
-
-  if (res2.ok) {
-    console.log(res2.data)
-  } else {
-    console.log(res2.message)
-  }
-
-  if (res3.ok) {
-    console.log(res3.data)
-  } else {
-    console.log(res3.message)
-  }
-
-  if (resa.ok) {
-    console.log(resa.data)
-  } else {
-    console.log(resa.message)
-  }
-}
 </script>
 
 <style scoped>

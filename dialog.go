@@ -2,59 +2,60 @@ package main
 
 import (
 	"fmt"
-  "log"
-  "strings"
+	"log"
+	"strings"
+
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // OpenSaveDialog 选择需要处理的文件
 func (a *App) OpenSaveDialog(option FileDialogOptions) FileDialogResult {
 
-    // DefaultPath 默认值
-    if option.DefaultPath == "" {
-      option.DefaultPath = "."
-    }
+	// DefaultPath 默认值
+	if option.DefaultPath == "" {
+		option.DefaultPath = "."
+	}
 
- // option.Filters 默认值
-    if len(option.Filters) == 0 {
-      option.Filters = []FileFilter{
-        {
-          Name: "所有文件",
-          Pattern:     "*.*",
-        },
-      }
-    }
+	// option.Filters 默认值
+	if len(option.Filters) == 0 {
+		option.Filters = []FileFilter{
+			{
+				Name:    "所有文件",
+				Pattern: "*.*",
+			},
+		}
+	}
 
-    var filters = a.transformFileFilters(option.Filters)
+	var filters = a.transformFileFilters(option.Filters)
 
-    result, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-                                       Title: option.Title,
-                                       Filters: filters,
-                                       CanCreateDirectories: option.CreateDirectory,
-                                       DefaultFilename: option.DefaultFilename,
-                                       DefaultDirectory: option.DefaultPath,
-                                      })
-    if err != nil {
-      return FileDialogResult{
-        Canceled: true,
-        FilePaths: []string{fmt.Sprintf("err %s!", err)},
-      }
-    }
-    return FileDialogResult{
-      Canceled: false,
-      FilePaths: []string{result},
-    }
+	result, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:                option.Title,
+		Filters:              filters,
+		CanCreateDirectories: option.CreateDirectory,
+		DefaultFilename:      option.DefaultFilename,
+		DefaultDirectory:     option.DefaultPath,
+	})
+	if err != nil || result == "" {
+		return FileDialogResult{
+			Canceled:  true,
+			FilePaths: []string{fmt.Sprintf("err %s!", err)},
+		}
+	}
+	return FileDialogResult{
+		Canceled:  false,
+		FilePaths: []string{result},
+	}
 }
 
 func padRight(s string) string {
-  // 计算需要填充的空格数
-  padding := 90 - len(s)
-  if padding <= 0 {
-  return s[:90] // 如果字符串长度超过或等于90，截取前90个字符
-  }
-  // 使用strings.Repeat创建空格字符串并拼接
-  return s + strings.Repeat(" ", padding)
-  }
+	// 计算需要填充的空格数
+	padding := 90 - len(s)
+	if padding <= 0 {
+		return s[:90] // 如果字符串长度超过或等于90，截取前90个字符
+	}
+	// 使用strings.Repeat创建空格字符串并拼接
+	return s + strings.Repeat(" ", padding)
+}
 
 // ShowMessageBox 弹出消息框，支持自定义按钮，模仿 electron 的 showMessageBox
 // type: info、error、question、warning四种类型
@@ -88,7 +89,7 @@ func (a *App) ShowMessageBox(options MessageBoxOptions) MessageBoxResult {
 	case "question":
 		dialogType = runtime.QuestionDialog
 	}
-	
+
 	title := options.Title
 	if title == "" {
 		title = "提示"
@@ -98,9 +99,8 @@ func (a *App) ShowMessageBox(options MessageBoxOptions) MessageBoxResult {
 
 	var response int
 
-  log.Println(buttons)
-  log.Println(len(buttons))
-
+	log.Println(buttons)
+	log.Println(len(buttons))
 
 	// 使用runtime.MessageDialog的Buttons参数支持自定义按钮
 	result, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
@@ -132,116 +132,114 @@ func (a *App) ShowMessageBox(options MessageBoxOptions) MessageBoxResult {
 	}
 }
 
-
-
 // option.Filters 转换为runtime.FileFilter
 func (a *App) transformFileFilters(filters []FileFilter) []runtime.FileFilter {
-  var _filters []runtime.FileFilter
-  for _, filter := range filters {
-    _filters = append(_filters, runtime.FileFilter{
-      DisplayName: filter.Name,
-      Pattern:     filter.Pattern,
-    })
-  }
-  return _filters
+	var _filters []runtime.FileFilter
+	for _, filter := range filters {
+		_filters = append(_filters, runtime.FileFilter{
+			DisplayName: filter.Name,
+			Pattern:     filter.Pattern,
+		})
+	}
+	return _filters
 }
 
 // OpenFileDialog 选择需要处理的文件
 func (a *App) OpenFileDialog(option FileDialogOptions) FileDialogResult {
-    // option.Filters 默认值
-    if len(option.Filters) == 0 {
-      option.Filters = []FileFilter{
-        {
-          Name: "所有文件",
-          Pattern:     "*.*",
-        },
-      }
-    }
+	// option.Filters 默认值
+	if len(option.Filters) == 0 {
+		option.Filters = []FileFilter{
+			{
+				Name:    "所有文件",
+				Pattern: "*.*",
+			},
+		}
+	}
 
-    var filters = a.transformFileFilters(option.Filters)
+	var filters = a.transformFileFilters(option.Filters)
 
-    // DefaultPath 默认值
-    if option.DefaultPath == "" {
-      option.DefaultPath = "."
-    }
+	// DefaultPath 默认值
+	if option.DefaultPath == "" {
+		option.DefaultPath = "."
+	}
 
-    print(option.OpenDirectory)
-    // OpenDirectory 选择目录
-    if option.OpenDirectory {
-      selection, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-       Title: option.Title,
-       Filters: filters,
-       CanCreateDirectories: option.CreateDirectory,
-       DefaultFilename: option.DefaultFilename,
-       DefaultDirectory: option.DefaultPath,
-      })
+	print(option.OpenDirectory)
+	// OpenDirectory 选择目录
+	if option.OpenDirectory {
+		selection, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+			Title:                option.Title,
+			Filters:              filters,
+			CanCreateDirectories: option.CreateDirectory,
+			DefaultFilename:      option.DefaultFilename,
+			DefaultDirectory:     option.DefaultPath,
+		})
 
-      if err != nil {
-        return FileDialogResult{
-          Canceled: true,
-          FilePaths: []string{fmt.Sprintf("err %s!", err)},
-        }
-      }
-      return FileDialogResult{
-        Canceled: false,
-        FilePaths: []string{selection},
-      }
-    }
+		if err != nil {
+			return FileDialogResult{
+				Canceled:  true,
+				FilePaths: []string{fmt.Sprintf("err %s!", err)},
+			}
+		}
+		return FileDialogResult{
+			Canceled:  false,
+			FilePaths: []string{selection},
+		}
+	}
 
-    // 选择文件 多选
-    if option.MultiSelections {
-        selection, err := runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
-          Title: option.Title,
-          Filters: filters,
-          CanCreateDirectories: option.CreateDirectory,
-          DefaultFilename: option.DefaultFilename,
-          DefaultDirectory: option.DefaultPath,
-        })
+	// 选择文件 多选
+	if option.MultiSelections {
+		selection, err := runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
+			Title:                option.Title,
+			Filters:              filters,
+			CanCreateDirectories: option.CreateDirectory,
+			DefaultFilename:      option.DefaultFilename,
+			DefaultDirectory:     option.DefaultPath,
+		})
 
-        if err != nil {
-          return FileDialogResult{
-            Canceled: true,
-            FilePaths: []string{fmt.Sprintf("err %s!", err)},
-          }
-        }
+		if err != nil {
+			return FileDialogResult{
+				Canceled:  true,
+				FilePaths: []string{fmt.Sprintf("err %s!", err)},
+			}
+		}
 
-        if len(selection) == 0 {
-          return FileDialogResult{
-            Canceled: true,
-            FilePaths: []string{},
-          }
-        }
-        return FileDialogResult{
-          Canceled: false,
-          FilePaths: selection,
-        }
-    }
+		if len(selection) == 0 {
+			return FileDialogResult{
+				Canceled:  true,
+				FilePaths: []string{},
+			}
+		}
+		return FileDialogResult{
+			Canceled:  false,
+			FilePaths: selection,
+		}
+	}
 
-  // 选择文件, 单选
-  selection, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-    Title: option.Title,
-    Filters: filters,
-    CanCreateDirectories: option.CreateDirectory,
-    DefaultFilename: option.DefaultFilename,
-    DefaultDirectory: option.DefaultPath,
-  })
-  if err != nil {
-    return FileDialogResult{
-      Canceled: true,
-      FilePaths: []string{fmt.Sprintf("err %s!", err)},
-    }
-  }
+	// 选择文件, 单选
+	selection, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:                option.Title,
+		Filters:              filters,
+		CanCreateDirectories: option.CreateDirectory,
+		DefaultFilename:      option.DefaultFilename,
+		DefaultDirectory:     option.DefaultPath,
+	})
+	if err != nil {
+		return FileDialogResult{
+			Canceled:  true,
+			FilePaths: []string{fmt.Sprintf("err %s!", err)},
+		}
+	}
 
-  if selection == "" {
-    return FileDialogResult{
-      Canceled: true,
-      FilePaths: []string{},
-    }
-  }
+	if selection == "" {
+		return FileDialogResult{
+			Canceled:  true,
+			FilePaths: []string{},
+		}
+	}
 
-  // 单选
-  return FileDialogResult{
-    Canceled: false,
-    FilePaths: []string{selection},
-  }
+	// 单选
+	return FileDialogResult{
+		Canceled:  false,
+		FilePaths: []string{selection},
+	}
 }

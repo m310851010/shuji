@@ -1,19 +1,5 @@
 package main
 
-// 加密相关常量
-const (
-	// 默认加密密钥 - 生产环境中修改此密钥
-	DEFAULT_ENCRYPTION_KEY = "shuji2024secretkey"
-
-	// 密钥最小长度
-	MIN_KEY_LENGTH = 8
-
-	// 密钥推荐长度
-	RECOMMENDED_KEY_LENGTH = 16
-
-	// 密钥最大长度
-	MAX_KEY_LENGTH = 32
-)
 
 // 应用相关常量
 const (
@@ -41,6 +27,8 @@ const (
 
 // 加密算法相关常量
 const (
+	// 默认加密密钥 - 生产环境中修改此密钥
+	DEFAULT_ENCRYPTION_KEY = "shuji2024secretkey"
 	// SM4密钥长度（字节）
 	SM4_KEY_LENGTH = 16
 
@@ -62,4 +50,9 @@ const (
 	TableType2      = "table2"
 	TableType3      = "table3"
 	TableTypeAttachment2 = "attachment2"
+)
+
+var (
+	ENCRYPTED_ZERO = ""
+	ENCRYPTED_ONE = ""
 )

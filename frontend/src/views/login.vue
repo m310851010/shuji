@@ -27,7 +27,7 @@
     GetPasswordInfo,
     SetUserPassword,
     Login,
-    GetAreaConfig
+    GetAreaConfig, QueryExportData
   } from '@wailsjs/go';
   import { main } from '@wailsjs/models';
   import { openInfoModal } from '@/components/useModal';
@@ -87,6 +87,7 @@
       }
     });
   };
+
 </script>
 
 <style scoped>

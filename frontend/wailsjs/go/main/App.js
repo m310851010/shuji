@@ -42,12 +42,8 @@ export function ExitApp() {
   return window['go']['main']['App']['ExitApp']();
 }
 
-export function ExportAllData(arg1) {
-  return window['go']['main']['App']['ExportAllData'](arg1);
-}
-
-export function ExportData(arg1, arg2, arg3) {
-  return window['go']['main']['App']['ExportData'](arg1, arg2, arg3);
+export function ExportDBData(arg1) {
+  return window['go']['main']['App']['ExportDBData'](arg1);
 }
 
 export function FileExists(arg1) {
@@ -84,10 +80,6 @@ export function GetEnv() {
 
 export function GetEquipmentByCreditCode(arg1) {
   return window['go']['main']['App']['GetEquipmentByCreditCode'](arg1);
-}
-
-export function GetExportHistory(arg1, arg2) {
-  return window['go']['main']['App']['GetExportHistory'](arg1, arg2);
 }
 
 export function GetFileInfo(arg1) {
@@ -216,6 +208,10 @@ export function QueryDataTable2() {
 
 export function QueryDataTable3() {
   return window['go']['main']['App']['QueryDataTable3']();
+}
+
+export function QueryExportData() {
+  return window['go']['main']['App']['QueryExportData']();
 }
 
 export function ReadFile(arg1, arg2) {

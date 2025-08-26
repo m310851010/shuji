@@ -75,22 +75,6 @@ export namespace main {
 	        this.assetsDir = source["assetsDir"];
 	    }
 	}
-	export class ExportResult {
-	    ok: boolean;
-	    message: string;
-	    filePath: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ExportResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ok = source["ok"];
-	        this.message = source["message"];
-	        this.filePath = source["filePath"];
-	    }
-	}
 	export class FileFilter {
 	    name: string;
 	    pattern: string;
