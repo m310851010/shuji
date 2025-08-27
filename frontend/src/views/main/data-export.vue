@@ -58,7 +58,7 @@ function normalizeData2(item: ExportItem[], tableTypeName: string) {
       let list: ExportItem[] = [];
           list = list.concat(normalizeData(result.data[TableType.table1], TableTypeName.table1));
           list = list.concat(normalizeData(result.data[TableType.table2], TableTypeName.table2));
-          list = list.concat(normalizeData2(result.data[TableType.table3], TableTypeName.table3));
+          list = list.concat(normalizeData(result.data[TableType.table3], TableTypeName.table3));
           list = list.concat(normalizeData2(result.data[TableType.attachment2], TableTypeName.attachment2));
       dataSource.value = list
     }
