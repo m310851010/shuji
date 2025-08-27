@@ -2,7 +2,7 @@
   <Window>
     <Titlebar></Titlebar>
     <a-layout class="h-100">
-      <div class="flex-vertical">
+      <div class="flex-vertical border-right">
         <div class="flex-main">
           <div class="title-container">
             <h2 class="main-title">煤炭摸底数据校验工具</h2>
@@ -10,12 +10,12 @@
 
           <!-- 灰色间隔线 -->
           <div class="divider-line"></div>
-
+          
           <a-layout-sider width="220" class="sider" theme="light">
             <div class="address">
               <a-tag v-for="(item, index) in areas" :key="item" color="#6BA2D4" class="area-tag">{{ item }}</a-tag>
             </div>
-
+            
             <div class="divider-line"></div>
 
             <a-menu mode="inline" class="menu" v-model:selectedKeys="selectedKeys">
@@ -35,7 +35,7 @@
           <div class="support-info">
             <div>技术支持</div>
             <div>XXX-XXX-XXX</div>
-            <div>北京数极智能科技有限公司</div>
+            <!-- <div>北京数极智能科技有限公司</div> -->
           </div>
         </div>
       </div>
@@ -83,8 +83,8 @@
   const areas = ref<string[]>([]);
   onMounted(async () => {
     const result = await GetAreaConfig();
-    if (result.ok && result.data.length > 0) {
-      const [data] = result.data;
+    if (result.ok && result.data) {
+      const data = result.data;
       areas.value = [data.province_name, data.city_name, data.country_name].filter(v => v);
     }
   });
@@ -94,7 +94,9 @@
   .sider.ant-layout-sider {
     background-color: #F9FAFB;
   }
-
+  ::v-deep .ant-menu-light.ant-menu-root.ant-menu-inline{
+    border-right: 0px;
+  }
   .content {
     background-color: #fff;
     position: relative;
@@ -158,7 +160,7 @@
 .divider-line {
   width: 100%;
   margin: 0 auto;
-  border: 1px solid #e8e8e8c0;
+  border: 0.8px solid #e8e8e8c0;
 }
 
 /* 标题容器样式 */
@@ -177,7 +179,7 @@
   font-weight: 800;
   color: #1A5284;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-
+ 
 }
 
 /* 技术支持信息样式 */
@@ -190,6 +192,7 @@
 .bottom-section {
   text-align: center;
   padding-top: 20px;
+  background-color: #F9FAFB;
 }
 
 /* 地址标签间距样式 */

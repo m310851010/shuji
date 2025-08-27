@@ -217,7 +217,7 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 
 			// 如果查询到企业名了，比较企业名称是否相同
 			if dbUnitName != unitName {
-				errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和上传的企业名称不对应", unitRowNum, creditCode))
+				errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和导入的企业名称不对应", unitRowNum, creditCode))
 				return errors
 			}
 
@@ -239,17 +239,17 @@ func (s *DataImportService) checkRegionMatch(provinceName, cityName, countryName
 
 	// 1.检查省是否匹配, 失败,返回
 	if expectedProvince != "" && provinceName != expectedProvince {
-		errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+		errors = append(errors, fmt.Sprintf("第%d行：导入的数据单位与当前单位不符", excelRowNum))
 		return errors
 	}
 	// 2.检查市, city_name有值时,是否匹配, 无值时返回成功
 	if expectedCity != "" && cityName != expectedCity {
-		errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+		errors = append(errors, fmt.Sprintf("第%d行：导入的数据单位与当前单位不符", excelRowNum))
 		return errors
 	}
 	// 3.检查县, country_name有值时,是否匹配, 无值时返回成功
 	if expectedCountry != "" && countryName != expectedCountry {
-		errors = append(errors, fmt.Sprintf("第%d行：上传的数据单位与当前单位不符", excelRowNum))
+		errors = append(errors, fmt.Sprintf("第%d行：导入的数据单位与当前单位不符", excelRowNum))
 		return errors
 	}
 
@@ -300,8 +300,8 @@ func (s *DataImportService) decryptValue(value interface{}) string {
 
 // 导入状态常量
 const (
-	ImportStateSuccess = "上传成功"
-	ImportStateFailed  = "上传失败"
+	ImportStateSuccess = "导入成功"
+	ImportStateFailed  = "导入失败"
 )
 
 // 表名常量
@@ -447,7 +447,7 @@ func (s *DataImportService) createValidationErrorZip(failedFiles []string, table
 	zipFileName := fmt.Sprintf("%s模型报告.zip", tableName)
 	zipPath := filepath.Join(cacheDir, zipFileName)
 
-	zipFile, err := os.Create(zipPath)
+	zipFile, err := os.OpenFile(zipPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("创建ZIP文件失败: %v", err)
 	}

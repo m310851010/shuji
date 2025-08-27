@@ -58,7 +58,7 @@ export const ManifestTypeOptions: SelectProps['options'] = [
  */
 export enum CheckType {
   /**
-   * 模型校验
+   * 自动校验
    */
   model = 'model',
   /**
@@ -71,7 +71,7 @@ export enum CheckType {
  * 校验类型选项
  */
 export const CheckTypeOptions: SelectProps['options'] = [
-  { label: '模型校验', value: CheckType.model },
+  { label: '自动校验', value: CheckType.model },
   { label: '人工校验', value: CheckType.manual }
 ];
 

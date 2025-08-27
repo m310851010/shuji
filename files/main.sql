@@ -32,7 +32,7 @@ CREATE TABLE "coal_consumption_report" (
   "raw_materials" varchar(100),                        -- 用作原材料，2位小数，加密
   "other_uses" varchar(100),                           -- 其他用途，2位小数，加密
   "coke" varchar(100),                                 -- 焦炭，2位小数，加密
-  "create_user" varchar(100),                          -- 上传用户
+  "create_user" varchar(100),                          -- 导入用户
 	"create_time" datetime NOT NULL,                     -- 创建时间
 	"is_confirm" varchar(100),                           -- 是否已确认，0未确认，1已确认，加密
 	"is_check" varchar(100),                             -- 是否已校核，0未校核，1已校核，2校核未通过，加密
@@ -70,7 +70,7 @@ CREATE TABLE "critical_coal_equipment_consumption" (
   "status" varchar(10),                                -- 状态
   "annual_coal_consumption" varchar(100),              -- 年耗煤量，2位小数，加密
   "row_no" varchar(36),                                -- 行数
-  "create_user" varchar(100),                          -- 上传用户
+  "create_user" varchar(100),                          -- 导入用户
 	"is_confirm" varchar(100),                           -- 是否已确认，0未确认，1已确认，加密
 	"is_check" varchar(100),                             -- 是否已校核，0未校核，1已校核，2校核未通过，加密
   PRIMARY KEY ("obj_id")
@@ -79,13 +79,13 @@ CREATE TABLE "critical_coal_equipment_consumption" (
 
 -- 导入excel记录表
 CREATE TABLE "data_import_record" (
-  "obj_id" varchar(36) NOT NULL,                       -- 主键，表：数据导入-上传记录表
-  "file_name" varchar(100) NOT NULL,                   -- 上传文件名
+  "obj_id" varchar(36) NOT NULL,                       -- 主键，表：数据导入-导入记录表
+  "file_name" varchar(100) NOT NULL,                   -- 导入文件名
   "file_type" varchar(100) NOT NULL,                   -- 文件类型
-  "import_time" datetime NOT NULL,                     -- 上传时间
-  "import_state" varchar(20) NOT NULL,                 -- 上传状态，上传成功，上传失败
+  "import_time" datetime NOT NULL,                     -- 导入时间
+  "import_state" varchar(20) NOT NULL,                 -- 导入状态，导入成功，导入失败
   "describe" varchar(500),                             -- 说明
-  "create_user" varchar(100),                          -- 上传用户
+  "create_user" varchar(100),                          -- 导入用户
   PRIMARY KEY ("obj_id")
 );
 
@@ -139,7 +139,7 @@ CREATE TABLE "enterprise_coal_consumption_main" (
   "annual_clean_coal_consumption" varchar(100),        -- 年洗精煤消费，2位小数，加密
   "annual_other_coal_consumption" varchar(100),        -- 年其他煤炭消费，2位小数，加密
   "annual_coke_consumption" varchar(100),              -- 年焦炭消费，2位小数，加密
-  "create_user" varchar(100),                          -- 上传用户
+  "create_user" varchar(100),                          -- 导入用户
 	"is_confirm" varchar(100),                           -- 是否已确认，0未确认，1已确认，加密
 	"is_check" varchar(100),                             -- 是否已校核，0未校核，1已校核，2校核未通过，加密
   PRIMARY KEY ("obj_id")
@@ -212,7 +212,7 @@ CREATE TABLE "fixed_assets_investment_project" (
 	"substitution_quantity" varchar(100),                -- 煤炭消费替代量，2位小数，加密
 	"pq_annual_coal_quantity" varchar(100),              -- 年原料用煤量-实物量，2位小数，加密
 	"sce_annual_coal_quantity" varchar(100),             -- 年原料用煤量-折标量，2位小数，加密
-  "create_user" varchar(100),                          -- 上传用户
+  "create_user" varchar(100),                          -- 导入用户
 	"create_time" datetime NOT NULL,                     -- 创建时间
 	"is_confirm" varchar(100),                           -- 是否已确认，0未确认，1已确认，加密
 	"is_check" varchar(100),                             -- 是否已校核，0未校核，1已校核，2校核未通过，加密

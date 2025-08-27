@@ -117,6 +117,7 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 		"equivalent_value",
 		"equivalent_cost",
 		"pq_total_coal_consumption",
+		"pq_coal_consumption",
 		"pq_coke_consumption",
 		"pq_blue_coke_consumption",
 		"sce_total_coal_consumption",
@@ -165,7 +166,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		errorMessage := fmt.Sprintf("文件不存在: %v", err)
-		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableType3, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Data:    []string{errorMessage},
@@ -177,7 +178,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		errorMessage := fmt.Sprintf("读取Excel文件失败: %v", err)
-		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableType3, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Data:    []string{errorMessage},
@@ -190,7 +191,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	mainData, err := s.parseTable3Excel(f, false)
 	if err != nil {
 		errorMessage := fmt.Sprintf("解析Excel文件失败: %v", err)
-		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableType3, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Data:    []string{errorMessage},
@@ -216,7 +217,7 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 	validationErrors := s.validateTable3Data(mainData)
 	if len(validationErrors) > 0 {
 		errorMessage := fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; "))
-		s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableType3, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Data:    validationErrors,
@@ -229,14 +230,14 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 		copyResult := s.app.CopyFileToCache(TableType3, filePath)
 		if !copyResult.Ok {
 			errorMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)
-			s.app.InsertImportRecord(fileName, TableType3, "上传失败", errorMessage)
+			s.app.InsertImportRecord(fileName, TableType3, "导入失败", errorMessage)
 			return db.QueryResult{
 				Ok:      false,
 				Data:    []string{errorMessage},
 				Message: errorMessage,
 			}
 		}
-		s.app.InsertImportRecord(fileName, TableType3, "上传成功", "校验通过")
+		s.app.InsertImportRecord(fileName, TableType3, "导入成功", "校验通过")
 	}
 
 	return db.QueryResult{

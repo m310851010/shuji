@@ -170,5 +170,10 @@ func (a *App) GetAreaConfig() db.QueryResult {
 		return db.QueryResult{Ok: false, Message: "获取区域信息失败: " + err.Error()}
 	}
 
-	return db.QueryResult{Ok: true, Data: result.Data, Message: "获取成功"}
+	if result.Data != nil {
+		areaConfigData = result.Data.(map[string]interface{})
+		return db.QueryResult{Ok: true, Data: areaConfigData, Message: "获取成功"}
+	}
+
+	return db.QueryResult{Ok: true, Message: "未找到区域信息，请先设置区域信息"}
 }

@@ -12,12 +12,12 @@ import (
 // DataImportRecord 导入记录
 type DataImportRecord struct {
 	ObjID       string    `json:"obj_id" db:"obj_id"`             // 主键
-	FileName    string    `json:"file_name" db:"file_name"`       // 上传文件名
+	FileName    string    `json:"file_name" db:"file_name"`       // 导入文件名
 	FileType    string    `json:"file_type" db:"file_type"`       // 文件类型
-	ImportTime  time.Time `json:"import_time" db:"import_time"`   // 上传时间
-	ImportState string    `json:"import_state" db:"import_state"` // 上传状态，上传成功，上传失败
+	ImportTime  time.Time `json:"import_time" db:"import_time"`   // 导入时间
+	ImportState string    `json:"import_state" db:"import_state"` // 导入状态，导入成功，导入失败
 	Describe    string    `json:"describe" db:"describe"`         // 说明
-	CreateUser  string    `json:"create_user" db:"create_user"`   // 上传用户
+	CreateUser  string    `json:"create_user" db:"create_user"`   // 导入用户
 }
 
 // DataImportRecordService 导入记录服务

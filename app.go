@@ -308,7 +308,7 @@ func (a *App) Copyfile(src string, dst string) FlagResult {
 		return FlagResult{false, err.Error()}
 	}
 
-	dstFile, err := os.Create(dstPath)
+	dstFile, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return FlagResult{false, err.Error()}
 	}

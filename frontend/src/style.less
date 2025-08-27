@@ -72,21 +72,25 @@
   justify-content: space-between;
   align-items: center;
   font-size: 20px;
-
+  height: 53px;
   .ant-radio-button-wrapper-checked {
     border-radius: 3x;
     color: #fff !important;
-
+    
     .ant-radio-button-checked {
-      background-color: #1A5284;
+      background-color: #1A5284; 
 
     }
   }
 
-
+  .header-title {
+    color: #1A5284;
+    font-weight: 600;
+  }
+  
 }
 
-.ant-radio-button-wrapper::before{
+.ant-radio-button-wrapper::before{ 
   background-color: transparent !important;
 }
 
@@ -98,10 +102,10 @@
   padding: 0 30px;
   border: 1px solid #1A5284 !important;
   border-radius: 3px;
-
+  
 }
 
-//
+// 
 
 /**
  * 页面内容
@@ -112,6 +116,39 @@
   min-height: 0;
   flex: 1;
   overflow: auto;
+
+  .ant-btn-primary {
+    background-color: #1A5284;
+    color: #fff;
+    width: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .ant-btn-primary:hover {
+    background-color: #0f3a5f !important;
+    border-color: #0f3a5f !important;
+  }
+
+  .ant-btn-primary:focus {
+    background-color: #1A5284 !important;
+    border-color: #1A5284 !important;
+  }
+  .ant-btn-primary.ant-btn-background-ghost:not(:disabled):hover {
+    background-color: #1a5384d6;
+    color: #fff;
+  }
+  .ant-btn-dangerous {
+    width: 130px;
+  }
+  ::v-deep .ant-btn.ant-btn-dangerous:focus {
+    background-color: #D32F2F !important;
+    border-color: #D32F2F !important;
+  }
+  ::v-deep .ant-btn.ant-btn-dangerous.ant-btn-background-ghost:not(:disabled):hover {
+    background-color: #d32f2fd6 !important;
+    color: #fff !important;
+  }
 }
 
 :deep(.page-content) .ant-steps-item-description {
@@ -120,9 +157,26 @@
   text-wrap: nowrap !important;
 }
 
+.box-bg {
+  padding: 20px;
+  
+}
+
 .result-text {
   color: #faad14;
   font-weight: 500;
+}
+
+/* 操作区域样式 */
+.operation-area {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .ant-btn-primary {
+    width: 180px;
+  }
 }
 
 /**
@@ -196,7 +250,6 @@
   left: 0;
   right: 0;
   bottom: 0;
-  overflow: auto;
 }
 
 .relative {
@@ -221,11 +274,16 @@
 .flex-vertical {
   display: flex;
   flex-direction: column;
-  background-color: #F9FAFB;
+  
+}
+
+.border-right {
+  border-right: 1px solid rgba(5, 5, 5, 0.06);
 }
 
 .flex-main {
   flex: 1;
+  background-color: #F9FAFB;
 }
 
 .bottom-line {

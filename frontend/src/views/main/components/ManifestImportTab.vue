@@ -1,18 +1,25 @@
 <template>
-  <a-flex class="box-grey" justify="flex-end">
-    <a-button type="primary" @click="handleUploadClick" :loading="model.isImporting">导入清单</a-button>
-  </a-flex>
   <div class="box-grey">
-    <a-steps :current="-1" label-placement="vertical" :items="items"></a-steps>
-  </div>
 
-  <div v-if="showValidationResult" class="box-grey" style="padding-top: 5px; padding-bottom: 5px">
-    校验结果：
-    <span class="result-text">{{ validationResult }}</span>
-  </div>
+    <div class="bottom-line">
+      <span class="title">导入清单</span>
 
-  <!-- 文件导入区域 -->
-  <UploadComponent v-model="model.selectedFiles" />
+      <a-button type="primary" @click="handleUploadClick" :loading="model.isImporting">导入清单</a-button>
+    
+    </div>
+
+    <div class="box-grey">
+      <a-steps :current="-1" label-placement="vertical" :items="items"></a-steps>
+    </div>
+
+    <div v-if="showValidationResult" class="box-grey" style="padding-top: 5px; padding-bottom: 5px">
+      校验结果：
+      <span class="result-text">{{ validationResult }}</span>
+    </div>
+
+    <!-- 文件导入区域 -->
+    <UploadComponent v-model="model.selectedFiles" />
+  </div>
 </template>
 
 <script setup lang="tsx">

@@ -25,7 +25,7 @@ func (s *DataImportService) parseTable2Excel(f *excelize.File, skipValidate bool
 	}
 
 	if len(mainData) == 0 {
-		return nil, fmt.Errorf("上传文件没有检测到数据, 请检查文件是否正确")
+		return nil, fmt.Errorf("导入文件没有检测到数据, 请检查文件是否正确")
 	}
 
 	return mainData, nil
@@ -206,7 +206,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		s.app.InsertImportRecord(fileName, TableType2, "上传失败", "文件不存在")
+		s.app.InsertImportRecord(fileName, TableType2, "导入失败", "文件不存在")
 		return db.QueryResult{
 			Ok:      false,
 			Message: "文件不存在",
@@ -216,7 +216,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 	// 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, TableType2, "上传失败", fmt.Sprintf("读取Excel文件失败: %v", err))
+		s.app.InsertImportRecord(fileName, TableType2, "导入失败", fmt.Sprintf("读取Excel文件失败: %v", err))
 		return db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("读取Excel文件失败: %v", err),
@@ -228,7 +228,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 	mainData, err := s.parseTable2Excel(f, false)
 	if err != nil {
 		errorMessage := fmt.Sprintf("解析Excel文件失败: %v", err)
-		s.app.InsertImportRecord(fileName, TableType2, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableType2, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Message: errorMessage,
@@ -252,7 +252,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 	// 按行读取文件数据并校验
 	validationErrors := s.validateTable2DataWithEnterpriseCheck(mainData)
 	if len(validationErrors) > 0 {
-		s.app.InsertImportRecord(fileName, TableType2, "上传失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
+		s.app.InsertImportRecord(fileName, TableType2, "导入失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
 		return db.QueryResult{
 			Ok:      false,
 			Data:    validationErrors,
@@ -265,14 +265,14 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 		copyResult := s.app.CopyFileToCache(TableType2, filePath)
 		if !copyResult.Ok {
 			copyMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)
-			s.app.InsertImportRecord(fileName, TableType2, "上传失败", copyMessage)
+			s.app.InsertImportRecord(fileName, TableType2, "导入失败", copyMessage)
 			return db.QueryResult{
 				Ok:      false,
 				Data:    []string{copyMessage},
 				Message: copyMessage,
 			}
 		}
-		s.app.InsertImportRecord(fileName, TableType2, "上传成功", "校验通过")
+		s.app.InsertImportRecord(fileName, TableType2, "导入成功", "校验通过")
 	}
 
 	return db.QueryResult{
@@ -343,10 +343,10 @@ func (s *DataImportService) validateRegionTable2Correspondence(data map[string]i
 		} else {
 			// 清单不存在时，从区域配置获取省市县信息
 			areaResult := s.app.GetAreaConfig()
-			areaData := areaResult.Data.([]map[string]interface{})
-			expectedProvince = s.getStringValue(areaData[0]["province_name"])
-			expectedCity = s.getStringValue(areaData[0]["city_name"])
-			expectedCountry = s.getStringValue(areaData[0]["country_name"])
+			areaData := areaResult.Data.(map[string]interface{})
+			expectedProvince = s.getStringValue(areaData["province_name"])
+			expectedCity = s.getStringValue(areaData["city_name"])
+			expectedCountry = s.getStringValue(areaData["country_name"])
 		}
 
 		// 使用公共函数检查省市县是否匹配

@@ -269,7 +269,7 @@ func (a *App) ImportEnterpriseList(filePath string) db.QueryResult {
 	}
 
 	// 记录导入历史
-	a.InsertImportRecord(fileName, "企业清单", "上传成功", fmt.Sprintf("成功导入%d条记录", count))
+	a.InsertImportRecord(fileName, "企业清单", "导入成功", fmt.Sprintf("成功导入%d条记录", count))
 
 	result.Ok = true
 	result.Message = fmt.Sprintf(fileNameTip+"企业清单导入完成：成功%d条", count)
@@ -351,7 +351,7 @@ func (a *App) ImportKeyEquipmentList(filePath string) db.QueryResult {
 	}
 
 	// 记录导入历史
-	a.InsertImportRecord(fileName, "装置清单", "上传成功", fmt.Sprintf("成功导入%d条记录", count))
+	a.InsertImportRecord(fileName, "装置清单", "导入成功", fmt.Sprintf("成功导入%d条记录", count))
 
 	result.Ok = true
 	result.Message = fmt.Sprintf("装置清单导入完成：成功%d条", count)

@@ -8,7 +8,7 @@
       </div>
     </div>
 
-    <div style="text-align: center; margin-top: 20px">
+    <div class="operation-area">
       <a-button type="primary" @click="handleExportClick">导出汇总数据（.db）</a-button>
     </div>
   </div>
@@ -28,21 +28,23 @@ import {TableType, TableTypeName} from '@/views/constant';
 
   function normalizeData(item: ExportItem[], tableTypeName: string) {
     if (!item?.length) {
-      return [{tableTypeName, year:'', count: 0, is_checked_no: 0, is_checked_yes: 0, is_confirm_no:0, is_confirm_yes: 0}];
+      return [{tableTypeName, stat_date:'--', count: 0, is_checked_no: 0, is_checked_yes: 0, is_confirm_no:0, is_confirm_yes: 0}];
     }
     return item.map(item => {
       item.tableTypeName = tableTypeName;
+      item.stat_date = item.stat_date || '--';
       return item;
     })
   }
 
 function normalizeData2(item: ExportItem[], tableTypeName: string) {
   if (!item?.length) {
-    return [{tableTypeName, year:'', count: 1, is_checked_no: 0, is_checked_yes: 0, is_confirm_no:0, is_confirm_yes: 0}];
+    return [{tableTypeName, stat_date:'--', count: 1, is_checked_no: 0, is_checked_yes: 0, is_confirm_no:0, is_confirm_yes: 0}];
   }
   return item.map(item => {
     item.tableTypeName = tableTypeName;
     item.count = 1;
+    item.stat_date = item.stat_date || '--';
     item.is_confirm_yes = item.is_confirm_yes > 0 ? 1 : 0;
     item.is_confirm_no = item.is_confirm_no  ===0? 1 : 0;
     item.is_checked_yes = item.is_checked_yes > 0 ? 1 : 0;
@@ -86,18 +88,18 @@ function normalizeData2(item: ExportItem[], tableTypeName: string) {
       }
     },
     {
-      title: '人工校验',
-      align: 'center',
-      customRender: ({ record}) => {
-        return `${record.is_confirm_yes}/${record.count}`
-      }
-    },
-    {
-      title: '模型校验',
+      title: '自动校验',
       ellipsis: true,
       align: 'center',
       customRender: ({ record}) => {
         return `${record.is_checked_yes}/${record.count}`
+      }
+    },
+    {
+      title: '人工校验',
+      align: 'center',
+      customRender: ({ record}) => {
+        return `${record.is_confirm_yes}/${record.count}`
       }
     }
   ];
@@ -124,7 +126,7 @@ function normalizeData2(item: ExportItem[], tableTypeName: string) {
 
   interface ExportItem {
     tableTypeName: string;
-    year: string;
+    stat_date: string;
     is_confirm_no: number;
     is_confirm_yes: number;
     is_checked_no: number;

@@ -21,6 +21,12 @@ func GetPath(path string) string {
 }
 
 // SM4Encrypt SM4加密函数
+// 加密模式：ECB
+// 填充方式：PKCS#7
+// 输出格式：十六进制字符串
+// 不足16字节时用0填充，超过16字节时截断
+// 加密时使用PKCS#7填充
+
 func SM4Encrypt(plaintext string) (string, error) {
 	key := DEFAULT_ENCRYPTION_KEY
 	// 将密钥转换为字节数组
@@ -128,10 +134,6 @@ func GetCurrentOSUser() string {
 // CopyCacheFile 复制缓存文件
 func CopyCacheFile(filePath string, tableType string) (string, error) {
 	fileName := filepath.Base(filePath)
-	// 	// 生成缓存文件名，规则：原文件名 + ___ + 时间戳 + 原扩展名
-	// 	ext := filepath.Ext(fileName)
-	// 	nameWithoutExt := strings.TrimSuffix(fileName, ext)
-	// 	newFileName := fmt.Sprintf("%s___%d%s", nameWithoutExt, time.Now().UnixNano(), ext)
 	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, tableType, fileName))
 
 	// 检查缓存目录是否存在, 不存在则创建
@@ -155,7 +157,7 @@ func copyFile(src, dst string) error {
 	}
 	defer sourceFile.Close()
 
-	destFile, err := os.Create(dst)
+	destFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}

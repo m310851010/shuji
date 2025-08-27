@@ -45,7 +45,7 @@ func (s *DataImportService) ModelDataCheckReportDownload(tableType string) db.Qu
 		}
 	}
 
-	dstFile, err := os.Create(selectPath)
+	dstFile, err := os.OpenFile(selectPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return db.QueryResult{
 			Ok:      false,
@@ -63,6 +63,7 @@ func (s *DataImportService) ModelDataCheckReportDownload(tableType string) db.Qu
 	}
 	defer srcFile.Close()
 
+	// 这里的复制是覆盖复制
 	_, err = io.Copy(dstFile, srcFile)
 
 	if err != nil {

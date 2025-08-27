@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -243,6 +244,15 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	sceCoalConsumption, _ := s.parseFloat(s.getStringValue(data["sce_coal_consumption"]))
 	sceCokeConsumption, _ := s.parseFloat(s.getStringValue(data["sce_coke_consumption"]))
 	sceBlueCokeConsumption, _ := s.parseFloat(s.getStringValue(data["sce_blue_coke_consumption"]))
+
+	log.Println("pqTotalCoalConsumption", pqTotalCoalConsumption)
+	log.Println("pqCoalConsumption", pqCoalConsumption)
+	log.Println("pqCokeConsumption", pqCokeConsumption)
+	log.Println("pqBlueCokeConsumption", pqBlueCokeConsumption)
+	log.Println("sceTotalCoalConsumption", sceTotalCoalConsumption)
+	log.Println("sceCoalConsumption", sceCoalConsumption)
+	log.Println("sceCokeConsumption", sceCokeConsumption)
+	log.Println("sceBlueCokeConsumption", sceBlueCokeConsumption)
 
 	// ①≧0
 	if pqTotalCoalConsumption < 0 {

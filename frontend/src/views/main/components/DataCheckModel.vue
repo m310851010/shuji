@@ -6,12 +6,12 @@
   <div class="box-grey no-bg" style="height: 340px">
 
     <div v-if="model.passed == null">
-      <h1 style="text-align: center;margin-top: 100px; color: #999">点击上面“校验”按钮开始模型校验</h1>
+      <h1 style="text-align: center;margin-top: 100px; color: #999">点击上面“校验”按钮开始自动校验</h1>
     </div>
 
     <a-flex v-else align="center" justify="space-between" :vertical="true" class="h-100">
       <div></div>
-      <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">数据{{ model.passed ? '已' : '未' }}通过模型校验</div>
+      <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">数据{{ model.passed ? '已' : '未' }}通过自动校验</div>
       <div v-if="model.errorMessage">{{ model.errorMessage }}</div>
       <div>
         <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">下载模型报告</a-button>
@@ -57,7 +57,7 @@ import { db, main } from '@wailsjs/models';
 
     model.value.isChecking = true;
     const result = await  model.value.checkFunc();
-    console.log("模型校验结果", result);
+    console.log("自动校验结果", result);
     if (!result.ok) {
       model.value.isChecking = false;
      openInfoModal({
@@ -81,7 +81,7 @@ import { db, main } from '@wailsjs/models';
         title: '文件覆盖确认',
         content: () => (
             <>
-              <h3 style="color: #f5222d;margin-bottom:15px;text-align:center">以下文件已被导入，是否覆盖？</h3>
+              <h3 style="color: #f5222d;margin-bottom:15px;text-align:center">校验通过，以下文件重复导入是否覆盖？</h3>
               <div style="max-height: 350px; overflow: auto">
                 <TodoCoverTable
                     fileList={confirmCoverList}

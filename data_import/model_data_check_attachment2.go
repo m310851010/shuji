@@ -462,15 +462,14 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 		return errors
 	}
 
-	areaData, ok := areaResult.Data.([]map[string]interface{})
-	if !ok || len(areaData) == 0 {
+	areaData, ok := areaResult.Data.(map[string]interface{})
+	if !ok || areaData == nil {
 		return errors
 	}
 
-	area := areaData[0]
-	provinceName := s.getStringValue(area["province_name"])
-	cityName := s.getStringValue(area["city_name"])
-	countryName := s.getStringValue(area["country_name"])
+	provinceName := s.getStringValue(areaData["province_name"])
+	cityName := s.getStringValue(areaData["city_name"])
+	countryName := s.getStringValue(areaData["country_name"])
 
 	// 获取当前数据的年份
 	statDate := s.getStringValue(mainData[0]["stat_date"])
@@ -525,7 +524,7 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 		currentCoke += coke
 	}
 
-	// 校验规则：同年份本单位所上传数值*120%应≥下级单位相加之和
+	// 校验规则：同年份本单位所导入数值*120%应≥下级单位相加之和
 	threshold := 1.2
 
 	// 校验各个字段（使用缓存数据）

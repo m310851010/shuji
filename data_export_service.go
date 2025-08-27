@@ -228,12 +228,15 @@ func (a *App) QueryExportData() db.QueryResult {
 		}
 	}
 
-	// 10. 查询附件2确认记录数和总记录数
+	// 10. 查询附件2记录数，用stat_date,is_confirm分组
 	attachment2Query := fmt.Sprintf(`
 		SELECT 
+			stat_date,
 			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
 			COUNT(1) as total_count
 		FROM coal_consumption_report
+		GROUP BY stat_date
+		ORDER BY stat_date
 	`, ENCRYPTED_ONE)
 	attachment2Result, err := a.db.Query(attachment2Query)
 	if err != nil {
@@ -242,30 +245,52 @@ func (a *App) QueryExportData() db.QueryResult {
 		return result
 	}
 
-	attachment2 := ExportDataItem{}
+	// 处理附件2数据，按年份分组
+	attachment2List := make([]ExportDataItem, 0)
+	attachment2YearMap := make(map[string]*ExportDataItem)
+
 	if attachment2Result.Ok && attachment2Result.Data != nil {
-		if data, ok := attachment2Result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-			row := data[0]
-			totalCount := 0
-			if count, ok := row["total_count"].(int64); ok {
-				totalCount = int(count)
+		if data, ok := attachment2Result.Data.([]map[string]interface{}); ok {
+			for _, row := range data {
+				statDate := ""
+				if date, ok := row["stat_date"].(string); ok {
+					statDate = date
+				}
+
+				totalCount := 0
+				if count, ok := row["total_count"].(int64); ok {
+					totalCount = int(count)
+				}
+
+				isConfirmYes := 0
+				if row["is_confirm_yes"] == nil {
+					isConfirmYes = 0
+				} else {
+					isConfirmYes = int(row["is_confirm_yes"].(int64))
+				}
+
+				isConfirmNo := totalCount - isConfirmYes
+
+				if item, exists := attachment2YearMap[statDate]; exists {
+					item.IsConfirmYes += isConfirmYes
+					item.IsConfirmNo += isConfirmNo
+				} else {
+					attachment2YearMap[statDate] = &ExportDataItem{
+						StatDate:     statDate,
+						IsConfirmYes: isConfirmYes,
+						IsConfirmNo:  isConfirmNo,
+					}
+				}
 			}
-
-			isConfirmYes := 0
-			if row["is_confirm_yes"] == nil {
-				isConfirmYes = 0
-			} else {
-				isConfirmYes = int(row["is_confirm_yes"].(int64))
-			}
-
-			isConfirmNo := totalCount - isConfirmYes
-
-			attachment2.IsConfirmYes = isConfirmYes
-			attachment2.IsConfirmNo = isConfirmNo
-			attachment2.Count = totalCount
-			attachment2.IsCheckedYes = isConfirmYes + isConfirmNo
-			attachment2.IsCheckedNo = 0
 		}
+	}
+
+	// 处理附件2数据，设置count和检查状态
+	for _, item := range attachment2YearMap {
+		item.Count = item.IsConfirmYes + item.IsConfirmNo
+		item.IsCheckedYes = item.IsConfirmYes + item.IsConfirmNo
+		item.IsCheckedNo = 0
+		attachment2List = append(attachment2List, *item)
 	}
 
 	// 11. 合并所有数据
@@ -273,7 +298,7 @@ func (a *App) QueryExportData() db.QueryResult {
 		Table1:      table1List,
 		Table2:      equipList,
 		Table3:      []ExportDataItem{table3},
-		Attachment2: []ExportDataItem{attachment2},
+		Attachment2: attachment2List,
 	}
 
 	result.Ok = true

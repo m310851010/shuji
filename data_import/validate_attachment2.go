@@ -54,7 +54,7 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 
 	row3FirstCell = s.cleanCellValue(row3[0]) // 第1列：制表单位：
 	if row3FirstCell != "制表单位：" {
-		return nil, fmt.Errorf("和%s模板不匹配，模板要求第3行第1列为：制表单位：，上传数据为：%s", TableAttachment2, row3FirstCell)
+		return nil, fmt.Errorf("和%s模板不匹配，模板要求第3行第1列为：制表单位：，导入数据为：%s", TableAttachment2, row3FirstCell)
 	}
 
 	reportUnit = s.cleanCellValue(row3[1]) // 第2列：制表单位值
@@ -70,7 +70,7 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 	if !skipValidate {
 		// 检查表头一致性
 		if len(headers) < expectedHeadersCount {
-			return nil, fmt.Errorf("和%s模板不匹配，第4行列数不足，模板要求%d列，上传数据为:%d列", TableAttachment2, expectedHeadersCount, len(headers))
+			return nil, fmt.Errorf("和%s模板不匹配，第4行列数不足，模板要求%d列，导入数据为:%d列", TableAttachment2, expectedHeadersCount, len(headers))
 		}
 
 		for i, expected := range expectedHeaders4 {
@@ -80,7 +80,7 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 
 			actual := strings.TrimSpace(headers[i])
 			if actual != expected {
-				return nil, fmt.Errorf("和%s模板不匹配，第4行第%d列表头不匹配， 模板要求：%s，上传数据为：%s", TableAttachment2, i+1, expected, actual)
+				return nil, fmt.Errorf("和%s模板不匹配，第4行第%d列表头不匹配， 模板要求：%s，导入数据为：%s", TableAttachment2, i+1, expected, actual)
 			}
 		}
 
@@ -128,7 +128,7 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 			if colIndex < len(row6) {
 				actualHeader := s.cleanCellValue(row6[colIndex])
 				if actualHeader != expectedHeader {
-					return nil, fmt.Errorf("和%s模板不匹配，第6行第%d列表头错误，模板要求：%s，上传数据为：%s", TableAttachment2, colIndex+1, expectedHeader, actualHeader)
+					return nil, fmt.Errorf("和%s模板不匹配，第6行第%d列表头错误，模板要求：%s，导入数据为：%s", TableAttachment2, colIndex+1, expectedHeader, actualHeader)
 				}
 			}
 		}
@@ -203,7 +203,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		errorMessage := fmt.Sprintf("文件不存在: %v", err)
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Message: errorMessage,
@@ -215,7 +215,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		errorMessage := fmt.Sprintf("读取Excel文件失败: %v", err)
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Message: errorMessage,
@@ -228,7 +228,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	mainData, err := s.parseAttachment2Excel(f, false)
 	if err != nil {
 		errorMessage := err.Error()
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Message: errorMessage,
@@ -253,7 +253,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	validationErrors := s.validateAttachment2Data(mainData)
 	if len(validationErrors) > 0 {
 		errorMessage := fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; "))
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Message: errorMessage,
@@ -266,7 +266,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 		copyResult := s.app.CopyFileToCache(TableTypeAttachment2, filePath)
 		if !copyResult.Ok {
 			errorMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)
-			s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传失败", errorMessage)
+			s.app.InsertImportRecord(fileName, TableTypeAttachment2, "导入失败", errorMessage)
 			return db.QueryResult{
 				Ok:      false,
 				Message: errorMessage,
@@ -274,7 +274,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 			}
 		}
 
-		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "上传成功", "校验通过")
+		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "导入成功", "校验通过")
 	}
 
 	return db.QueryResult{

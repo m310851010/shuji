@@ -329,3 +329,26 @@
     }
   );
 </script>
+
+
+<style>
+/* 全局样式确保模态框按钮颜色生效 */
+.ant-modal-footer .ant-btn-primary {
+  background-color: #1A5284 !important;
+  border-color: #1A5284 !important;
+}
+
+.ant-modal-footer .ant-btn-primary:hover {
+  background-color: #0f3a5f !important;
+  border-color: #0f3a5f !important;
+}
+
+.ant-modal-footer .ant-btn-primary:focus {
+  background-color: #1A5284 !important;
+  border-color: #1A5284 !important;
+}
+
+.overflow-auto {
+  overflow: auto;
+}
+</style>

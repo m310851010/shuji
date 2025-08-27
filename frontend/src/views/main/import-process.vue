@@ -9,7 +9,7 @@
     </div>
 
     <transition :name="transitionName" mode="out-in" :css="true">
-      <div class="page-content flex-main flex-vertical" :key="tableTab">
+      <div class="page-content flex-vertical" :key="tableTab">
         <template v-for="item in TableOptions">
           <ImportProcessTab v-if="item.value === tableTab" />
         </template>

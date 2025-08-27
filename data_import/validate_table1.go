@@ -72,7 +72,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 	if !skipValidate {
 		// 检查表头一致性
 		if len(headers) < len(expectedHeaders) {
-			return nil, fmt.Errorf("企业基本信息表头列数不足，模板需要%d列，上传文件%d列", len(expectedHeaders), len(headers))
+			return nil, fmt.Errorf("企业基本信息表头列数不足，模板需要%d列，导入文件%d列", len(expectedHeaders), len(headers))
 		}
 
 		for i, expected := range expectedHeaders {
@@ -82,7 +82,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 
 			actual := strings.TrimSpace(headers[i])
 			if actual != expected {
-				return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传数据为:%s", i+1, expected, actual)
+				return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，导入数据为:%s", i+1, expected, actual)
 			}
 		}
 	}
@@ -206,7 +206,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 
 	// 检查表头一致性
 	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("用途表表头列数不足，模板需要%d列，上传文件%d列", len(expectedHeaders), len(headers))
+		return nil, fmt.Errorf("用途表表头列数不足，模板需要%d列，导入文件%d列", len(expectedHeaders), len(headers))
 	}
 
 	// 构建表头映射
@@ -218,7 +218,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传数据为:%s", i+1, expected, actual)
+			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，导入数据为:%s", i+1, expected, actual)
 		}
 		headerMap[i] = s.mapTable1UsageHeaderToField(expected)
 	}
@@ -291,7 +291,7 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 
 	// 检查表头一致性
 	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("设备表表头列数不足，模板需要%d列，上传文件%d列", len(expectedHeaders), len(headers))
+		return nil, fmt.Errorf("设备表表头列数不足，模板需要%d列，导入文件%d列", len(expectedHeaders), len(headers))
 	}
 
 	// 构建表头映射
@@ -303,7 +303,7 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，上传数据为:%s", i+1, expected, actual)
+			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，导入数据为:%s", i+1, expected, actual)
 		}
 		headerMap[i] = s.mapTable1EquipHeaderToField(expected)
 	}
@@ -417,7 +417,7 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		errorMessage := fmt.Sprintf("文件不存在: %v", err)
 		fmt.Println(errorMessage)
-		s.app.InsertImportRecord(fileName, TableType1, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableType1, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Data:    []string{errorMessage},
@@ -430,7 +430,7 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 	if err != nil {
 		errorMessage := fmt.Sprintf("读取文件失败: %v", err)
 		fmt.Println(errorMessage)
-		s.app.InsertImportRecord(fileName, TableType1, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableType1, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Data:    []string{errorMessage},
@@ -443,7 +443,7 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 	mainData, usageData, equipData, err := s.parseTable1Excel(f, false)
 	if err != nil {
 		errorMessage := err.Error()
-		s.app.InsertImportRecord(fileName, TableType1, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableType1, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Data:    []string{errorMessage},
@@ -469,7 +469,7 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 	if len(validationErrors) > 0 {
 		errorMessage := fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; "))
 		fmt.Println(errorMessage)
-		s.app.InsertImportRecord(fileName, TableType1, "上传失败", errorMessage)
+		s.app.InsertImportRecord(fileName, TableType1, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
 			Data:    validationErrors,
@@ -484,7 +484,7 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 		if !copyResult.Ok {
 			errorMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)
 			fmt.Println(errorMessage)
-			s.app.InsertImportRecord(fileName, TableType1, "上传失败", errorMessage)
+			s.app.InsertImportRecord(fileName, TableType1, "导入失败", errorMessage)
 			return db.QueryResult{
 				Ok:      false,
 				Data:    []string{errorMessage},
@@ -492,7 +492,7 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 			}
 		}
 
-		s.app.InsertImportRecord(fileName, TableType1, "上传成功", "校验通过")
+		s.app.InsertImportRecord(fileName, TableType1, "导入成功", "校验通过")
 	}
 
 	return db.QueryResult{
@@ -511,7 +511,7 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 		return errors
 	}
 	if len(mainData) > 1 {
-		errors = append(errors, fmt.Sprintf("单位基本信息表格数据条数错误，模板需要1条，上传文件%d条", len(mainData)))
+		errors = append(errors, fmt.Sprintf("单位基本信息表格数据条数错误，模板需要1条，导入文件%d条", len(mainData)))
 		return errors
 	}
 
