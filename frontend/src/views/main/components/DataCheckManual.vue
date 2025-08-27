@@ -123,7 +123,30 @@
     dataSource.value = [];
     const resDetail = await QueryDataAttachment2();
     if (resDetail.data && resDetail.data.length > 0) {
-      dataSource.value = resDetail.data;
+      // 按年份和省市县分组, 再按年份倒序
+      const groupedData = resDetail.data.reduce((acc: Record<string, any>, item: Record<string, any>) => {
+        const key = `${item.stat_date}-${item.province_name}-${item.city_name}-${item.country_name}`;
+        if (!acc[key]) {
+          acc[key] = {
+            obj_id: key,
+            create_time: item.create_time,
+            is_confirm: item.is_confirm,
+            stat_date: item.stat_date,
+            province_name: item.province_name,
+            city_name: item.city_name,
+            country_name: item.country_name,
+            data: []
+          };
+        } 
+        acc[key].data.push(item);
+        return acc;
+      }, {});
+
+      const list = Object.values(groupedData).sort((a: any, b: any) => {
+        return b.stat_date.localeCompare(a.stat_date);
+      }) as any;;
+
+      dataSource.value = list;
     }
   };
 
@@ -164,12 +187,14 @@
           tableInfoList.value = [modal.data as Record<string, any>];
           break;
         case 'attachment2':
-          tableInfoList.value = [modal.data as Record<string, any>];
+          objId.value = modal.data.data.map((item: any) => item.obj_id);
+          tableInfoList.value = modal.data.data as Record<string, any>[];
           break;
       }
     },
     handleOk: async () => {
       try {
+     console.log(objId.value,'objId.value');
      
         await executeConfirm(props.tableType, objId.value);
         queryDataByTableType(props.tableType);
@@ -182,6 +207,7 @@
   });
 
   const selectedRowKeys = ref<string[]>([]);
+  const selectedRows = ref<Record<string, any>[]>([]);
   
   const rowSelection = computed<TableProps['rowSelection']>(() => ({
     type: 'checkbox',
@@ -190,8 +216,10 @@
       disabled: record.is_confirm == 1 || record.is_confirm == 2,
       name: record.name
     }),
-    onChange: (keys) => {
+    onChange: (keys, rows) => {
       selectedRowKeys.value = keys as string[];
+      selectedRows.value = rows as Record<string, any>[];
+      console.debug(selectedRows,'selectedRows')
     }
   }));
 
@@ -239,6 +267,10 @@
     if (selectedRowKeys.value.length === 0) {
       message.warning('请先选择要确认的数据');
       return;
+    }
+
+    if (props.tableType === 'attachment2') {
+      selectedRowKeys.value = selectedRows.value.map((item) => item.data.map((item: any) => item.obj_id)).flat();
     }
 
     try {
