@@ -215,37 +215,69 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	designLife, _ := s.parseFloat(s.getStringValue(data["design_life"]))
 
 	if totalRuntime < 0 || totalRuntime > 50 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应在0-50之间"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "累计使用时间应在0-50之间",
+			Cells:     []string{s.getExcelCellPosition("usage_time", rowNum)},
+		})
 	}
 	if totalRuntime != float64(int(totalRuntime)) {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应为整数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "累计使用时间应为整数",
+			Cells:     []string{s.getExcelCellPosition("usage_time", rowNum)},
+		})
 	}
 
 	if designLife < 0 || designLife > 50 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应在0-50之间"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "设计年限应在0-50之间",
+			Cells:     []string{s.getExcelCellPosition("design_life", rowNum)},
+		})
 	}
 	if designLife != float64(int(designLife)) {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应为整数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "设计年限应为整数",
+			Cells:     []string{s.getExcelCellPosition("design_life", rowNum)},
+		})
 	}
 
 	// 2. 容量校验
 	// 应为正整数
 	capacity, _ := s.parseFloat(s.getStringValue(data["capacity"]))
 	if capacity < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "容量不能为负数",
+			Cells:     []string{s.getExcelCellPosition("capacity", rowNum)},
+		})
 	}
 	if capacity != float64(int(capacity)) {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量应为整数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "容量应为整数",
+			Cells:     []string{s.getExcelCellPosition("capacity", rowNum)},
+		})
 	}
 
 	// 3. 年耗煤量校验
 	// ≧0且≦1000000000
 	annualCoalConsumption, _ := s.parseFloat(s.getStringValue(data["annual_coal_consumption"]))
 	if annualCoalConsumption < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年耗煤量不能为负数",
+			Cells:     []string{s.getExcelCellPosition("annual_coal_consumption", rowNum)},
+		})
 	}
 	if annualCoalConsumption > 1000000000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能大于1000000000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年耗煤量不能大于1000000000",
+			Cells:     []string{s.getExcelCellPosition("annual_coal_consumption", rowNum)},
+		})
 	}
 
 	return errors
@@ -336,12 +368,20 @@ func (s *DataImportService) addValidationErrorsToExcelTable2(filePath string, er
 
 	// 创建错误信息映射
 	errorMap := make(map[int]string)
+	cellHighlightMap := make(map[string]bool) // 记录需要高亮的单元格
+
+	// 处理错误信息并收集需要高亮的单元格
 	for _, err := range errors {
 		// 如果该行已有错误信息，则追加
 		if existing, exists := errorMap[err.RowNumber]; exists {
 			errorMap[err.RowNumber] = existing + "; " + err.Message
 		} else {
 			errorMap[err.RowNumber] = err.Message
+		}
+
+		// 收集需要高亮的单元格
+		for _, cell := range err.Cells {
+			cellHighlightMap[cell] = true
 		}
 	}
 
@@ -363,6 +403,22 @@ func (s *DataImportService) addValidationErrorsToExcelTable2(filePath string, er
 	maxCol := len(cols)
 	if maxCol == 0 {
 		maxCol = 10
+	}
+
+	// 创建黄色背景样式
+	yellowStyle, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
+		Alignment: &excelize.Alignment{
+			Vertical: "center",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// 高亮所有涉及错误的单元格
+	for cell := range cellHighlightMap {
+		f.SetCellStyle(sheetName, cell, cell, yellowStyle)
 	}
 
 	// 为每个错误行添加错误信息

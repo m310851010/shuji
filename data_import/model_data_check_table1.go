@@ -185,8 +185,8 @@ func (s *DataImportService) ModelDataCheckTable1() db.QueryResult {
 			// 4. 调用校验函数,对每一行数据验证
 			errors := s.validateTable1DataWithEnterpriseCheckForModel(mainData, usageData, equipData)
 			if len(errors) > 0 {
-				// 校验失败，在Excel文件中错误行最后添加错误信息
-				err = s.addValidationErrorsToExcel(filePath, errors, mainData, usageData, equipData)
+				// 校验失败，在Excel文件中错误行最后添加错误信息并高亮相关单元格
+				err = s.addValidationErrorsToExcelWithCellHighlighting(filePath, errors, mainData, usageData, equipData)
 				if err != nil {
 					validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
 				}
@@ -494,6 +494,103 @@ func (s *DataImportService) addValidationErrorsToExcel(filePath string, errors [
 	return f.Save()
 }
 
+// addValidationErrorsToExcelWithCellHighlighting 在Excel文件中添加校验错误信息并高亮相关单元格
+func (s *DataImportService) addValidationErrorsToExcelWithCellHighlighting(filePath string, errors []ValidationError, mainData, usageData, equipData []map[string]interface{}) error {
+	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// 创建错误信息映射
+	errorMap := make(map[int]string)
+	cellHighlightMap := make(map[string]bool) // 记录需要高亮的单元格
+
+	// 处理错误信息并收集需要高亮的单元格
+	for _, err := range errors {
+		// 如果该行已有错误信息，则追加
+		if existing, exists := errorMap[err.RowNumber]; exists {
+			errorMap[err.RowNumber] = existing + "; " + err.Message
+		} else {
+			errorMap[err.RowNumber] = err.Message
+		}
+
+		// 收集需要高亮的单元格
+		for _, cell := range err.Cells {
+			cellHighlightMap[cell] = true
+		}
+	}
+
+	// 获取所有工作表
+	sheets := f.GetSheetList()
+	if len(sheets) == 0 {
+		return fmt.Errorf("Excel文件没有工作表")
+	}
+
+	// 处理第一个工作表
+	sheetName := sheets[0]
+
+	// 获取最大列数
+	cols, err := f.GetCols(sheetName)
+	if err != nil {
+		return err
+	}
+
+	maxCol := len(cols)
+	if maxCol == 0 {
+		maxCol = 9
+	}
+
+	// 创建黄色背景样式
+	yellowStyle, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
+		Alignment: &excelize.Alignment{
+			Vertical: "center",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// 高亮所有涉及错误的单元格
+	for cell := range cellHighlightMap {
+		f.SetCellStyle(sheetName, cell, cell, yellowStyle)
+	}
+
+	// 为每个错误行添加错误信息
+	for rowNum, errorMsg := range errorMap {
+		// 在最后一列添加错误信息
+		errorCol := maxCol + 1
+		errorCellName, err := excelize.CoordinatesToCellName(errorCol, rowNum)
+		if err != nil {
+			continue
+		}
+
+		// 格式化错误信息：每条错误使用序号标识并换行
+		formattedErrorMsg := formatErrorMessages(errorMsg)
+		f.SetCellValue(sheetName, errorCellName, formattedErrorMsg)
+
+		// 设置错误信息列的样式
+		errorStyle, err := f.NewStyle(&excelize.Style{
+			Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
+			Alignment: &excelize.Alignment{
+				Vertical: "center",
+			},
+		})
+		if err != nil {
+			fmt.Println(err)
+		}
+		f.SetCellStyle(sheetName, errorCellName, errorCellName, errorStyle)
+
+		// 设置错误信息列的宽度为50
+		colName, _ := excelize.ColumnNumberToName(errorCol)
+		f.SetColWidth(sheetName, colName, colName, 50)
+	}
+
+	// 保存文件
+	return f.Save()
+}
+
 // validateTable1DataWithEnterpriseCheckForModel 校验附表1数据（模型校验专用）
 func (s *DataImportService) validateTable1DataWithEnterpriseCheckForModel(mainData, usageData, equipData []map[string]interface{}) []ValidationError {
 	errors := []ValidationError{}
@@ -546,13 +643,25 @@ func (s *DataImportService) validateTable1MainNumericFields(data map[string]inte
 
 	// ①≧0
 	if annualEnergyEquivalentValue < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗当量值不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年综合能耗当量值不能为负数",
+			Cells:     []string{s.getExcelCellPosition("annual_energy_equivalent_value", rowNum)},
+		})
 	}
 	if annualEnergyEquivalentCost < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗等价值不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年综合能耗等价值不能为负数",
+			Cells:     []string{s.getExcelCellPosition("annual_energy_equivalent_cost", rowNum)},
+		})
 	}
 	if annualRawMaterialEnergy < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年原料用能消费量不能为负数",
+			Cells:     []string{s.getExcelCellPosition("annual_raw_material_energy", rowNum)},
+		})
 	}
 
 	// ②≦100000
@@ -568,12 +677,26 @@ func (s *DataImportService) validateTable1MainNumericFields(data map[string]inte
 
 	// ③年原料用能消费量≦年综合能耗当量值
 	if annualRawMaterialEnergy > annualEnergyEquivalentValue {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能大于年综合能耗当量值"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年原料用能消费量不能大于年综合能耗当量值",
+			Cells: []string{
+				s.getExcelCellPosition("annual_raw_material_energy", rowNum),
+				s.getExcelCellPosition("annual_energy_equivalent_value", rowNum),
+			},
+		})
 	}
 
 	// ④年原料用能消费量≦年综合能耗等价值
 	if annualRawMaterialEnergy > annualEnergyEquivalentCost {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能大于年综合能耗等价值"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年原料用能消费量不能大于年综合能耗等价值",
+			Cells: []string{
+				s.getExcelCellPosition("annual_raw_material_energy", rowNum),
+				s.getExcelCellPosition("annual_energy_equivalent_cost", rowNum),
+			},
+		})
 	}
 
 	// 2. 煤炭消费相关字段校验
@@ -644,7 +767,16 @@ func (s *DataImportService) validateTable1MainNumericFields(data map[string]inte
 	// ⑤耗煤总量（实物量）=原煤消费（实物量）+洗精煤消费（实物量）+其他煤炭消费（实物量）
 	expectedTotal := annualRawCoalConsumption + annualCleanCoalConsumption + annualOtherCoalConsumption
 	if annualTotalCoalConsumption != expectedTotal {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（实物量）应等于原煤消费+洗精煤消费+其他煤炭消费"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "耗煤总量（实物量）应等于原煤消费+洗精煤消费+其他煤炭消费",
+			Cells: []string{
+				s.getExcelCellPosition("annual_total_coal_consumption", rowNum),
+				s.getExcelCellPosition("annual_raw_coal_consumption", rowNum),
+				s.getExcelCellPosition("annual_clean_coal_consumption", rowNum),
+				s.getExcelCellPosition("annual_other_coal_consumption", rowNum),
+			},
+		})
 	}
 
 	return errors
@@ -768,6 +900,62 @@ func (s *DataImportService) encryptTable1MainNumericFields(record map[string]int
 		"annual_coke_consumption",
 	}
 	return s.encryptNumericFields(record, numericFields)
+}
+
+// validateTable1ComplexRules 示例：实现复杂的校验规则并标记多个相关单元格
+func (s *DataImportService) validateTable1ComplexRules(data map[string]interface{}, rowNum int) []ValidationError {
+	errors := []ValidationError{}
+
+	// 示例1: 规则 A1>B1，结果A=B时，把A1和B1两个单元格背景色都标黄色
+	valueA, _ := s.parseFloat(s.getStringValue(data["annual_energy_equivalent_value"]))
+	valueB, _ := s.parseFloat(s.getStringValue(data["annual_energy_equivalent_cost"]))
+
+	if valueA == valueB && valueA > 0 {
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年综合能耗当量值应大于年综合能耗等价值",
+			Cells:     s.getMultipleExcelCellPositions([]string{"annual_energy_equivalent_value", "annual_energy_equivalent_cost"}, rowNum),
+		})
+	}
+
+	// 示例2: 规则 C列累计>=D2列，结果C列累计<D列，就把C列参与计算的单元格和D2单元格背景色都标黄色
+	totalCoalConsumption, _ := s.parseFloat(s.getStringValue(data["annual_total_coal_consumption"]))
+	rawCoalConsumption, _ := s.parseFloat(s.getStringValue(data["annual_raw_coal_consumption"]))
+	cleanCoalConsumption, _ := s.parseFloat(s.getStringValue(data["annual_clean_coal_consumption"]))
+	otherCoalConsumption, _ := s.parseFloat(s.getStringValue(data["annual_other_coal_consumption"]))
+
+	calculatedTotal := rawCoalConsumption + cleanCoalConsumption + otherCoalConsumption
+
+	if calculatedTotal < totalCoalConsumption {
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "各种煤炭消费累计应大于等于总消费量",
+			Cells: s.getMultipleExcelCellPositions([]string{
+				"annual_total_coal_consumption", "annual_raw_coal_consumption",
+				"annual_clean_coal_consumption", "annual_other_coal_consumption",
+			}, rowNum),
+		})
+	}
+
+	// 示例3: 规则 当A1,B1有一个为空时,C1必须为0，结果A1为空时,B1不为空,C1为1，就把A1,B1,C1单元格背景色都标黄色
+	valueA1 := s.getStringValue(data["annual_energy_equivalent_value"])
+	valueB1 := s.getStringValue(data["annual_energy_equivalent_cost"])
+	valueC1, _ := s.parseFloat(s.getStringValue(data["annual_raw_material_energy"]))
+
+	isA1Empty := valueA1 == "" || valueA1 == "0"
+	isB1Empty := valueB1 == "" || valueB1 == "0"
+
+	if (isA1Empty || isB1Empty) && valueC1 != 0 {
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "当年综合能耗当量值或年综合能耗等价值为空时，年原料用能消费量必须为0",
+			Cells: s.getMultipleExcelCellPositions([]string{
+				"annual_energy_equivalent_value", "annual_energy_equivalent_cost", "annual_raw_material_energy",
+			}, rowNum),
+		})
+	}
+
+	return errors
 }
 
 // encryptTable1UsageNumericFields 加密附表1用途表数值字段

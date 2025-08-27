@@ -32,6 +32,8 @@ export function GetAreaConfig():Promise<db.QueryResult>;
 
 export function GetCachePath(arg1:string):Promise<string>;
 
+export function GetChinaArea():Promise<db.QueryResult>;
+
 export function GetCtx():Promise<context.Context>;
 
 export function GetCurrentOSUser():Promise<string>;

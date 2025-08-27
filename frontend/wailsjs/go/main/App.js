@@ -58,6 +58,10 @@ export function GetCachePath(arg1) {
   return window['go']['main']['App']['GetCachePath'](arg1);
 }
 
+export function GetChinaArea() {
+  return window['go']['main']['App']['GetChinaArea']();
+}
+
 export function GetCtx() {
   return window['go']['main']['App']['GetCtx']();
 }

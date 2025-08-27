@@ -219,17 +219,33 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	equivalentCost, _ := s.parseFloat(s.getStringValue(data["equivalent_cost"]))
 
 	if equivalentValue < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能源消费量当量值不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年综合能源消费量当量值不能为负数",
+			Cells:     []string{s.getExcelCellPosition("equivalent_value", rowNum)},
+		})
 	}
 	if equivalentValue > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能源消费量当量值不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年综合能源消费量当量值不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("equivalent_value", rowNum)},
+		})
 	}
 
 	if equivalentCost < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能源消费量等价值不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年综合能源消费量等价值不能为负数",
+			Cells:     []string{s.getExcelCellPosition("equivalent_cost", rowNum)},
+		})
 	}
 	if equivalentCost > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能源消费量等价值不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年综合能源消费量等价值不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("equivalent_cost", rowNum)},
+		})
 	}
 
 	// 2. 年煤品消费量部分校验
@@ -598,12 +614,20 @@ func (s *DataImportService) addValidationErrorsToExcelTable3(filePath string, er
 
 	// 创建错误信息映射
 	errorMap := make(map[int]string)
+	cellHighlightMap := make(map[string]bool) // 记录需要高亮的单元格
+
+	// 处理错误信息并收集需要高亮的单元格
 	for _, err := range errors {
 		// 如果该行已有错误信息，则追加
 		if existing, exists := errorMap[err.RowNumber]; exists {
 			errorMap[err.RowNumber] = existing + "; " + err.Message
 		} else {
 			errorMap[err.RowNumber] = err.Message
+		}
+
+		// 收集需要高亮的单元格
+		for _, cell := range err.Cells {
+			cellHighlightMap[cell] = true
 		}
 	}
 
@@ -625,6 +649,22 @@ func (s *DataImportService) addValidationErrorsToExcelTable3(filePath string, er
 	maxCol := len(cols)
 	if maxCol == 0 {
 		return fmt.Errorf("工作表为空")
+	}
+
+	// 创建黄色背景样式
+	yellowStyle, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
+		Alignment: &excelize.Alignment{
+			Vertical: "center",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// 高亮所有涉及错误的单元格
+	for cell := range cellHighlightMap {
+		f.SetCellStyle(sheetName, cell, cell, yellowStyle)
 	}
 
 	// 为每个错误行添加错误信息

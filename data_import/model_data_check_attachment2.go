@@ -116,22 +116,22 @@ func (s *DataImportService) ModelDataCheckAttachment2() db.QueryResult {
 			}
 
 			// 4. 调用校验函数,对每一行数据验证
-			// errors := s.validateAttachment2DataForModel(mainData)
-			// if len(errors) > 0 {
-			// 	// 校验失败，在Excel文件中错误行最后添加错误信息
-			// 	err = s.addValidationErrorsToExcelAttachment2(filePath, errors, mainData)
-			// 	if err != nil {
-			// 		validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
-			// 	}
-			// 	failedFiles = append(failedFiles, filePath)
-			// 	// 将验证错误转换为字符串用于显示
-			// 	var errorMessages []string
-			// 	for _, err := range errors {
-			// 		errorMessages = append(errorMessages, err.Message)
-			// 	}
-			// 	validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
-			// 	continue
-			// }
+			errors := s.validateAttachment2DataForModel(mainData)
+			if len(errors) > 0 {
+				// 校验失败，在Excel文件中错误行最后添加错误信息
+				err = s.addValidationErrorsToExcelAttachment2(filePath, errors, mainData)
+				if err != nil {
+					validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
+				}
+				failedFiles = append(failedFiles, filePath)
+				// 将验证错误转换为字符串用于显示
+				var errorMessages []string
+				for _, err := range errors {
+					errorMessages = append(errorMessages, err.Message)
+				}
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
+				continue
+			}
 
 			// 5. 校验通过后,检查文件是否已导入
 			if s.isAttachment2FileImported(mainData) {
@@ -230,30 +230,62 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 
 	// ①≧0
 	if totalCoal < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "煤合计不能为负数",
+			Cells:     []string{s.getExcelCellPosition("total_coal", rowNum)},
+		})
 	}
 	if rawCoal < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "原煤不能为负数",
+			Cells:     []string{s.getExcelCellPosition("raw_coal", rowNum)},
+		})
 	}
 	if washedCoal < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "洗精煤不能为负数",
+			Cells:     []string{s.getExcelCellPosition("washed_coal", rowNum)},
+		})
 	}
 	if otherCoal < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "其他不能为负数",
+			Cells:     []string{s.getExcelCellPosition("other_coal", rowNum)},
+		})
 	}
 
 	// ②≦200000
 	if totalCoal > 200000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能大于200000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "煤合计不能大于200000",
+			Cells:     []string{s.getExcelCellPosition("total_coal", rowNum)},
+		})
 	}
 	if rawCoal > 200000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能大于200000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "原煤不能大于200000",
+			Cells:     []string{s.getExcelCellPosition("raw_coal", rowNum)},
+		})
 	}
 	if washedCoal > 200000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能大于200000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "洗精煤不能大于200000",
+			Cells:     []string{s.getExcelCellPosition("washed_coal", rowNum)},
+		})
 	}
 	if otherCoal > 200000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能大于200000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "其他不能大于200000",
+			Cells:     []string{s.getExcelCellPosition("other_coal", rowNum)},
+		})
 	}
 
 	// 2. 分用途煤炭消费摸底部分校验
@@ -269,60 +301,132 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 
 	// ①≧0
 	if powerGeneration < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "火力发电不能为负数",
+			Cells:     []string{s.getExcelCellPosition("power_generation", rowNum)},
+		})
 	}
 	if heating < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "供热不能为负数",
+			Cells:     []string{s.getExcelCellPosition("heating", rowNum)},
+		})
 	}
 	if coalWashing < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "煤炭洗选不能为负数",
+			Cells:     []string{s.getExcelCellPosition("coal_washing", rowNum)},
+		})
 	}
 	if coking < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "炼焦不能为负数",
+			Cells:     []string{s.getExcelCellPosition("coking", rowNum)},
+		})
 	}
 	if oilRefining < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "炼油及煤制油不能为负数",
+			Cells:     []string{s.getExcelCellPosition("oil_refining", rowNum)},
+		})
 	}
 	if gasProduction < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "制气不能为负数",
+			Cells:     []string{s.getExcelCellPosition("gas_production", rowNum)},
+		})
 	}
 	if industry < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "工业不能为负数",
+			Cells:     []string{s.getExcelCellPosition("industry", rowNum)},
+		})
 	}
 	if rawMaterials < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "工业（#用作原料、材料）不能为负数",
+			Cells:     []string{s.getExcelCellPosition("raw_materials", rowNum)},
+		})
 	}
 	if otherUses < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "其他用途不能为负数",
+			Cells:     []string{s.getExcelCellPosition("other_uses", rowNum)},
+		})
 	}
 
 	// ②≦100000
 	if powerGeneration > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "火力发电不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("power_generation", rowNum)},
+		})
 	}
 	if heating > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "供热不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("heating", rowNum)},
+		})
 	}
 	if coalWashing > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "煤炭洗选不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("coal_washing", rowNum)},
+		})
 	}
 	if coking > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "炼焦不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("coking", rowNum)},
+		})
 	}
 	if oilRefining > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "炼油及煤制油不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("oil_refining", rowNum)},
+		})
 	}
 	if gasProduction > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "制气不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("gas_production", rowNum)},
+		})
 	}
 	if industry > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "工业不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("industry", rowNum)},
+		})
 	}
 	if rawMaterials > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "工业（#用作原料、材料）不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("raw_materials", rowNum)},
+		})
 	}
 	if otherUses > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "其他用途不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("other_uses", rowNum)},
+		})
 	}
 
 	// 3. 焦炭消费摸底部分校验
@@ -330,12 +434,20 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 
 	// ①≧0
 	if coke < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能为负数"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "焦炭不能为负数",
+			Cells:     []string{s.getExcelCellPosition("coke", rowNum)},
+		})
 	}
 
 	// ②≦100000
 	if coke > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能大于100000"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "焦炭不能大于100000",
+			Cells:     []string{s.getExcelCellPosition("coke", rowNum)},
+		})
 	}
 
 	return errors
@@ -354,7 +466,11 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 
 	expectedTotal := rawCoal + washedCoal + otherCoal
 	if totalCoal != expectedTotal {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应等于原煤+洗精煤+其他"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "煤合计应等于原煤+洗精煤+其他",
+			Cells:     s.getMultipleExcelCellPositions([]string{"total_coal", "raw_coal", "washed_coal", "other_coal"}, rowNum),
+		})
 	}
 
 	// 2. 分用途煤炭消费摸底部分
@@ -363,7 +479,11 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 	rawMaterials, _ := s.parseFloat(s.getStringValue(data["raw_materials"]))
 
 	if industry < rawMaterials {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业应大于等于工业（#用作原料、材料）"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "工业应大于等于工业（#用作原料、材料）",
+			Cells:     s.getMultipleExcelCellPositions([]string{"industry", "raw_materials"}, rowNum),
+		})
 	}
 
 	// 3. 文件内整体校验
@@ -383,7 +503,11 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 	terminalConsumption := industry + otherUses
 
 	if totalCoal < energyConversion+terminalConsumption {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应大于等于能源加工转换+终端消费"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "煤合计应大于等于能源加工转换+终端消费",
+			Cells:     s.getMultipleExcelCellPositions([]string{"total_coal", "power_generation", "heating", "coal_washing", "coking", "oil_refining", "gas_production", "industry", "other_uses"}, rowNum),
+		})
 	}
 
 	return errors
@@ -409,13 +533,21 @@ func (s *DataImportService) validateAttachment2OverallRulesForRow(data map[strin
 	// 煤炭消费总量应大于等于各用途消费量之和
 	totalUsage := powerGeneration + heating + coalWashing + coking + oilRefining + gasProduction + industry + otherUses
 	if totalCoal < totalUsage {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费总量应大于等于各用途消费量之和"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "煤炭消费总量应大于等于各用途消费量之和",
+			Cells:     s.getMultipleExcelCellPositions([]string{"total_coal", "power_generation", "heating", "coal_washing", "coking", "oil_refining", "gas_production", "industry", "other_uses"}, rowNum),
+		})
 	}
 
 	// ②焦炭消费量与煤炭消费量的逻辑关系
 	// 焦炭消费量应小于等于煤炭消费总量（焦炭是煤炭的加工产品）
 	if coke > totalCoal {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量应小于等于煤炭消费总量"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "焦炭消费量应小于等于煤炭消费总量",
+			Cells:     s.getMultipleExcelCellPositions([]string{"coke", "total_coal"}, rowNum),
+		})
 	}
 
 	// ③能源加工转换与终端消费的逻辑关系
@@ -423,14 +555,22 @@ func (s *DataImportService) validateAttachment2OverallRulesForRow(data map[strin
 	energyConversion := powerGeneration + heating + coalWashing + coking + oilRefining + gasProduction
 	terminalConsumption := industry + otherUses
 	if energyConversion < terminalConsumption {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "能源加工转换量应大于等于终端消费量"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "能源加工转换量应大于等于终端消费量",
+			Cells:     s.getMultipleExcelCellPositions([]string{"power_generation", "heating", "coal_washing", "coking", "oil_refining", "gas_production", "industry", "other_uses"}, rowNum),
+		})
 	}
 
 	// ④火力发电与其他能源转换的逻辑关系
 	// 火力发电量应大于等于供热、制气等其他能源转换量
 	otherEnergyConversion := heating + coalWashing + coking + oilRefining + gasProduction
 	if powerGeneration < otherEnergyConversion {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电量应大于等于其他能源转换量"})
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "火力发电量应大于等于其他能源转换量",
+			Cells:     s.getMultipleExcelCellPositions([]string{"power_generation", "heating", "coal_washing", "coking", "oil_refining", "gas_production"}, rowNum),
+		})
 	}
 
 	return errors
@@ -837,12 +977,20 @@ func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath strin
 
 	// 创建错误信息映射
 	errorMap := make(map[int]string)
+	cellHighlightMap := make(map[string]bool) // 记录需要高亮的单元格
+
+	// 处理错误信息并收集需要高亮的单元格
 	for _, err := range errors {
 		// 如果该行已有错误信息，则追加
 		if existing, exists := errorMap[err.RowNumber]; exists {
 			errorMap[err.RowNumber] = existing + "; " + err.Message
 		} else {
 			errorMap[err.RowNumber] = err.Message
+		}
+
+		// 收集需要高亮的单元格
+		for _, cell := range err.Cells {
+			cellHighlightMap[cell] = true
 		}
 	}
 
@@ -857,6 +1005,22 @@ func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath strin
 
 	// 获取最大列数
 	maxCol := 18
+
+	// 创建黄色背景样式
+	yellowStyle, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
+		Alignment: &excelize.Alignment{
+			Vertical: "center",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// 高亮所有涉及错误的单元格
+	for cell := range cellHighlightMap {
+		f.SetCellStyle(sheetName, cell, cell, yellowStyle)
+	}
 
 	// 为每个错误行添加错误信息
 	for excelRow, errorMsg := range errorMap {

@@ -59,7 +59,7 @@
   import { reactive, ref } from 'vue';
   import type { SelectProps } from 'ant-design-vue';
   import View from '@/components/View.vue';
-  import { LOCATION_DATA, LocationItem } from '@/components/loation-data';
+  import { GetChinaArea } from '@wailsjs/go';
   import { SaveAreaConfig } from '@wailsjs/go';
   const router = useRouter();
 
@@ -77,17 +77,24 @@
     firstLogin: true
   });
 
+  let LOCATION_DATA: any[] = [];
   const provinceOptions = ref<SelectProps['options']>(
     LOCATION_DATA.map(item => ({
       value: item.code,
       label: item.name
     }))
   );
+
   const cityOptions = ref<SelectProps['options']>([]);
   const districtOptions = ref<SelectProps['options']>([]);
 
-  let selectedProvince: LocationItem | null = null;
-  let selectedCity: LocationItem | null = null;
+  let selectedProvince: any | null = null;
+  let selectedCity: any | null = null;
+
+  onMounted(async () => {
+    const res = await GetChinaArea();
+    console.log(res);
+  });
 
   const handleProvinceChange = (value: string) => {
     selectedCity = null;

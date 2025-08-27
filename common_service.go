@@ -177,3 +177,13 @@ func (a *App) GetAreaConfig() db.QueryResult {
 
 	return db.QueryResult{Ok: true, Message: "未找到区域信息，请先设置区域信息"}
 }
+
+// 获取中国区域信息
+func (a *App) GetChinaArea() db.QueryResult {
+	areaData, err := a.ReadFile(CHINA_AREA_FILE_PATH, true)
+	if err != nil {
+		return db.QueryResult{Ok: false, Message: "获取区域信息失败: " + err.Error()}
+	}
+
+	return db.QueryResult{Ok: true, Data: string(areaData), Message: "获取成功"}
+}

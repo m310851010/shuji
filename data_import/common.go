@@ -59,8 +59,9 @@ func (s *DataImportService) getDecryptedStatus(encryptedValue interface{}) strin
 
 // ValidationError 验证错误结构
 type ValidationError struct {
-	RowNumber int    `json:"row_number"`
-	Message   string `json:"message"`
+	RowNumber int      `json:"row_number"` // 错误行号
+	Message   string   `json:"message"`    // 错误信息
+	Cells     []string `json:"cells"`      // 涉及到的单元格位置，如["A1", "B1", "C1"]
 }
 
 const (
@@ -523,4 +524,70 @@ func formatErrorMessages(errorMsg string) string {
 
 	// 用换行符连接所有错误信息
 	return strings.Join(formattedErrors, "\n")
+}
+
+// 字段名到Excel列名的映射
+var fieldToColumn = map[string]string{
+	// 附表1主表字段映射
+	"annual_energy_equivalent_value": "D", // 年综合能耗当量值
+	"annual_energy_equivalent_cost":  "E", // 年综合能耗等价值
+	"annual_raw_material_energy":     "F", // 年原料用能消费量
+	"annual_total_coal_consumption":  "G", // 耗煤总量（实物量）
+	"annual_total_coal_products":     "H", // 耗煤总量（标准量）
+	"annual_raw_coal":                "I", // 原料用煤（实物量）
+	"annual_raw_coal_consumption":    "J", // 原煤消费（实物量）
+	"annual_clean_coal_consumption":  "K", // 洗精煤消费（实物量）
+	"annual_other_coal_consumption":  "L", // 其他煤炭消费（实物量）
+	"annual_coke_consumption":        "M", // 焦炭消费（实物量）
+
+	// 附表1用途表字段映射
+	"input_quantity":  "H", // 投入量
+	"output_quantity": "K", // 产出量
+
+	// 附表1设备表字段映射
+	"total_runtime":           "F", // 累计使用时间
+	"design_life":             "G", // 设计年限
+	"energy_efficiency":       "H", // 能效水平
+	"capacity":                "I", // 容量
+	"annual_coal_consumption": "J", // 年耗煤量
+
+	// 附表2字段映射
+	"usage_time": "F", // 累计使用时间
+
+	// 附表3字段映射
+	"equivalent_value": "M", // 当量值
+	"equivalent_cost":  "N", // 等价值
+
+	// 附件2字段映射
+	"total_coal":       "D", // 煤合计
+	"raw_coal":         "E", // 原煤
+	"washed_coal":      "F", // 洗精煤
+	"other_coal":       "G", // 其他
+	"power_generation": "H", // 火力发电
+	"heating":          "I", // 供热
+	"coal_washing":     "J", // 煤炭洗选
+	"coking":           "K", // 炼焦
+	"oil_refining":     "L", // 炼油及煤制油
+	"gas_production":   "M", // 制气
+	"industry":         "N", // 工业
+	"raw_materials":    "O", // 用作原料、材料
+	"other_uses":       "P", // 其他用途
+	"coke":             "Q", // 焦炭消费摸底
+}
+
+// getExcelCellPosition 根据字段名和行号确定Excel单元格位置
+func (s *DataImportService) getExcelCellPosition(fieldName string, rowNum int) string {
+	if column, exists := fieldToColumn[fieldName]; exists {
+		return column + fmt.Sprintf("%d", rowNum)
+	}
+	return fmt.Sprintf("A%d", rowNum)
+}
+
+// getMultipleExcelCellPositions 获取多个字段的Excel单元格位置
+func (s *DataImportService) getMultipleExcelCellPositions(fieldNames []string, rowNum int) []string {
+	cells := make([]string, len(fieldNames))
+	for i, fieldName := range fieldNames {
+		cells[i] = s.getExcelCellPosition(fieldName, rowNum)
+	}
+	return cells
 }
