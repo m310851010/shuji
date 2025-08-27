@@ -511,7 +511,7 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 		return errors
 	}
 	if len(mainData) > 1 {
-		errors = append(errors, fmt.Sprintf("单位基本信息表格数据条数错误，模板需要1条，导入文件%d条", len(mainData)))
+		errors = append(errors, fmt.Sprintf("%d条", len(mainData)))
 		return errors
 	}
 

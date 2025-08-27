@@ -194,6 +194,10 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 	creditCode, _ := data["credit_code"].(string)
 
 	if unitName != "" && creditCode != "" {
+		provinceName := s.getStringValue(data["province_name"])
+		cityName := s.getStringValue(data["city_name"])
+		countryName := s.getStringValue(data["country_name"])
+
 		// 第一步: 调用s.app.IsEnterpriseListExist(), 检查企业清单是否存在, 不存在直接校验通过
 		hasEnterpriseList, err := s.app.IsEnterpriseListExist()
 		if err != nil {
@@ -221,12 +225,10 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 				return errors
 			}
 
-			provinceName := s.getStringValue(data["province_name"])
-			cityName := s.getStringValue(data["city_name"])
-			countryName := s.getStringValue(data["country_name"])
-
 			// 如果查询到企业名了，比较省市县是否相同
 			errors = s.checkRegionMatch(provinceName, cityName, countryName, dbProvinceName, dbCityName, dbCountryName, regionRowNum)
+		} else {
+			errors = s.validateRegionOnly(data, regionRowNum)
 		}
 	}
 
