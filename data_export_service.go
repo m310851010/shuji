@@ -307,43 +307,42 @@ func (a *App) QueryExportData() db.QueryResult {
 	return result
 }
 
-// ExportData 导出数据
-func (a *App) ExportDBData(filePath string) db.QueryResult {
-	result := db.QueryResult{}
-
+func (a *App) CopySystemDb(fileName string) (*db.Database, string, error) {
 	dbDstPath := GetPath(filepath.Join(DATA_DIR_NAME, DB_FILE_NAME))
-	dbTempPath := GetPath(filepath.Join(DATA_DIR_NAME, time.Now().Format("20060102150405")))
+	dbTempPath := GetPath(filepath.Join(DATA_DIR_NAME, fileName+time.Now().Format("20060102150405")))
 
 	copyResult := a.Copyfile(dbDstPath, dbTempPath)
 	if !copyResult.Ok {
-		result.Ok = false
-		result.Message = "复制数据库文件失败:" + copyResult.Data
-		return result
+		return nil, "", fmt.Errorf(copyResult.Data)
 	}
 
 	// 1.创建数据库连接
 	newDb, err := db.NewDatabase(dbTempPath, DB_PASSWORD)
 	if err != nil {
-		result.Ok = false
-		result.Message = "创建数据库连接失败: " + err.Error()
-		return result
+		return nil, "", err
 	}
 
 	// 2.把表data_import_record清空
-	clearResult, err := newDb.Exec("DELETE FROM data_import_record")
+	_, err = newDb.Exec("DELETE FROM data_import_record")
 	if err != nil {
 		newDb.Close()
-		result.Ok = false
-		result.Message = "清空导入记录表失败: " + err.Error()
-		return result
+		return nil, "", err
 	}
-	newDb.Close()
+	return newDb, dbTempPath, nil
+}
 
-	if !clearResult.Ok {
+// ExportData 导出数据
+func (a *App) ExportDBData(filePath string) db.QueryResult {
+	result := db.QueryResult{}
+
+	newDb, dbTempPath, err := a.CopySystemDb("export_")
+	if err != nil {
 		result.Ok = false
-		result.Message = "清空导入记录表失败: " + clearResult.Message
+		result.Message = "复制数据库文件失败: " + err.Error()
 		return result
 	}
+
+	newDb.Close()
 
 	moveResult := a.Movefile(dbTempPath, filePath)
 	if !moveResult.Ok {

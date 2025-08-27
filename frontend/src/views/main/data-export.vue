@@ -106,7 +106,7 @@ function normalizeData2(item: ExportItem[], tableTypeName: string) {
   const handleExportClick = async () => {
     const result = await OpenSaveDialog(new main.FileDialogOptions({
       title: '导出汇总数据',
-      defaultFilename: `导出汇总数据-${dayjs().format('YYYY-MM-DD')}.db`,
+      defaultFilename: `export_导出汇总数据_${dayjs().format('YYYYMMDD')}.db`,
     }));
 
     console.log(result);

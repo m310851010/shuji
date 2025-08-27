@@ -236,26 +236,6 @@ export namespace main {
 		    return a;
 		}
 	}
-	export class MergeResult {
-	    ok: boolean;
-	    message: string;
-	    successCount: number;
-	    conflictCount: number;
-	    errorCount: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new MergeResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ok = source["ok"];
-	        this.message = source["message"];
-	        this.successCount = source["successCount"];
-	        this.conflictCount = source["conflictCount"];
-	        this.errorCount = source["errorCount"];
-	    }
-	}
 	export class MessageBoxOptions {
 	    title?: string;
 	    message: string;

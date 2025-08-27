@@ -525,13 +525,13 @@ func (s *DataImportService) coverTable3Data(mainData []map[string]interface{}, f
 		return fmt.Errorf("数据为空")
 	}
 
-	// 逐行检查，根据项目代码+建设单位检查是否已导入
+	// 逐行检查，根据项目代码+审查意见文号检查是否已导入
 	for _, record := range mainData {
 		projectCode := s.getStringValue(record["project_code"])
-		constructionUnit := s.getStringValue(record["construction_unit"])
+		documentNumber := s.getStringValue(record["document_number"])
 
 		// 先尝试更新，通过受影响行数判断是否存在
-		affectedRows, err := s.updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit, record)
+		affectedRows, err := s.updateTable3DataByProjectCodeAndDocumentNumber(projectCode, documentNumber, record)
 		if err != nil {
 			return fmt.Errorf("更新数据失败: %v", err)
 		}
@@ -548,8 +548,8 @@ func (s *DataImportService) coverTable3Data(mainData []map[string]interface{}, f
 	return nil
 }
 
-// updateTable3DataByProjectCodeAndUnit 根据项目代码和建设单位更新附表3数据
-func (s *DataImportService) updateTable3DataByProjectCodeAndUnit(projectCode, constructionUnit string, record map[string]interface{}) (int64, error) {
+// updateTable3DataByProjectCodeAndDocumentNumber 根据项目代码和审查意见文号更新附表3数据
+func (s *DataImportService) updateTable3DataByProjectCodeAndDocumentNumber(projectCode, documentNumber string, record map[string]interface{}) (int64, error) {
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptTable3NumericFields(record)
 
@@ -563,7 +563,7 @@ func (s *DataImportService) updateTable3DataByProjectCodeAndUnit(projectCode, co
 		sce_coal_consumption = ?, sce_coke_consumption = ?, sce_blue_coke_consumption = ?,
 		is_substitution = ?, substitution_source = ?, substitution_quantity = ?, 
 		pq_annual_coal_quantity = ?, sce_annual_coal_quantity = ?
-		WHERE project_code = ? AND construction_unit = ?`
+		WHERE project_code = ? AND document_number = ?`
 
 	result, err := s.app.GetDB().Exec(query,
 		record["stat_date"], record["project_name"], record["project_code"], record["construction_unit"], record["main_construction_content"],
@@ -577,7 +577,7 @@ func (s *DataImportService) updateTable3DataByProjectCodeAndUnit(projectCode, co
 		encryptedValues["sce_coke_consumption"], encryptedValues["sce_blue_coke_consumption"],
 		record["is_substitution"], record["substitution_source"], encryptedValues["substitution_quantity"],
 		encryptedValues["pq_annual_coal_quantity"], encryptedValues["sce_annual_coal_quantity"],
-		projectCode, constructionUnit)
+		projectCode, documentNumber)
 
 	if err != nil {
 		return 0, err
@@ -599,13 +599,13 @@ func (s *DataImportService) updateTable3DataByProjectCodeAndUnit(projectCode, co
 
 // isTable3FileImported 检查附表3文件是否已导入
 func (s *DataImportService) isTable3FileImported(mainData []map[string]interface{}) bool {
-	// 按Excel数据逐行检查，根据项目代码+建设单位检查是否已导入
+	// 按Excel数据逐行检查，根据项目代码+审查意见文号检查是否已导入
 	for _, record := range mainData {
 		projectCode := s.getStringValue(record["project_code"])
-		constructionUnit := s.getStringValue(record["construction_unit"])
+		documentNumber := s.getStringValue(record["document_number"])
 
-		query := "SELECT COUNT(1) as count FROM fixed_assets_investment_project WHERE project_code = ? AND construction_unit = ?"
-		result, err := s.app.GetDB().QueryRow(query, projectCode, constructionUnit)
+		query := "SELECT COUNT(1) as count FROM fixed_assets_investment_project WHERE project_code = ? AND document_number = ?"
+		result, err := s.app.GetDB().QueryRow(query, projectCode, documentNumber)
 		if err != nil || result.Data == nil {
 			continue
 		}

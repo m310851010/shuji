@@ -46,6 +46,7 @@
   import { main } from '@wailsjs/models';
   import { OnFileDrop, OnFileDropOff } from '@wailsapp/runtime';
   import { EXCEL_TYPES } from '@/views/constant';
+  import {getFileExtension} from '@/util/utils';
 
   const props = defineProps({
     // 验证文件是否有效,默认是excel文件
@@ -72,7 +73,7 @@
 
     // 接受的文件类型,是否允许拖拽,默认是excel文件
     accept: {
-      type: Object,
+      type: [Array, Function],
       required: false,
       default: () => EXCEL_TYPES
     }
@@ -92,6 +93,7 @@
   const allFiles: { file: File; valid: boolean }[] = [];
 
   OnFileDrop((x, y, paths) => {
+    console.log('OnFileDrop==', paths);
     const files: EnhancedFile[] = [];
     allFiles.forEach((item, i) => {
       if (item.valid) {
@@ -114,6 +116,7 @@
     // e.preventDefault();
     // e.stopPropagation();
 
+    console.log('handleDragEnter==', e);
     hasValidFile.value = true;
     if (!e.dataTransfer) {
       return;
@@ -136,7 +139,7 @@
 
       if (isFunction) {
         valid = accept(item, 'dragEnter');
-      } else if (accept.indexOf(item.type) !== -1) {
+      } else if (accept && accept.length && accept.indexOf(item.type) !== -1) {
         // 判断文件类型是否在accept中
         valid = true;
         break;
@@ -162,6 +165,7 @@
 
 
   const handleDrop = (e: DragEvent) => {
+    console.log('handleDrop==', e);
     hasValidFile.value = true;
     isDragging.value = false;
 
@@ -184,8 +188,7 @@
       if (isFunction) {
         valid = validFile(file, e);
       } else {
-        const fileName = file.name.toLowerCase();
-        const fileExt = fileName.substring(fileName.lastIndexOf('.') + 1);
+        const fileExt = getFileExtension(file.name);
         valid = validFile.indexOf(file.type) >= 0 || validFile.indexOf(fileExt) >= 0;
       }
       allFiles.push({ file, valid });
@@ -245,8 +248,7 @@
         if (isFunction) {
           valid = validFile(fileInfo, null);
         } else {
-          const fileName = fileInfo.name.toLowerCase();
-          const fileExt = fileName.substring(fileName.lastIndexOf('.') + 1);
+          const fileExt = getFileExtension(fileInfo.name);
           valid = validFile.indexOf(fileExt) >= 0;
         }
 
