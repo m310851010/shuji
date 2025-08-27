@@ -54,8 +54,6 @@ import {
 
   const handleCheckTabChange = (value: CheckType) => {
     transitionName.value = 'slide';
-    previousIndex = 0;
-    tableTab.value = TableType.table1;
   };
 
   // 处理标签切换

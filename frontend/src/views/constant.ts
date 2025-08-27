@@ -75,4 +75,4 @@ export const CheckTypeOptions: SelectProps['options'] = [
   { label: '人工校验', value: CheckType.manual }
 ];
 
-export const EXCEL_TYPES = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+export const EXCEL_TYPES = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx', 'xls'];

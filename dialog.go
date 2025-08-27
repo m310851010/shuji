@@ -180,6 +180,14 @@ func (a *App) OpenFileDialog(option FileDialogOptions) FileDialogResult {
 				FilePaths: []string{fmt.Sprintf("err %s!", err)},
 			}
 		}
+
+		if len(selection) == 0 {
+			return FileDialogResult{
+				Canceled:  true,
+				FilePaths: []string{},
+			}
+		}
+
 		return FileDialogResult{
 			Canceled:  false,
 			FilePaths: []string{selection},

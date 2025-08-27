@@ -6,6 +6,7 @@
     <div class="page-content text-center">
       <UploadComponent>
         <div>只能选择DB文件（.db），支持批量选择</div>
+        <div>支持一次性拖一个或多个文件Excel文件，以及整个文件夹</div>
         <div>选择文件后，点击下方按钮开始合并</div>
       </UploadComponent>
       <div class="operation-area">

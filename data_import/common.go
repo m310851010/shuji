@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/xuri/excelize/v2"
 )
 
 // 文件类型常量
@@ -59,8 +60,9 @@ func (s *DataImportService) getDecryptedStatus(encryptedValue interface{}) strin
 
 // ValidationError 验证错误结构
 type ValidationError struct {
-	RowNumber int    `json:"row_number"`
-	Message   string `json:"message"`
+	RowNumber int      `json:"row_number"` // 错误行号
+	Message   string   `json:"message"`    // 错误信息
+	Cells     []string `json:"cells"`      // 涉及到的单元格位置，如["A1", "B1", "C1"]
 }
 
 const (
@@ -194,6 +196,10 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 	creditCode, _ := data["credit_code"].(string)
 
 	if unitName != "" && creditCode != "" {
+		provinceName := s.getStringValue(data["province_name"])
+		cityName := s.getStringValue(data["city_name"])
+		countryName := s.getStringValue(data["country_name"])
+
 		// 第一步: 调用s.app.IsEnterpriseListExist(), 检查企业清单是否存在, 不存在直接校验通过
 		hasEnterpriseList, err := s.app.IsEnterpriseListExist()
 		if err != nil {
@@ -221,12 +227,10 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 				return errors
 			}
 
-			provinceName := s.getStringValue(data["province_name"])
-			cityName := s.getStringValue(data["city_name"])
-			countryName := s.getStringValue(data["country_name"])
-
 			// 如果查询到企业名了，比较省市县是否相同
 			errors = s.checkRegionMatch(provinceName, cityName, countryName, dbProvinceName, dbCityName, dbCountryName, regionRowNum)
+		} else {
+			errors = s.validateRegionOnly(data, regionRowNum)
 		}
 	}
 
@@ -521,4 +525,145 @@ func formatErrorMessages(errorMsg string) string {
 
 	// 用换行符连接所有错误信息
 	return strings.Join(formattedErrors, "\n")
+}
+
+// ExcelFieldMapping 字段名称到Excel位置的映射结构
+type ExcelFieldMapping struct {
+	TableType string
+	FieldName string
+	Column    string // Excel列名，如 "A", "B", "C"
+	RowOffset int    // 相对于数据行的偏移量
+}
+
+// getTable1FieldMapping 获取附表1字段映射
+func (s *DataImportService) getTable1FieldMapping() map[string]ExcelFieldMapping {
+	return map[string]ExcelFieldMapping{
+		// 主表字段映射（企业基本信息 + 综合能源消费情况）
+		"annual_energy_equivalent_value": {TableType: "table1", FieldName: "annual_energy_equivalent_value", Column: "A", RowOffset: 0},
+		"annual_energy_equivalent_cost":  {TableType: "table1", FieldName: "annual_energy_equivalent_cost", Column: "B", RowOffset: 0},
+		"annual_raw_material_energy":     {TableType: "table1", FieldName: "annual_raw_material_energy", Column: "C", RowOffset: 0},
+		"annual_total_coal_consumption":  {TableType: "table1", FieldName: "annual_total_coal_consumption", Column: "D", RowOffset: 0},
+		"annual_total_coal_products":     {TableType: "table1", FieldName: "annual_total_coal_products", Column: "E", RowOffset: 0},
+		"annual_raw_coal":                {TableType: "table1", FieldName: "annual_raw_coal", Column: "F", RowOffset: 0},
+		"annual_raw_coal_consumption":    {TableType: "table1", FieldName: "annual_raw_coal_consumption", Column: "G", RowOffset: 0},
+		"annual_clean_coal_consumption":  {TableType: "table1", FieldName: "annual_clean_coal_consumption", Column: "H", RowOffset: 0},
+		"annual_other_coal_consumption":  {TableType: "table1", FieldName: "annual_other_coal_consumption", Column: "I", RowOffset: 0},
+		"annual_coke_consumption":        {TableType: "table1", FieldName: "annual_coke_consumption", Column: "J", RowOffset: 0},
+
+		// 用途表字段映射
+		"input_quantity":  {TableType: "table1", FieldName: "input_quantity", Column: "F", RowOffset: 0},
+		"output_quantity": {TableType: "table1", FieldName: "output_quantity", Column: "I", RowOffset: 0},
+
+		// 设备表字段映射
+		"total_runtime":           {TableType: "table1", FieldName: "total_runtime", Column: "D", RowOffset: 0},
+		"design_life":             {TableType: "table1", FieldName: "design_life", Column: "E", RowOffset: 0},
+		"energy_efficiency":       {TableType: "table1", FieldName: "energy_efficiency", Column: "F", RowOffset: 0},
+		"capacity":                {TableType: "table1", FieldName: "capacity", Column: "H", RowOffset: 0},
+		"annual_coal_consumption": {TableType: "table1", FieldName: "annual_coal_consumption", Column: "J", RowOffset: 0},
+	}
+}
+
+// getTable2FieldMapping 获取附表2字段映射
+func (s *DataImportService) getTable2FieldMapping() map[string]ExcelFieldMapping {
+	return map[string]ExcelFieldMapping{
+		"usage_time":              {TableType: "table2", FieldName: "usage_time", Column: "D", RowOffset: 0},
+		"design_life":             {TableType: "table2", FieldName: "design_life", Column: "E", RowOffset: 0},
+		"capacity":                {TableType: "table2", FieldName: "capacity", Column: "H", RowOffset: 0},
+		"annual_coal_consumption": {TableType: "table2", FieldName: "annual_coal_consumption", Column: "K", RowOffset: 0},
+	}
+}
+
+// getTable3FieldMapping 获取附表3字段映射
+func (s *DataImportService) getTable3FieldMapping() map[string]ExcelFieldMapping {
+	return map[string]ExcelFieldMapping{
+		"equivalent_value":           {TableType: "table3", FieldName: "equivalent_value", Column: "P", RowOffset: 0},
+		"equivalent_cost":            {TableType: "table3", FieldName: "equivalent_cost", Column: "Q", RowOffset: 0},
+		"pq_total_coal_consumption":  {TableType: "table3", FieldName: "pq_total_coal_consumption", Column: "R", RowOffset: 0},
+		"pq_coal_consumption":        {TableType: "table3", FieldName: "pq_coal_consumption", Column: "S", RowOffset: 0},
+		"pq_coke_consumption":        {TableType: "table3", FieldName: "pq_coke_consumption", Column: "T", RowOffset: 0},
+		"pq_blue_coke_consumption":   {TableType: "table3", FieldName: "pq_blue_coke_consumption", Column: "U", RowOffset: 0},
+		"sce_total_coal_consumption": {TableType: "table3", FieldName: "sce_total_coal_consumption", Column: "V", RowOffset: 0},
+		"sce_coal_consumption":       {TableType: "table3", FieldName: "sce_coal_consumption", Column: "W", RowOffset: 0},
+		"sce_coke_consumption":       {TableType: "table3", FieldName: "sce_coke_consumption", Column: "X", RowOffset: 0},
+		"sce_blue_coke_consumption":  {TableType: "table3", FieldName: "sce_blue_coke_consumption", Column: "Y", RowOffset: 0},
+		"substitution_quantity":      {TableType: "table3", FieldName: "substitution_quantity", Column: "AB", RowOffset: 0},
+		"pq_annual_coal_quantity":    {TableType: "table3", FieldName: "pq_annual_coal_quantity", Column: "AC", RowOffset: 0},
+		"sce_annual_coal_quantity":   {TableType: "table3", FieldName: "sce_annual_coal_quantity", Column: "AD", RowOffset: 0},
+	}
+}
+
+// getAttachment2FieldMapping 获取附件2字段映射
+func (s *DataImportService) getAttachment2FieldMapping() map[string]ExcelFieldMapping {
+	return map[string]ExcelFieldMapping{
+		"total_coal":       {TableType: "attachment2", FieldName: "total_coal", Column: "E", RowOffset: 0},
+		"raw_coal":         {TableType: "attachment2", FieldName: "raw_coal", Column: "F", RowOffset: 0},
+		"washed_coal":      {TableType: "attachment2", FieldName: "washed_coal", Column: "G", RowOffset: 0},
+		"other_coal":       {TableType: "attachment2", FieldName: "other_coal", Column: "H", RowOffset: 0},
+		"power_generation": {TableType: "attachment2", FieldName: "power_generation", Column: "I", RowOffset: 0},
+		"heating":          {TableType: "attachment2", FieldName: "heating", Column: "J", RowOffset: 0},
+		"coal_washing":     {TableType: "attachment2", FieldName: "coal_washing", Column: "K", RowOffset: 0},
+		"coking":           {TableType: "attachment2", FieldName: "coking", Column: "L", RowOffset: 0},
+		"oil_refining":     {TableType: "attachment2", FieldName: "oil_refining", Column: "M", RowOffset: 0},
+		"gas_production":   {TableType: "attachment2", FieldName: "gas_production", Column: "N", RowOffset: 0},
+		"industry":         {TableType: "attachment2", FieldName: "industry", Column: "O", RowOffset: 0},
+		"raw_materials":    {TableType: "attachment2", FieldName: "raw_materials", Column: "P", RowOffset: 0},
+		"other_uses":       {TableType: "attachment2", FieldName: "other_uses", Column: "Q", RowOffset: 0},
+		"coke":             {TableType: "attachment2", FieldName: "coke", Column: "R", RowOffset: 0},
+	}
+}
+
+// getFieldMapping 根据表格类型获取字段映射
+func (s *DataImportService) getFieldMapping(tableType string) map[string]ExcelFieldMapping {
+	switch tableType {
+	case TableType1:
+		return s.getTable1FieldMapping()
+	case TableType2:
+		return s.getTable2FieldMapping()
+	case TableType3:
+		return s.getTable3FieldMapping()
+	case TableTypeAttachment2:
+		return s.getAttachment2FieldMapping()
+	default:
+		return make(map[string]ExcelFieldMapping)
+	}
+}
+
+// getCellPosition 根据字段名称和行号获取Excel单元格位置
+func (s *DataImportService) getCellPosition(tableType, fieldName string, rowNumber int) string {
+	fieldMapping := s.getFieldMapping(tableType)
+	if mapping, exists := fieldMapping[fieldName]; exists {
+		// 计算实际行号（考虑偏移量）
+		actualRow := rowNumber + mapping.RowOffset
+		return mapping.Column + fmt.Sprintf("%d", actualRow)
+	}
+	return ""
+}
+
+// highlightCellsInExcel 在Excel中高亮指定的单元格
+func (s *DataImportService) highlightCellsInExcel(f *excelize.File, sheetName string, cells []string) error {
+	// 创建黄色背景样式
+	style, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
+		Alignment: &excelize.Alignment{
+			Vertical: "center",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// 去重单元格列表
+	uniqueCells := make(map[string]bool)
+	for _, cell := range cells {
+		if cell != "" {
+			uniqueCells[cell] = true
+		}
+	}
+
+	// 应用样式到每个单元格
+	for cell := range uniqueCells {
+		f.SetCellStyle(sheetName, cell, cell, style)
+	}
+
+	return nil
 }

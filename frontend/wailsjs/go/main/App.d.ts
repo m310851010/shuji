@@ -32,6 +32,10 @@ export function GetAreaConfig():Promise<db.QueryResult>;
 
 export function GetCachePath(arg1:string):Promise<string>;
 
+export function GetChinaAreaMap():Promise<Record<string, any>>;
+
+export function GetChinaAreaStr():Promise<db.QueryResult>;
+
 export function GetCtx():Promise<context.Context>;
 
 export function GetCurrentOSUser():Promise<string>;
@@ -112,7 +116,7 @@ export function QueryExportData():Promise<db.QueryResult>;
 
 export function ReadFile(arg1:string,arg2:boolean):Promise<Array<number>>;
 
-export function Readdir(arg1:string):Promise<main.FlagResult>;
+export function Readdir(arg1:string):Promise<db.QueryResult>;
 
 export function Removefile(arg1:string):Promise<main.FlagResult>;
 
