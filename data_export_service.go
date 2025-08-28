@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"shuji/db"
@@ -228,69 +229,12 @@ func (a *App) QueryExportData() db.QueryResult {
 		}
 	}
 
-	// 10. 查询附件2记录数，用stat_date,is_confirm分组
-	attachment2Query := fmt.Sprintf(`
-		SELECT 
-			stat_date,
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
-			COUNT(1) as total_count
-		FROM coal_consumption_report
-		GROUP BY stat_date
-		ORDER BY stat_date
-	`, ENCRYPTED_ONE)
-	attachment2Result, err := a.db.Query(attachment2Query)
+	// 10. 处理附件2数据
+	attachment2List, err := a.processAttachment2Data()
 	if err != nil {
 		result.Ok = false
-		result.Message = "查询附件2数据失败: " + err.Error()
+		result.Message = "处理附件2数据失败: " + err.Error()
 		return result
-	}
-
-	// 处理附件2数据，按年份分组
-	attachment2List := make([]ExportDataItem, 0)
-	attachment2YearMap := make(map[string]*ExportDataItem)
-
-	if attachment2Result.Ok && attachment2Result.Data != nil {
-		if data, ok := attachment2Result.Data.([]map[string]interface{}); ok {
-			for _, row := range data {
-				statDate := ""
-				if date, ok := row["stat_date"].(string); ok {
-					statDate = date
-				}
-
-				totalCount := 0
-				if count, ok := row["total_count"].(int64); ok {
-					totalCount = int(count)
-				}
-
-				isConfirmYes := 0
-				if row["is_confirm_yes"] == nil {
-					isConfirmYes = 0
-				} else {
-					isConfirmYes = int(row["is_confirm_yes"].(int64))
-				}
-
-				isConfirmNo := totalCount - isConfirmYes
-
-				if item, exists := attachment2YearMap[statDate]; exists {
-					item.IsConfirmYes += isConfirmYes
-					item.IsConfirmNo += isConfirmNo
-				} else {
-					attachment2YearMap[statDate] = &ExportDataItem{
-						StatDate:     statDate,
-						IsConfirmYes: isConfirmYes,
-						IsConfirmNo:  isConfirmNo,
-					}
-				}
-			}
-		}
-	}
-
-	// 处理附件2数据，设置count和检查状态
-	for _, item := range attachment2YearMap {
-		item.Count = item.IsConfirmYes + item.IsConfirmNo
-		item.IsCheckedYes = item.IsConfirmYes + item.IsConfirmNo
-		item.IsCheckedNo = 0
-		attachment2List = append(attachment2List, *item)
 	}
 
 	// 11. 合并所有数据
@@ -355,4 +299,221 @@ func (a *App) ExportDBData(filePath string) db.QueryResult {
 	result.Ok = true
 	result.Message = "数据导出成功"
 	return result
+}
+
+// processAttachment2Data 处理附件2数据
+func (a *App) processAttachment2Data() ([]ExportDataItem, error) {
+	// 1. 获取中国区域地图数据
+	areaData, err := a.ReadFile(CHINA_AREA_FILE_PATH, true)
+	if err != nil {
+		return nil, fmt.Errorf("读取中国区域地图文件失败: %v", err)
+	}
+
+	// 解析JSON数据为数组
+	var areaList []interface{}
+	err = json.Unmarshal(areaData, &areaList)
+	if err != nil {
+		return nil, fmt.Errorf("解析中国区域地图数据失败: %v", err)
+	}
+
+	// 2. 获取当前用户区域配置
+	areaConfigResult := a.GetAreaConfig()
+	if !areaConfigResult.Ok {
+		return nil, fmt.Errorf("获取区域配置失败: %s", areaConfigResult.Message)
+	}
+
+	areaConfig, ok := areaConfigResult.Data.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("区域配置数据格式错误")
+	}
+
+	provinceName := ""
+	cityName := ""
+	countryName := ""
+
+	if areaConfig["province_name"] != nil {
+		provinceName = fmt.Sprintf("%v", areaConfig["province_name"])
+	}
+	if areaConfig["city_name"] != nil {
+		cityName = fmt.Sprintf("%v", areaConfig["city_name"])
+	}
+	if areaConfig["country_name"] != nil {
+		countryName = fmt.Sprintf("%v", areaConfig["country_name"])
+	}
+
+	// 3. 根据当前用户区域查找对应的LocationItem
+	var targetLocation interface{}
+	var count int
+
+	// 查找省份
+	for _, province := range areaList {
+		provinceMap, ok := province.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		provinceNameFromData := ""
+		if name, exists := provinceMap["name"]; exists && name != nil {
+			provinceNameFromData = fmt.Sprintf("%v", name)
+		}
+
+		if provinceNameFromData == provinceName {
+			// 如果市为空，返回省份的children数量
+			if cityName == "" {
+				if children, exists := provinceMap["children"]; exists && children != nil {
+					if childrenList, ok := children.([]interface{}); ok {
+						count = len(childrenList)
+					} else {
+						count = 0
+					}
+				} else {
+					count = 0
+				}
+				targetLocation = province
+				break
+			}
+
+			// 查找市
+			if children, exists := provinceMap["children"]; exists && children != nil {
+				if childrenList, ok := children.([]interface{}); ok {
+					for _, city := range childrenList {
+						cityMap, ok := city.(map[string]interface{})
+						if !ok {
+							continue
+						}
+
+						cityNameFromData := ""
+						if name, exists := cityMap["name"]; exists && name != nil {
+							cityNameFromData = fmt.Sprintf("%v", name)
+						}
+
+						if cityNameFromData == cityName {
+							// 如果县为空，返回市的children数量
+							if countryName == "" {
+								if cityChildren, exists := cityMap["children"]; exists && cityChildren != nil {
+									if cityChildrenList, ok := cityChildren.([]interface{}); ok {
+										count = len(cityChildrenList)
+									} else {
+										count = 0
+									}
+								} else {
+									count = 0
+								}
+								targetLocation = city
+								break
+							}
+
+							// 查找县
+							if cityChildren, exists := cityMap["children"]; exists && cityChildren != nil {
+								if cityChildrenList, ok := cityChildren.([]interface{}); ok {
+									for _, country := range cityChildrenList {
+										countryMap, ok := country.(map[string]interface{})
+										if !ok {
+											continue
+										}
+
+										countryNameFromData := ""
+										if name, exists := countryMap["name"]; exists && name != nil {
+											countryNameFromData = fmt.Sprintf("%v", name)
+										}
+
+										if countryNameFromData == countryName {
+											// 县级别，count为1
+											count = 1
+											targetLocation = country
+											break
+										}
+									}
+								}
+							}
+							break
+						}
+					}
+				}
+			}
+			break
+		}
+	}
+
+	if targetLocation == nil {
+		return nil, fmt.Errorf("未找到对应的区域信息")
+	}
+
+	// 4. 查询附件2数据，按年份和区域级别分组
+	var groupByField string
+	if countryName != "" {
+		// 县不为空，按县分组
+		groupByField = "stat_date, country_name"
+	} else if cityName != "" {
+		// 市不为空，县为空，按市分组
+		groupByField = "stat_date, city_name"
+	} else {
+		// 省不为空，市和县都为空，按省分组
+		groupByField = "stat_date, province_name"
+	}
+
+	attachment2Query := fmt.Sprintf(`
+		SELECT 
+			stat_date,
+			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
+			COUNT(1) as total_count
+		FROM coal_consumption_report
+		GROUP BY %s
+		ORDER BY stat_date
+	`, ENCRYPTED_ONE, groupByField)
+
+	attachment2Result, err := a.db.Query(attachment2Query)
+	if err != nil {
+		return nil, fmt.Errorf("查询附件2数据失败: %v", err)
+	}
+
+	// 5. 处理查询结果，按年份分组
+	attachment2List := make([]ExportDataItem, 0)
+	attachment2YearMap := make(map[string]*ExportDataItem)
+
+	if attachment2Result.Ok && attachment2Result.Data != nil {
+		if data, ok := attachment2Result.Data.([]map[string]interface{}); ok {
+			for _, row := range data {
+				statDate := ""
+				if date, ok := row["stat_date"].(string); ok {
+					statDate = date
+				}
+
+				totalCount := 0
+				if countVal, ok := row["total_count"].(int64); ok {
+					totalCount = int(countVal)
+				}
+
+				isConfirmYes := 0
+				if row["is_confirm_yes"] != nil {
+					if confirmYes, ok := row["is_confirm_yes"].(int64); ok {
+						isConfirmYes = int(confirmYes)
+					}
+				}
+
+				isConfirmNo := totalCount - isConfirmYes
+
+				if item, exists := attachment2YearMap[statDate]; exists {
+					item.IsConfirmYes += isConfirmYes
+					item.IsConfirmNo += isConfirmNo
+				} else {
+					attachment2YearMap[statDate] = &ExportDataItem{
+						StatDate:     statDate,
+						IsConfirmYes: isConfirmYes,
+						IsConfirmNo:  isConfirmNo,
+					}
+				}
+			}
+		}
+	}
+
+	// 6. 设置count和检查状态
+	for _, item := range attachment2YearMap {
+		item.Count = count // 使用从区域地图计算出的count
+		item.IsCheckedYes = item.IsConfirmYes + item.IsConfirmNo
+		item.IsCheckedNo = 0
+		attachment2List = append(attachment2List, *item)
+	}
+
+	return attachment2List, nil
 }

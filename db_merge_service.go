@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"shuji/db"
 	"strconv"
@@ -219,8 +218,14 @@ func (a *App) MergeDatabase(province string, city string, country string, source
 			}
 		}
 
-		// 如果有冲突，跳过这个数据库文件,不合并数据
+		// 如果有冲突，跳过这个数据库文件,不合并数据，但删除临时文件
 		if hasConflict {
+			// 删除源临时数据库文件
+			fmt.Printf("删除有冲突的源临时文件: %s\n", sourceDbPaths[i])
+			removeResult := a.Removefile(sourceDbPaths[i])
+			if !removeResult.Ok {
+				fmt.Printf("删除源临时文件失败: %s, 错误: %s\n", sourceDbPaths[i], removeResult.Data)
+			}
 			continue
 		}
 
@@ -257,7 +262,11 @@ func (a *App) MergeDatabase(province string, city string, country string, source
 		}
 
 		// 删除源临时数据库文件
-		os.Remove(sourceDbPaths[i])
+		fmt.Printf("删除成功合并的源临时文件: %s\n", sourceDbPaths[i])
+		removeResult := a.Removefile(sourceDbPaths[i])
+		if !removeResult.Ok {
+			fmt.Printf("删除源临时文件失败: %s, 错误: %s\n", sourceDbPaths[i], removeResult.Data)
+		}
 	}
 
 	// 提交事务

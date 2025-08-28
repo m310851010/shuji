@@ -93,6 +93,106 @@ func (s *DataImportService) QueryDataTable3() db.QueryResult {
 	}
 }
 
+// 查询附表3数据，指定数据库文件路径
+func (s *DataImportService) QueryDataDetailTable3ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+	database, err := db.NewDatabase(dbFilePath, s.app.GetDBPassword())
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("查询附表3数据失败: %v", err),
+		}
+	}
+
+	return s.queryDataDetailTable3Forinner(obj_id, database)
+}
+
+func (s *DataImportService) queryDataDetailTable3Forinner(obj_id string, database *db.Database) db.QueryResult {
+	// 查询附表3数据
+	query := `
+		SELECT 
+			obj_id, stat_date, sg_code, project_name, project_code, construction_unit, main_construction_content,
+			unit_id, province_name, city_name, country_name, trade_a, trade_c, examination_approval_time,
+			scheduled_time, actual_time, examination_authority, document_number,
+			equivalent_value, equivalent_cost, pq_total_coal_consumption, pq_coal_consumption,
+			pq_coke_consumption, pq_blue_coke_consumption, sce_total_coal_consumption, sce_coal_consumption,
+			sce_coke_consumption, sce_blue_coke_consumption, is_substitution, substitution_source,
+			substitution_quantity, pq_annual_coal_quantity, sce_annual_coal_quantity,
+			create_time, create_user, is_confirm, is_check
+		FROM fixed_assets_investment_project 
+		WHERE obj_id = ?
+	`
+
+	result, err := database.QueryRow(query, obj_id)
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("查询附表3数据失败: %v", err),
+		}
+	}
+
+	if !result.Ok {
+		return result
+	}
+
+	data, ok := result.Data.(map[string]interface{})
+	if !ok || data == nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: "未找到指定的附表3数据",
+		}
+	}
+
+	// 解密数值字段
+	decryptedData := map[string]interface{}{
+		"obj_id":                     data["obj_id"],
+		"stat_date":                  data["stat_date"],
+		"sg_code":                    data["sg_code"],
+		"project_name":               data["project_name"],
+		"project_code":               data["project_code"],
+		"construction_unit":          data["construction_unit"],
+		"main_construction_content":  data["main_construction_content"],
+		"unit_id":                    data["unit_id"],
+		"province_name":              data["province_name"],
+		"city_name":                  data["city_name"],
+		"country_name":               data["country_name"],
+		"trade_a":                    data["trade_a"],
+		"trade_c":                    data["trade_c"],
+		"examination_approval_time":  data["examination_approval_time"],
+		"scheduled_time":             data["scheduled_time"],
+		"actual_time":                data["actual_time"],
+		"examination_authority":      data["examination_authority"],
+		"document_number":            data["document_number"],
+		"equivalent_value":           s.decryptValue(data["equivalent_value"]),
+		"equivalent_cost":            s.decryptValue(data["equivalent_cost"]),
+		"pq_total_coal_consumption":  s.decryptValue(data["pq_total_coal_consumption"]),
+		"pq_coal_consumption":        s.decryptValue(data["pq_coal_consumption"]),
+		"pq_coke_consumption":        s.decryptValue(data["pq_coke_consumption"]),
+		"pq_blue_coke_consumption":   s.decryptValue(data["pq_blue_coke_consumption"]),
+		"sce_total_coal_consumption": s.decryptValue(data["sce_total_coal_consumption"]),
+		"sce_coal_consumption":       s.decryptValue(data["sce_coal_consumption"]),
+		"sce_coke_consumption":       s.decryptValue(data["sce_coke_consumption"]),
+		"sce_blue_coke_consumption":  s.decryptValue(data["sce_blue_coke_consumption"]),
+		"is_substitution":            data["is_substitution"],
+		"substitution_source":        data["substitution_source"],
+		"substitution_quantity":      s.decryptValue(data["substitution_quantity"]),
+		"pq_annual_coal_quantity":    s.decryptValue(data["pq_annual_coal_quantity"]),
+		"sce_annual_coal_quantity":   s.decryptValue(data["sce_annual_coal_quantity"]),
+		"create_time":                data["create_time"],
+		"create_user":                data["create_user"],
+		"is_confirm":                 s.getDecryptedStatus(data["is_confirm"]),
+		"is_check":                   s.getDecryptedStatus(data["is_check"]),
+	}
+
+	return db.QueryResult{
+		Ok:   true,
+		Data: decryptedData,
+	}
+}
+
+func (s *DataImportService) QueryDataDetailTable3(obj_id string) db.QueryResult {
+	return s.queryDataDetailTable3Forinner(obj_id, s.app.GetDB())
+}
+
 func (s *DataImportService) ConfirmDataTable3(obj_id []string) db.QueryResult {
 	if len(obj_id) == 0 {
 		return db.QueryResult{

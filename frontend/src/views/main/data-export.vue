@@ -37,22 +37,6 @@ import {TableType, TableTypeName} from '@/views/constant';
     })
   }
 
-function normalizeData2(item: ExportItem[], tableTypeName: string) {
-  if (!item?.length) {
-    return [{tableTypeName, stat_date:'--', count: 1, is_checked_no: 0, is_checked_yes: 0, is_confirm_no:0, is_confirm_yes: 0}];
-  }
-  return item.map(item => {
-    item.tableTypeName = tableTypeName;
-    item.count = 1;
-    item.stat_date = item.stat_date || '--';
-    item.is_confirm_yes = item.is_confirm_yes > 0 ? 1 : 0;
-    item.is_confirm_no = item.is_confirm_no  ===0? 1 : 0;
-    item.is_checked_yes = item.is_checked_yes > 0 ? 1 : 0;
-    item.is_checked_no = item.is_checked_yes  === 0 ? 1 : 0;
-    return item;
-  })
-}
-
   onMounted(async () => {
     const result = await QueryExportData();
     console.log(result)
@@ -61,7 +45,7 @@ function normalizeData2(item: ExportItem[], tableTypeName: string) {
           list = list.concat(normalizeData(result.data[TableType.table1], TableTypeName.table1));
           list = list.concat(normalizeData(result.data[TableType.table2], TableTypeName.table2));
           list = list.concat(normalizeData(result.data[TableType.table3], TableTypeName.table3));
-          list = list.concat(normalizeData2(result.data[TableType.attachment2], TableTypeName.attachment2));
+          list = list.concat(normalizeData(result.data[TableType.attachment2], TableTypeName.attachment2));
       dataSource.value = list
     }
   })

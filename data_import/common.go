@@ -88,6 +88,7 @@ type App interface {
 	GetCachePath(tableType string) string
 	GetCurrentOSUser() string
 	GetCtx() context.Context
+	GetDBPassword() string
 }
 
 // DataImportService 数据导入服务

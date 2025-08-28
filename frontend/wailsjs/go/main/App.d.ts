@@ -44,6 +44,8 @@ export function GetCurrentOSUser():Promise<string>;
 
 export function GetDB():Promise<db.Database>;
 
+export function GetDBPassword():Promise<string>;
+
 export function GetEnterpriseInfoByCreditCode(arg1:string):Promise<db.QueryResult>;
 
 export function GetEnv():Promise<main.EnvResult>;
@@ -104,7 +106,21 @@ export function OpenSaveDialog(arg1:main.FileDialogOptions):Promise<main.FileDia
 
 export function QueryDataAttachment2():Promise<db.QueryResult>;
 
+export function QueryDataDetailAttachment2(arg1:string):Promise<db.QueryResult>;
+
+export function QueryDataDetailAttachment2ByDBFile(arg1:string,arg2:string):Promise<db.QueryResult>;
+
 export function QueryDataDetailTable1(arg1:string):Promise<db.QueryResult>;
+
+export function QueryDataDetailTable1ByDBFile(arg1:string,arg2:string):Promise<db.QueryResult>;
+
+export function QueryDataDetailTable2(arg1:string):Promise<db.QueryResult>;
+
+export function QueryDataDetailTable2ByDBFile(arg1:string,arg2:string):Promise<db.QueryResult>;
+
+export function QueryDataDetailTable3(arg1:string):Promise<db.QueryResult>;
+
+export function QueryDataDetailTable3ByDBFile(arg1:string,arg2:string):Promise<db.QueryResult>;
 
 export function QueryDataTable1():Promise<db.QueryResult>;
 

@@ -8,18 +8,33 @@ import (
 
 // 人工数据检查附表2
 func (s *DataImportService) QueryDataTable2() db.QueryResult {
+	return s.queryDataTable2Forinner(s.app.GetDB(), "")
+}
+
+// 人工数据检查附表2
+func (s *DataImportService) queryDataTable2Forinner(database *db.Database, obj_id string) db.QueryResult {
 	// 查询附表2数据，只返回未确认的数据
 	query := `
-		SELECT 
-			obj_id, stat_date, create_time, unit_name, credit_code, trade_a, trade_b, trade_c,
-			province_name, city_name, country_name, coal_type, coal_no, usage_time, design_life,
-			enecrgy_efficienct_bmk, capacity_unit, capacity, use_info, status, annual_coal_consumption,
-			row_no, create_user, is_confirm, is_check
-		FROM critical_coal_equipment_consumption 
-		ORDER BY create_time DESC
-	`
+			SELECT 
+				obj_id, stat_date, create_time, unit_name, credit_code, trade_a, trade_b, trade_c,
+				province_name, city_name, country_name, coal_type, coal_no, usage_time, design_life,
+				enecrgy_efficienct_bmk, capacity_unit, capacity, use_info, status, annual_coal_consumption,
+				row_no, create_user, is_confirm, is_check
+			FROM critical_coal_equipment_consumption 
+			%s
+			ORDER BY create_time DESC
+		`
 
-	result, err := s.app.GetDB().Query(query)
+	var result db.QueryResult
+	var err error
+	if obj_id != "" {
+		query = fmt.Sprintf(query, "WHERE obj_id = ?")
+		result, err = database.Query(query, obj_id)
+	} else {
+		query = fmt.Sprintf(query, "")
+		result, err = database.Query(query)
+	}
+
 	if err != nil {
 		return db.QueryResult{
 			Ok:      false,
@@ -113,4 +128,36 @@ func (s *DataImportService) ConfirmDataTable2(obj_id []string) db.QueryResult {
 		Ok:      true,
 		Message: fmt.Sprintf("成功确认 %d 条附表2数据", len(obj_id)),
 	}
+}
+
+// 查询附表2数据，指定数据库文件路径
+func (s *DataImportService) QueryDataDetailTable2ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+	database, err := db.NewDatabase(dbFilePath, s.app.GetDBPassword())
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("查询附表2数据失败: %v", err),
+		}
+	}
+
+	data := s.queryDataTable2Forinner(database, obj_id)
+	// 只返回一条数据, 按create_time
+	if data.Ok {
+		dataList, ok := data.Data.([]map[string]interface{})
+		if ok {
+			data.Ok, data.Message = true, "success"
+			if len(dataList) > 0 {
+				data.Data = dataList[len(dataList)-1]
+			} else {
+				data.Data = nil
+			}
+			return db.QueryResult{Ok: data.Ok, Data: data}
+		}
+	}
+	return db.QueryResult{Ok: false, Message: "获取失败"}
+}
+
+// 查询附表2数据
+func (s *DataImportService) QueryDataDetailTable2(obj_id string) db.QueryResult {
+	return s.queryDataTable2Forinner(s.app.GetDB(), obj_id)
 }

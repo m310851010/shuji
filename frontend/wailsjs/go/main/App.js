@@ -82,6 +82,10 @@ export function GetDB() {
   return window['go']['main']['App']['GetDB']();
 }
 
+export function GetDBPassword() {
+  return window['go']['main']['App']['GetDBPassword']();
+}
+
 export function GetEnterpriseInfoByCreditCode(arg1) {
   return window['go']['main']['App']['GetEnterpriseInfoByCreditCode'](arg1);
 }
@@ -202,8 +206,36 @@ export function QueryDataAttachment2() {
   return window['go']['main']['App']['QueryDataAttachment2']();
 }
 
+export function QueryDataDetailAttachment2(arg1) {
+  return window['go']['main']['App']['QueryDataDetailAttachment2'](arg1);
+}
+
+export function QueryDataDetailAttachment2ByDBFile(arg1, arg2) {
+  return window['go']['main']['App']['QueryDataDetailAttachment2ByDBFile'](arg1, arg2);
+}
+
 export function QueryDataDetailTable1(arg1) {
   return window['go']['main']['App']['QueryDataDetailTable1'](arg1);
+}
+
+export function QueryDataDetailTable1ByDBFile(arg1, arg2) {
+  return window['go']['main']['App']['QueryDataDetailTable1ByDBFile'](arg1, arg2);
+}
+
+export function QueryDataDetailTable2(arg1) {
+  return window['go']['main']['App']['QueryDataDetailTable2'](arg1);
+}
+
+export function QueryDataDetailTable2ByDBFile(arg1, arg2) {
+  return window['go']['main']['App']['QueryDataDetailTable2ByDBFile'](arg1, arg2);
+}
+
+export function QueryDataDetailTable3(arg1) {
+  return window['go']['main']['App']['QueryDataDetailTable3'](arg1);
+}
+
+export function QueryDataDetailTable3ByDBFile(arg1, arg2) {
+  return window['go']['main']['App']['QueryDataDetailTable3ByDBFile'](arg1, arg2);
 }
 
 export function QueryDataTable1() {

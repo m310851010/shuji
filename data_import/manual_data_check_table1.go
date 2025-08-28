@@ -60,7 +60,20 @@ func (s *DataImportService) QueryDataTable1() db.QueryResult {
 	}
 }
 
-func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult {
+// 查询附表1数据，指定数据库文件路径
+func (s *DataImportService) QueryDataDetailTable1ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+	database, err := db.NewDatabase(dbFilePath, s.app.GetDBPassword())
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("查询附表1数据失败: %v", err),
+		}
+	}
+
+	return s.queryDataDetailTable1Forinner(obj_id, database)
+}
+
+func (s *DataImportService) queryDataDetailTable1Forinner(obj_id string, database *db.Database) db.QueryResult {
 	// 查询主表数据
 	mainQuery := `
 		SELECT 
@@ -74,7 +87,7 @@ func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult 
 		WHERE obj_id = ?
 	`
 
-	mainResult, err := s.app.GetDB().QueryRow(mainQuery, obj_id)
+	mainResult, err := database.QueryRow(mainQuery, obj_id)
 	if err != nil {
 		return db.QueryResult{
 			Ok:      false,
@@ -136,7 +149,7 @@ func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult 
 		ORDER BY create_time DESC
 	`
 
-	usageResult, err := s.app.GetDB().Query(usageQuery, mainObjId)
+	usageResult, err := database.QueryRow(usageQuery, mainObjId)
 	if err != nil {
 		return db.QueryResult{
 			Ok:      false,
@@ -182,7 +195,7 @@ func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult 
 		ORDER BY create_time DESC
 	`
 
-	equipResult, err := s.app.GetDB().Query(equipQuery, mainObjId)
+	equipResult, err := database.QueryRow(equipQuery, mainObjId)
 	if err != nil {
 		return db.QueryResult{
 			Ok:      false,
@@ -227,6 +240,10 @@ func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult 
 		Ok:   true,
 		Data: result,
 	}
+}
+
+func (s *DataImportService) QueryDataDetailTable1(obj_id string) db.QueryResult {
+	return s.queryDataDetailTable1Forinner(obj_id, s.app.GetDB())
 }
 
 func (s *DataImportService) ConfirmDataTable1(obj_id []string) db.QueryResult {

@@ -109,7 +109,7 @@
     }
 
     selectedProvince = LOCATION_DATA.find(item => item.code === value)!;
-    cityOptions.value = selectedProvince.children.map(item => ({
+    cityOptions.value = selectedProvince.children.map((item: any) => ({
       value: item.code,
       label: item.name
     }));

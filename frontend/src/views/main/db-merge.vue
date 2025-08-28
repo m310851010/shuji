@@ -59,6 +59,29 @@
       </div>
     </div>
   </div>
+
+  <a-modal
+    v-model:open="modal.show"
+    :bodyStyle="{ paddingTop: 0 }"
+    class="full-screen-modal button-middle"
+    :title="modal.title"
+    :cancel-button-props="{ style: 'display: none' }"
+    @ok="modal.handleOk"
+    ok-text="确认数据覆盖"
+  >
+    <div class="wh-100 relative">
+      <div class="abs" style="overflow: auto;">
+        <DBMergeCoverTable 
+          v-for="(item, index) in modal.tableList" 
+          :key="index"
+          :ref="(el) => { if (el) modal.tableRefs[index] = el }"
+          :conflictList="item.conflicts" 
+          :dbFileNames="item.fileNames" 
+          :tableType="item.tableType" 
+        />
+      </div>
+    </div>
+  </a-modal>
 </template>
 
 <script setup lang="tsx">
@@ -66,11 +89,80 @@ import {message, type SelectProps} from 'ant-design-vue';
 import UploadComponent from './components/Upload.vue';
 import DBMergeCoverTable from './components/DBMergeCoverTable.vue';
 import {reactive, ref} from 'vue';
-import {GetChinaAreaStr, MergeDatabase, SaveAreaConfig} from '@wailsjs/go';
+import {GetChinaAreaStr, MergeDatabase, SaveAreaConfig, MergeConflictData, OpenSaveDialog, Copyfile, Movefile, Removefile} from '@wailsjs/go';
 import { openModal } from '@/components/useModal';
 import { TableType } from '../constant';
+import { main } from '@wailsjs/models';
 
   const selectedFiles = ref<EnhancedFile[]>([]);
+
+  
+  const modal = reactive({
+    show: false,
+    tableList: [] as any[],
+    tableRefs: [] as any[],
+    targetDbPath: '',
+    title: 'DB合并',
+    showModal: async (data: any) => {
+      modal.show = true;
+      modal.tableList = data;
+      modal.tableRefs = [];
+    },
+    handleOk: async () => {
+      try {
+        // 收集所有选中的冲突数据
+        const allSelectedConflicts: Record<string, any[]> = {};
+        
+        modal.tableRefs.forEach((tableRef) => {
+          if (tableRef && tableRef.getSelectedData) {
+            const selectedData = tableRef.getSelectedData();
+            // 合并所有表类型的冲突数据
+            Object.keys(selectedData).forEach(tableType => {
+              if (!allSelectedConflicts[tableType]) {
+                allSelectedConflicts[tableType] = [];
+              }
+              allSelectedConflicts[tableType].push(...selectedData[tableType]);
+            });
+          }
+        });
+        
+        // 检查是否有选中的数据
+        const hasSelectedData = Object.keys(allSelectedConflicts).length > 0 && 
+          Object.values(allSelectedConflicts).some(conflicts => conflicts.length > 0);
+        
+        if (hasSelectedData) {
+           // 调用后端接口处理冲突数据
+            const result = await MergeConflictData(modal.targetDbPath, allSelectedConflicts);
+            if (!result.ok) {
+              message.error(result.message);
+              Removefile(modal.targetDbPath);
+              return;
+            }
+        }
+        
+        
+        modal.show = false;
+          //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
+        const res = await OpenSaveDialog(new main.FileDialogOptions({
+          title: '保存合并后的DB文件',
+          defaultFilename: modal.targetDbPath,
+          defaultPath: modal.targetDbPath,
+        }));
+
+        
+        if (res.canceled) {
+            Removefile(modal.targetDbPath);
+          } else {
+            await Movefile(modal.targetDbPath, res.filePaths[0]);
+          }
+        
+      } catch (error) {
+        console.error('处理冲突数据失败:', error);
+        message.error('处理冲突数据失败');
+      }
+    }
+  });
+
   const handleMerge = () => {
     if (!selectedFiles.value.length) {
       message.error('请先选择DB文件');
@@ -79,21 +171,18 @@ import { TableType } from '../constant';
     formRef.value
         .validate()
         .then(async () => {
-          // if (!selectedFiles.value.length) {
-          //   return;
-          // }
+          if (!selectedFiles.value.length) {
+            return;
+          }
 
           // 获取区域名称
-          // const provinceName = selectedProvince?.name || '';
-          // const cityName = selectedCity?.name || '';
-          // let districtName = '';
-          // if (selectedCity.children) {
-          //   districtName = selectedCity.children.find((item: any) => item.code === formState.district)?.name || '';
-          // }
+          const provinceName = selectedProvince?.name || '';
+          const cityName = selectedCity?.name || '';
+          let districtName = '';
+          if (selectedCity.children) {
+            districtName = selectedCity.children.find((item: any) => item.code === formState.district)?.name || '';
+          }
 
-          const provinceName='河北省'; const cityName='秦皇岛市';const districtName=''
-          // @ts-ignore
-          selectedFiles.value = [{fullPath: 'C:\\Users\\Administrator\\Desktop\\export_20250826150000_xichengqu.db'}, {fullPath: 'C:\\Users\\Administrator\\Desktop\\export_20250826150000_xichengqc.db'}]
           // 合并数据库
          const res = await MergeDatabase(provinceName, cityName, districtName, selectedFiles.value.map(value => value.fullPath));
           console.log('MergeDatabase==', res);
@@ -104,15 +193,18 @@ import { TableType } from '../constant';
 
           // 有重复数据
           if (res.data && res.data.totalConflictCount) {
+            // 保存目标数据库路径
+            modal.targetDbPath = res.data.targetDbPath;
+            
             const {table1Conflicts, table2Conflicts, table3Conflicts, attachment2Conflicts} = res.data;
-            openModal({
-              title: '合并结果',
-              width: 900,
-              content: () => {
-                return <DBMergeCoverTable conflictList={table1Conflicts.conflicts} dbFileNames={table1Conflicts.fileNames} tableType={TableType.table1} />
-              }
-            })
+            const tableTypes = [TableType.table1, TableType.table2, TableType.table3, TableType.attachment2];
+            const tableList = [table1Conflicts, table2Conflicts, table3Conflicts, attachment2Conflicts].map((item, index) => ({
+              conflicts: item.conflicts,
+              fileNames: item.fileNames,
+              tableType: tableTypes[index],
+            })).filter((item) => item.conflicts.length);
 
+            modal.showModal(tableList);
           }
         }).catch(() => {});
   }

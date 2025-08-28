@@ -188,6 +188,10 @@ func (a *App) GetCtx() context.Context {
 	return a.ctx
 }
 
+func (a *App) GetDBPassword() string {
+	return DB_PASSWORD
+}
+
 // 获取运行环境变量
 func (a *App) GetEnv() EnvResult {
 	return EnvResult{
@@ -549,6 +553,12 @@ func (a *App) QueryDataDetailTable1(obj_id string) db.QueryResult {
 	return dataImportService.QueryDataDetailTable1(obj_id)
 }
 
+// 查询附表1详细数据，指定数据库文件路径
+func (a *App) QueryDataDetailTable1ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataDetailTable1ByDBFile(obj_id, dbFilePath)
+}
+
 // ConfirmDataTable1 确认附表1数据
 func (a *App) ConfirmDataTable1(obj_id []string) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
@@ -559,6 +569,18 @@ func (a *App) ConfirmDataTable1(obj_id []string) db.QueryResult {
 func (a *App) QueryDataTable2() db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
 	return dataImportService.QueryDataTable2()
+}
+
+// QueryDataDetailTable2 查询附表2详细数据
+func (a *App) QueryDataDetailTable2(obj_id string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataDetailTable2(obj_id)
+}
+
+// QueryDataDetailTable2ByDBFile 查询附表2详细数据，指定数据库文件路径
+func (a *App) QueryDataDetailTable2ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataDetailTable2ByDBFile(obj_id, dbFilePath)
 }
 
 // ConfirmDataTable2 确认附表2数据
@@ -573,6 +595,18 @@ func (a *App) QueryDataTable3() db.QueryResult {
 	return dataImportService.QueryDataTable3()
 }
 
+// QueryDataDetailTable3 查询附表3详细数据
+func (a *App) QueryDataDetailTable3(obj_id string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataDetailTable3(obj_id)
+}
+
+// QueryDataDetailTable3ByDBFile 查询附表3详细数据，指定数据库文件路径
+func (a *App) QueryDataDetailTable3ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataDetailTable3ByDBFile(obj_id, dbFilePath)
+}
+
 // ConfirmDataTable3 确认附表3数据
 func (a *App) ConfirmDataTable3(obj_id []string) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
@@ -583,6 +617,18 @@ func (a *App) ConfirmDataTable3(obj_id []string) db.QueryResult {
 func (a *App) QueryDataAttachment2() db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
 	return dataImportService.QueryDataAttachment2()
+}
+
+// QueryDataDetailAttachment2 查询附件2详细数据
+func (a *App) QueryDataDetailAttachment2(obj_id string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataDetailAttachment2(obj_id)
+}
+
+// QueryDataDetailAttachment2ByDBFile 查询附件2详细数据，指定数据库文件路径
+func (a *App) QueryDataDetailAttachment2ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.QueryDataDetailAttachment2ByDBFile(obj_id, dbFilePath)
 }
 
 // ConfirmDataAttachment2 确认附件2数据
