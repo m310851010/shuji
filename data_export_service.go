@@ -301,49 +301,61 @@ func (a *App) ExportDBData(filePath string) db.QueryResult {
 	return result
 }
 
-// processAttachment2Data 处理附件2数据
-func (a *App) processAttachment2Data() ([]ExportDataItem, error) {
+// 获取当前用户区域数据
+// 返回：targetLocation, dataLevel, areaName, error
+func (a *App) getCurrentUserLocationData() (interface{}, int, string, error) {
 	// 1. 获取中国区域地图数据
 	areaData, err := a.ReadFile(CHINA_AREA_FILE_PATH, true)
 	if err != nil {
-		return nil, fmt.Errorf("读取中国区域地图文件失败: %v", err)
+		return nil, 0, "", fmt.Errorf("读取中国区域地图文件失败: %v", err)
 	}
 
 	// 解析JSON数据为数组
 	var areaList []interface{}
 	err = json.Unmarshal(areaData, &areaList)
 	if err != nil {
-		return nil, fmt.Errorf("解析中国区域地图数据失败: %v", err)
+		return nil, 0, "", fmt.Errorf("解析中国区域地图数据失败: %v", err)
 	}
 
 	// 2. 获取当前用户区域配置
 	areaConfigResult := a.GetAreaConfig()
 	if !areaConfigResult.Ok {
-		return nil, fmt.Errorf("获取区域配置失败: %s", areaConfigResult.Message)
+		return nil, 0, "", fmt.Errorf("获取区域配置失败: %s", areaConfigResult.Message)
 	}
 
 	areaConfig, ok := areaConfigResult.Data.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("区域配置数据格式错误")
+		return nil, 0, "", fmt.Errorf("区域配置数据格式错误")
 	}
 
-	provinceName := ""
+	areaName := ""
 	cityName := ""
 	countryName := ""
+	provinceName := ""
 
-	if areaConfig["province_name"] != nil {
-		provinceName = fmt.Sprintf("%v", areaConfig["province_name"])
+	dataLevel := 0
+	if areaConfig["country_name"] != nil {
+		countryName = fmt.Sprintf("%v", areaConfig["country_name"])
+		areaName = countryName
+		dataLevel = 3
 	}
 	if areaConfig["city_name"] != nil {
 		cityName = fmt.Sprintf("%v", areaConfig["city_name"])
+		areaName = cityName
+		dataLevel = 2
 	}
-	if areaConfig["country_name"] != nil {
-		countryName = fmt.Sprintf("%v", areaConfig["country_name"])
+	if areaConfig["province_name"] != nil {
+		provinceName = fmt.Sprintf("%v", areaConfig["province_name"])
+		areaName = provinceName
+		dataLevel = 1
 	}
+
+	// 调试信息：打印解析后的区域信息
+	fmt.Printf("解析后的区域信息: provinceName=%s, cityName=%s, countryName=%s, areaName=%s, dataLevel=%d\n",
+		provinceName, cityName, countryName, areaName, dataLevel)
 
 	// 3. 根据当前用户区域查找对应的LocationItem
 	var targetLocation interface{}
-	var count int
 
 	// 查找省份
 	for _, province := range areaList {
@@ -360,15 +372,6 @@ func (a *App) processAttachment2Data() ([]ExportDataItem, error) {
 		if provinceNameFromData == provinceName {
 			// 如果市为空，返回省份的children数量
 			if cityName == "" {
-				if children, exists := provinceMap["children"]; exists && children != nil {
-					if childrenList, ok := children.([]interface{}); ok {
-						count = len(childrenList)
-					} else {
-						count = 0
-					}
-				} else {
-					count = 0
-				}
 				targetLocation = province
 				break
 			}
@@ -390,15 +393,6 @@ func (a *App) processAttachment2Data() ([]ExportDataItem, error) {
 						if cityNameFromData == cityName {
 							// 如果县为空，返回市的children数量
 							if countryName == "" {
-								if cityChildren, exists := cityMap["children"]; exists && cityChildren != nil {
-									if cityChildrenList, ok := cityChildren.([]interface{}); ok {
-										count = len(cityChildrenList)
-									} else {
-										count = 0
-									}
-								} else {
-									count = 0
-								}
 								targetLocation = city
 								break
 							}
@@ -418,8 +412,6 @@ func (a *App) processAttachment2Data() ([]ExportDataItem, error) {
 										}
 
 										if countryNameFromData == countryName {
-											// 县级别，count为1
-											count = 1
 											targetLocation = country
 											break
 										}
@@ -435,21 +427,45 @@ func (a *App) processAttachment2Data() ([]ExportDataItem, error) {
 		}
 	}
 
+	// 如果找不到匹配的区域，尝试使用第一个省份作为默认值
+	if targetLocation == nil && len(areaList) > 0 {
+		fmt.Printf("未找到匹配区域，使用第一个省份作为默认值\n")
+		targetLocation = areaList[0]
+		if provinceName == "" {
+			if firstProvince, ok := areaList[0].(map[string]interface{}); ok {
+				if name, exists := firstProvince["name"]; exists {
+					areaName = fmt.Sprintf("%v", name)
+					dataLevel = 1
+				}
+			}
+		}
+	}
+
+	return targetLocation, dataLevel, areaName, nil
+}
+
+// processAttachment2Data 处理附件2数据
+func (a *App) processAttachment2Data() ([]ExportDataItem, error) {
+	targetLocation, dataLevel, _, err := a.getCurrentUserLocationData()
+	if err != nil {
+		return nil, fmt.Errorf("获取当前用户区域数据失败: %v", err)
+	}
+
 	if targetLocation == nil {
 		return nil, fmt.Errorf("未找到对应的区域信息")
 	}
 
 	// 4. 查询附件2数据，按年份和区域级别分组
 	var groupByField string
-	if countryName != "" {
+	if dataLevel == 3 {
 		// 县不为空，按县分组
 		groupByField = "stat_date, country_name"
-	} else if cityName != "" {
-		// 市不为空，县为空，按市分组
-		groupByField = "stat_date, city_name"
+	} else if dataLevel == 2 {
+		// 市不为空，县为空，按县分组
+		groupByField = "stat_date, country_name"
 	} else {
-		// 省不为空，市和县都为空，按省分组
-		groupByField = "stat_date, province_name"
+		// 省不为空，市和县都为空，按市分组
+		groupByField = "stat_date, city_name"
 	}
 
 	attachment2Query := fmt.Sprintf(`
@@ -503,6 +519,15 @@ func (a *App) processAttachment2Data() ([]ExportDataItem, error) {
 						IsConfirmNo:  isConfirmNo,
 					}
 				}
+			}
+		}
+	}
+
+	var count = 1
+	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+		if children, exists := targetLocationMap["children"]; exists && children != nil {
+			if childrenList, ok := children.([]interface{}); ok {
+				count = len(childrenList)
 			}
 		}
 	}
