@@ -10,13 +10,15 @@
     <CloudUploadOutlined style="font-size: 40px; color: #9ca3af" />
     <p class="drop-text">
       将文件拖到此处，或
-      <a @click="onOpenFileDialog">点击选择文件</a>
+      <a @click="onOpenFileDialog">点击选择文件</a> 或
+      <a @click="onOpenFolderDialog">点击选择文件夹</a>
     </p>
     <a-alert type="warning" style="color: #944310">
       <template #message>
         <slot></slot>
         <div v-if="!$slots.default">
           <div>只能选择Excel文件（.xlsx/.xls），支持批量选择</div>
+          <div>支持一次性拖一个或多个文件Excel文件，以及整个文件夹</div>
           <div>选择文件后，点击上方按钮开始导入</div>
         </div>
       </template>
@@ -40,10 +42,11 @@
 
 <script setup lang="ts">
   import { CloudUploadOutlined, PaperClipOutlined } from '@ant-design/icons-vue';
-  import { OpenFileDialog, OpenSaveDialog, OpenExternal, GetFileInfo } from '@wailsjs/go';
+  import { OpenFileDialog, OpenExternal, GetFileInfo, Readdir } from '@wailsjs/go';
   import { main } from '@wailsjs/models';
-  import { BrowserOpenURL, OnFileDrop, OnFileDropOff, ResolveFilePaths } from '@wailsapp/runtime';
+  import { OnFileDrop, OnFileDropOff } from '@wailsapp/runtime';
   import { EXCEL_TYPES } from '@/views/constant';
+  import {getFileExtension} from '@/util/utils';
 
   const props = defineProps({
     // 验证文件是否有效,默认是excel文件
@@ -70,7 +73,7 @@
 
     // 接受的文件类型,是否允许拖拽,默认是excel文件
     accept: {
-      type: Object,
+      type: [Array, Function],
       required: false,
       default: () => EXCEL_TYPES
     }
@@ -88,9 +91,9 @@
   const hasValidFile = ref(true);
 
   const allFiles: { file: File; valid: boolean }[] = [];
-  // const selectedFiles = ref<EnhancedFile[]>([]);
 
   OnFileDrop((x, y, paths) => {
+    console.log('OnFileDrop==', paths);
     const files: EnhancedFile[] = [];
     allFiles.forEach((item, i) => {
       if (item.valid) {
@@ -113,6 +116,7 @@
     // e.preventDefault();
     // e.stopPropagation();
 
+    console.log('handleDragEnter==', e);
     hasValidFile.value = true;
     if (!e.dataTransfer) {
       return;
@@ -135,7 +139,7 @@
 
       if (isFunction) {
         valid = accept(item, 'dragEnter');
-      } else if (accept.indexOf(item.type) !== -1) {
+      } else if (accept && accept.length && accept.indexOf(item.type) !== -1) {
         // 判断文件类型是否在accept中
         valid = true;
         break;
@@ -159,7 +163,9 @@
     isDragging.value = false;
   };
 
+
   const handleDrop = (e: DragEvent) => {
+    console.log('handleDrop==', e);
     hasValidFile.value = true;
     isDragging.value = false;
 
@@ -182,9 +188,8 @@
       if (isFunction) {
         valid = validFile(file, e);
       } else {
-        const fileName = file.name.toLowerCase();
-        const fileExt = fileName.substring(fileName.lastIndexOf('.') + 1);
-        valid = validFile.indexOf(file.type) !== -1 || validFile.indexOf(fileExt) !== -1;
+        const fileExt = getFileExtension(file.name);
+        valid = validFile.indexOf(file.type) >= 0 || validFile.indexOf(fileExt) >= 0;
       }
       allFiles.push({ file, valid });
     }
@@ -212,6 +217,50 @@
     if (files.length) {
       selectedFiles.value = files;
       emit('file-change', selectedFiles.value);
+    }
+  };
+
+  const onOpenFolderDialog = async () => {
+    const result = await OpenFileDialog(
+      new main.FileDialogOptions({
+        title: props.title,
+        multiSelections: false,
+        openDirectory: true,
+        createDirectory: true
+      })
+    );
+
+    console.log(result);
+    
+    if (result.canceled) {
+      return;
+    }
+
+    const dirResult = await Readdir(result.filePaths[0]);
+    if (dirResult.ok) {
+      const files: EnhancedFile[] = [];
+      const validFile = props.validFile;
+      let valid = false;
+      const isFunction = typeof validFile === 'function';
+
+      for (const filePath of dirResult.data) {
+        const fileInfo = await GetFileInfo(filePath);
+        if (isFunction) {
+          valid = validFile(fileInfo, null);
+        } else {
+          const fileExt = getFileExtension(fileInfo.name);
+          valid = validFile.indexOf(fileExt) >= 0;
+        }
+
+        if (valid) {
+          files.push(fileInfo as unknown as EnhancedFile);
+        }
+      }
+      
+      if (files.length) {
+        selectedFiles.value = files;
+        emit('file-change', selectedFiles.value);
+      }
     }
   };
 

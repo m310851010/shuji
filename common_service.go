@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"shuji/db"
 	"strings"
@@ -176,4 +177,30 @@ func (a *App) GetAreaConfig() db.QueryResult {
 	}
 
 	return db.QueryResult{Ok: true, Message: "未找到区域信息，请先设置区域信息"}
+}
+
+// 获取中国区域信息
+func (a *App) GetChinaAreaMap() (map[string]interface{}, error) {
+	areaData, err := a.ReadFile(CHINA_AREA_FILE_PATH, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// 把json转换为map
+	var areaMap map[string]interface{}
+	err = json.Unmarshal(areaData, &areaMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return areaMap, nil
+}
+
+func (a *App) GetChinaAreaStr() db.QueryResult {
+	areaData, err := a.ReadFile(CHINA_AREA_FILE_PATH, true)
+	if err != nil {
+		return db.QueryResult{Ok: false, Message: "获取区域信息失败: " + err.Error()}
+	}
+
+	return db.QueryResult{Ok: true, Data: string(areaData), Message: "获取成功"}
 }

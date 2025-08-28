@@ -59,7 +59,7 @@
   import { reactive, ref } from 'vue';
   import type { SelectProps } from 'ant-design-vue';
   import View from '@/components/View.vue';
-  import { LOCATION_DATA, LocationItem } from '@/components/loation-data';
+  import { GetChinaAreaStr } from '@wailsjs/go';
   import { SaveAreaConfig } from '@wailsjs/go';
   const router = useRouter();
 
@@ -77,17 +77,24 @@
     firstLogin: true
   });
 
-  const provinceOptions = ref<SelectProps['options']>(
-    LOCATION_DATA.map(item => ({
-      value: item.code,
-      label: item.name
-    }))
-  );
+  let LOCATION_DATA: any[] = [];
+  const provinceOptions = ref<SelectProps['options']>([] );
+
   const cityOptions = ref<SelectProps['options']>([]);
   const districtOptions = ref<SelectProps['options']>([]);
 
-  let selectedProvince: LocationItem | null = null;
-  let selectedCity: LocationItem | null = null;
+  let selectedProvince: any | null = null;
+  let selectedCity: any | null = null;
+
+  onMounted(async () => {
+    const res = await GetChinaAreaStr();
+    LOCATION_DATA = JSON.parse(res.data)
+
+    provinceOptions.value = LOCATION_DATA.map(item => ({
+      value: item.code,
+      label: item.name
+    }))
+  });
 
   const handleProvinceChange = (value: string) => {
     selectedCity = null;
@@ -116,8 +123,12 @@
       formState.district = null;
       return;
     }
-    selectedCity = selectedProvince!.children.find(item => item.code === value)!;
-    districtOptions.value = selectedCity.children.map(item => ({
+    selectedCity = selectedProvince!.children.find((item: any) => item.code === value)!;
+    if (!selectedCity.children) {
+      districtOptions.value = [];
+      return;
+    }
+    districtOptions.value = selectedCity.children.map((item: any) => ({
       value: item.code,
       label: item.name
     }));
@@ -131,8 +142,11 @@
     // 获取区域名称
     const provinceName = selectedProvince?.name || '';
     const cityName = selectedCity?.name || '';
-    const districtName = selectedCity?.children.find(item => item.code === formState.district)?.name || '';
-    
+    let districtName = '';
+    if (selectedCity.children) {
+      districtName = selectedCity.children.find((item: any) => item.code === formState.district)?.name || '';
+    }
+
     SaveAreaConfig({
       province_name: provinceName,
       city_name: cityName,

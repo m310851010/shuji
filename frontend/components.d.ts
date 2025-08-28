@@ -10,6 +10,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AAlert: typeof import('ant-design-vue/es')['Alert']
     AButton: typeof import('ant-design-vue/es')['Button']
+    ACheckbox: typeof import('ant-design-vue/es')['Checkbox']
     AConfigProvider: typeof import('ant-design-vue/es')['ConfigProvider']
     AFlex: typeof import('ant-design-vue/es')['Flex']
     AForm: typeof import('ant-design-vue/es')['Form']

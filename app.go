@@ -335,25 +335,25 @@ func (a *App) Makedir(path string) FlagResult {
 }
 
 // Readdir 读取目录内容
-func (a *App) Readdir(path string) FlagResult {
+func (a *App) Readdir(path string) db.QueryResult {
 	log.Printf("Readdir: %s", path)
 
 	fullPath := GetPath(path)
 
 	files, err := os.ReadDir(fullPath)
 	if err != nil {
-		return FlagResult{false, err.Error()}
+		return db.QueryResult{Ok: false, Message: err.Error()}
 	}
 
 	var result []string
 
 	for _, file := range files {
 		if info, err := file.Info(); err == nil {
-			result = append(result, fmt.Sprintf("%v,%v,%v", info.Name(), info.Size(), info.IsDir()))
+			result = append(result, filepath.Join(fullPath, info.Name()))
 		}
 	}
 
-	return FlagResult{true, strings.Join(result, "|")}
+	return db.QueryResult{Ok: true, Message: "Success", Data: result}
 }
 
 func (a *App) AbsolutePath(path string) FlagResult {

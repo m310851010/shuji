@@ -34,6 +34,10 @@ export function CopyFileToCache(arg1, arg2) {
   return window['go']['main']['App']['CopyFileToCache'](arg1, arg2);
 }
 
+export function CopySystemDb(arg1) {
+  return window['go']['main']['App']['CopySystemDb'](arg1);
+}
+
 export function Copyfile(arg1, arg2) {
   return window['go']['main']['App']['Copyfile'](arg1, arg2);
 }
@@ -56,6 +60,14 @@ export function GetAreaConfig() {
 
 export function GetCachePath(arg1) {
   return window['go']['main']['App']['GetCachePath'](arg1);
+}
+
+export function GetChinaAreaMap() {
+  return window['go']['main']['App']['GetChinaAreaMap']();
+}
+
+export function GetChinaAreaStr() {
+  return window['go']['main']['App']['GetChinaAreaStr']();
 }
 
 export function GetCtx() {
@@ -98,10 +110,6 @@ export function GetImportRecordsByFileType(arg1) {
   return window['go']['main']['App']['GetImportRecordsByFileType'](arg1);
 }
 
-export function GetMergeHistory(arg1, arg2) {
-  return window['go']['main']['App']['GetMergeHistory'](arg1, arg2);
-}
-
 export function GetPasswordInfo() {
   return window['go']['main']['App']['GetPasswordInfo']();
 }
@@ -134,8 +142,8 @@ export function Makedir(arg1) {
   return window['go']['main']['App']['Makedir'](arg1);
 }
 
-export function MergeDatabase(arg1, arg2) {
-  return window['go']['main']['App']['MergeDatabase'](arg1, arg2);
+export function MergeDatabase(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['MergeDatabase'](arg1, arg2, arg3, arg4);
 }
 
 export function ModelDataCheckAttachment2() {
@@ -256,10 +264,6 @@ export function ValidateEnterpriseListFile(arg1) {
 
 export function ValidateKeyEquipmentListFile(arg1) {
   return window['go']['main']['App']['ValidateKeyEquipmentListFile'](arg1);
-}
-
-export function ValidateMergeSource(arg1) {
-  return window['go']['main']['App']['ValidateMergeSource'](arg1);
 }
 
 export function ValidateTable1File(arg1, arg2) {

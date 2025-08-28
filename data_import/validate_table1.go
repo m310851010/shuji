@@ -151,14 +151,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 
 				for j, cell := range rowData {
 					if fieldName, exists := headerMap[j]; exists && fieldName != "" {
-						cleanedValue := s.cleanCellValue(cell)
-						if strings.Contains(fieldName, "consumption") || strings.Contains(fieldName, "value") || strings.Contains(fieldName, "cost") {
-							// 数值字段
-							dataRow[fieldName] = s.parseNumericValue(cleanedValue)
-						} else {
-							// 文本字段
-							dataRow[fieldName] = cleanedValue
-						}
+						dataRow[fieldName] = s.cleanCellValue(cell)
 					}
 				}
 			}
@@ -532,13 +525,6 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 		fieldErrors := s.validateTable1RequiredFieldsWithRowNumbers(data, excelRowNum, excelRowNum2)
 		errors = append(errors, fieldErrors...)
 	}
-
-	return errors
-}
-
-// validateTable1RegionCorrespondence 校验附表1区域对应关系
-func (s *DataImportService) validateTable1RegionCorrespondence(data map[string]interface{}, excelRowNum int) []string {
-	errors := []string{}
 
 	return errors
 }

@@ -433,12 +433,20 @@ func (s *DataImportService) addValidationErrorsToExcel(filePath string, errors [
 
 	// 创建错误信息映射
 	errorMap := make(map[int]string)
+	// 收集所有需要高亮的单元格
+	var allCells []string
+
 	for _, err := range errors {
 		// 如果该行已有错误信息，则追加
 		if existing, exists := errorMap[err.RowNumber]; exists {
 			errorMap[err.RowNumber] = existing + "; " + err.Message
 		} else {
 			errorMap[err.RowNumber] = err.Message
+		}
+
+		// 收集涉及到的单元格
+		if err.Cells != nil {
+			allCells = append(allCells, err.Cells...)
 		}
 	}
 
@@ -450,6 +458,14 @@ func (s *DataImportService) addValidationErrorsToExcel(filePath string, errors [
 
 	// 处理第一个工作表
 	sheetName := sheets[0]
+
+	// 高亮涉及到的单元格
+	if len(allCells) > 0 {
+		err = s.highlightCellsInExcel(f, sheetName, allCells)
+		if err != nil {
+			fmt.Printf("高亮单元格失败: %v\n", err)
+		}
+	}
 
 	// 获取最大列数
 	cols, err := f.GetCols(sheetName)
@@ -546,34 +562,48 @@ func (s *DataImportService) validateTable1MainNumericFields(data map[string]inte
 
 	// ①≧0
 	if annualEnergyEquivalentValue < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗当量值不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_energy_equivalent_value", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗当量值不能为负数", Cells: cells})
 	}
 	if annualEnergyEquivalentCost < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗等价值不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_energy_equivalent_cost", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗等价值不能为负数", Cells: cells})
 	}
 	if annualRawMaterialEnergy < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_raw_material_energy", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能为负数", Cells: cells})
 	}
 
 	// ②≦100000
 	if annualEnergyEquivalentValue > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗当量值不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_energy_equivalent_value", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗当量值不能大于100000", Cells: cells})
 	}
 	if annualEnergyEquivalentCost > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗等价值不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_energy_equivalent_cost", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗等价值不能大于100000", Cells: cells})
 	}
 	if annualRawMaterialEnergy > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_raw_material_energy", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能大于100000", Cells: cells})
 	}
 
 	// ③年原料用能消费量≦年综合能耗当量值
 	if annualRawMaterialEnergy > annualEnergyEquivalentValue {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能大于年综合能耗当量值"})
+		cells := []string{
+			s.getCellPosition(TableType1, "annual_raw_material_energy", rowNum),
+			s.getCellPosition(TableType1, "annual_energy_equivalent_value", rowNum),
+		}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能大于年综合能耗当量值", Cells: cells})
 	}
 
 	// ④年原料用能消费量≦年综合能耗等价值
 	if annualRawMaterialEnergy > annualEnergyEquivalentCost {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能大于年综合能耗等价值"})
+		cells := []string{
+			s.getCellPosition(TableType1, "annual_raw_material_energy", rowNum),
+			s.getCellPosition(TableType1, "annual_energy_equivalent_cost", rowNum),
+		}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用能消费量不能大于年综合能耗等价值", Cells: cells})
 	}
 
 	// 2. 煤炭消费相关字段校验
@@ -587,64 +617,107 @@ func (s *DataImportService) validateTable1MainNumericFields(data map[string]inte
 
 	// ①≧0
 	if annualTotalCoalConsumption < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（实物量）不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_total_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（实物量）不能为负数", Cells: cells})
 	}
 	if annualTotalCoalProducts < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（标准量）不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_total_coal_products", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（标准量）不能为负数", Cells: cells})
 	}
 	if annualRawCoal < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原料用煤（实物量）不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_raw_coal", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原料用煤（实物量）不能为负数", Cells: cells})
 	}
 	if annualRawCoalConsumption < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤消费（实物量）不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_raw_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤消费（实物量）不能为负数", Cells: cells})
 	}
 	if annualCleanCoalConsumption < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤消费（实物量）不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_clean_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤消费（实物量）不能为负数", Cells: cells})
 	}
 	if annualOtherCoalConsumption < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他煤炭消费（实物量）不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_other_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他煤炭消费（实物量）不能为负数", Cells: cells})
 	}
 	if annualCokeConsumption < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费（实物量）不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_coke_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费（实物量）不能为负数", Cells: cells})
 	}
 
 	// ②≦100000
 	if annualTotalCoalConsumption > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（实物量）不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_total_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（实物量）不能大于100000", Cells: cells})
 	}
 	if annualTotalCoalProducts > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（标准量）不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_total_coal_products", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（标准量）不能大于100000", Cells: cells})
 	}
 	if annualRawCoal > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原料用煤（实物量）不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_raw_coal", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原料用煤（实物量）不能大于100000", Cells: cells})
 	}
 	if annualRawCoalConsumption > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤消费（实物量）不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_raw_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤消费（实物量）不能大于100000", Cells: cells})
 	}
 	if annualCleanCoalConsumption > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤消费（实物量）不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_clean_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤消费（实物量）不能大于100000", Cells: cells})
 	}
 	if annualOtherCoalConsumption > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他煤炭消费（实物量）不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_other_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他煤炭消费（实物量）不能大于100000", Cells: cells})
 	}
 	if annualCokeConsumption > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费（实物量）不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_coke_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费（实物量）不能大于100000", Cells: cells})
 	}
 
 	// ③耗煤总量（实物量）≧耗煤总量（标准量）
 	if annualTotalCoalConsumption < annualTotalCoalProducts {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（实物量）不能小于耗煤总量（标准量）"})
+		// 获取涉及到的单元格位置
+		cells := []string{
+			s.getCellPosition(TableType1, "annual_total_coal_consumption", rowNum),
+			s.getCellPosition(TableType1, "annual_total_coal_products", rowNum),
+		}
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "耗煤总量（实物量）不能小于耗煤总量（标准量）",
+			Cells:     cells,
+		})
 	}
 
 	// ④耗煤总量（实物量）≧原料用煤（实物量）
 	if annualTotalCoalConsumption < annualRawCoal {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（实物量）不能小于原料用煤（实物量）"})
+		// 获取涉及到的单元格位置
+		cells := []string{
+			s.getCellPosition(TableType1, "annual_total_coal_consumption", rowNum),
+			s.getCellPosition(TableType1, "annual_raw_coal", rowNum),
+		}
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "耗煤总量（实物量）不能小于原料用煤（实物量）",
+			Cells:     cells,
+		})
 	}
 
 	// ⑤耗煤总量（实物量）=原煤消费（实物量）+洗精煤消费（实物量）+其他煤炭消费（实物量）
 	expectedTotal := annualRawCoalConsumption + annualCleanCoalConsumption + annualOtherCoalConsumption
 	if annualTotalCoalConsumption != expectedTotal {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（实物量）应等于原煤消费+洗精煤消费+其他煤炭消费"})
+		// 获取涉及到的单元格位置
+		cells := []string{
+			s.getCellPosition(TableType1, "annual_total_coal_consumption", rowNum),
+			s.getCellPosition(TableType1, "annual_raw_coal_consumption", rowNum),
+			s.getCellPosition(TableType1, "annual_clean_coal_consumption", rowNum),
+			s.getCellPosition(TableType1, "annual_other_coal_consumption", rowNum),
+		}
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "耗煤总量（实物量）应等于原煤消费+洗精煤消费+其他煤炭消费",
+			Cells:     cells,
+		})
 	}
 
 	return errors
@@ -661,12 +734,30 @@ func (s *DataImportService) validateTable1EnergyCoalRelation(data map[string]int
 
 	// 年综合能耗当量值≧耗煤总量（标准量）
 	if annualEnergyEquivalentValue < annualTotalCoalProducts {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗当量值应大于等于耗煤总量（标准量）"})
+		// 获取涉及到的单元格位置
+		cells := []string{
+			s.getCellPosition(TableType1, "annual_energy_equivalent_value", rowNum),
+			s.getCellPosition(TableType1, "annual_total_coal_products", rowNum),
+		}
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年综合能耗当量值应大于等于耗煤总量（标准量）",
+			Cells:     cells,
+		})
 	}
 
 	// 年综合能耗等价值≧耗煤总量（标准量）
 	if annualEnergyEquivalentCost < annualTotalCoalProducts {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年综合能耗等价值应大于等于耗煤总量（标准量）"})
+		// 获取涉及到的单元格位置
+		cells := []string{
+			s.getCellPosition(TableType1, "annual_energy_equivalent_cost", rowNum),
+			s.getCellPosition(TableType1, "annual_total_coal_products", rowNum),
+		}
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "年综合能耗等价值应大于等于耗煤总量（标准量）",
+			Cells:     cells,
+		})
 	}
 
 	return errors
@@ -682,17 +773,20 @@ func (s *DataImportService) validateTable1UsageNumericFields(data map[string]int
 
 	// ①投入量≧0
 	if inputQuantity < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "投入量不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "input_quantity", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "投入量不能为负数", Cells: cells})
 	}
 
 	// ②投入量≦100000
 	if inputQuantity > 100000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "投入量不能大于100000"})
+		cells := []string{s.getCellPosition(TableType1, "input_quantity", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "投入量不能大于100000", Cells: cells})
 	}
 
 	// 产出量≧0
 	if outputQuantity < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "产出量不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "output_quantity", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "产出量不能为负数", Cells: cells})
 	}
 
 	return errors
@@ -712,42 +806,51 @@ func (s *DataImportService) validateTable1EquipNumericFields(data map[string]int
 	// 1. 累计使用时间、设计年限校验
 	// 应为0-50（含0和50）间的整数
 	if totalRuntime < 0 || totalRuntime > 50 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应在0-50之间"})
+		cells := []string{s.getCellPosition(TableType1, "total_runtime", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应在0-50之间", Cells: cells})
 	}
 	if totalRuntime != float64(int(totalRuntime)) {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应为整数"})
+		cells := []string{s.getCellPosition(TableType1, "total_runtime", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应为整数", Cells: cells})
 	}
 
 	if designLife < 0 || designLife > 50 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应在0-50之间"})
+		cells := []string{s.getCellPosition(TableType1, "design_life", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应在0-50之间", Cells: cells})
 	}
 	if designLife != float64(int(designLife)) {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应为整数"})
+		cells := []string{s.getCellPosition(TableType1, "design_life", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应为整数", Cells: cells})
 	}
 
 	// 2. 容量校验
 	// 应为正整数
 	if capacity < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "capacity", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量不能为负数", Cells: cells})
 	}
 	if capacity != float64(int(capacity)) {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量应为整数"})
+		cells := []string{s.getCellPosition(TableType1, "capacity", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量应为整数", Cells: cells})
 	}
 
 	// 3. 年耗煤量校验
 	// ①≧0
 	if annualCoalConsumption < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "annual_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能为负数", Cells: cells})
 	}
 
 	// ②≦1000000000
 	if annualCoalConsumption > 1000000000 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能大于1000000000"})
+		cells := []string{s.getCellPosition(TableType1, "annual_coal_consumption", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能大于1000000000", Cells: cells})
 	}
 
 	// 能效水平校验（保持原有的非负校验）
 	if energyEfficiency < 0 {
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "能效水平不能为负数"})
+		cells := []string{s.getCellPosition(TableType1, "energy_efficiency", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "能效水平不能为负数", Cells: cells})
 	}
 
 	return errors

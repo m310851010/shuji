@@ -20,6 +20,8 @@ export function ConfirmDataTable3(arg1:Array<string>):Promise<db.QueryResult>;
 
 export function CopyFileToCache(arg1:string,arg2:string):Promise<db.QueryResult>;
 
+export function CopySystemDb(arg1:string):Promise<db.Database>;
+
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
 
 export function ExitApp():Promise<void>;
@@ -31,6 +33,10 @@ export function FileExists(arg1:string):Promise<main.FlagResult>;
 export function GetAreaConfig():Promise<db.QueryResult>;
 
 export function GetCachePath(arg1:string):Promise<string>;
+
+export function GetChinaAreaMap():Promise<Record<string, any>>;
+
+export function GetChinaAreaStr():Promise<db.QueryResult>;
 
 export function GetCtx():Promise<context.Context>;
 
@@ -52,8 +58,6 @@ export function GetImportProcess(arg1:string):Promise<main.ImportProcess>;
 
 export function GetImportRecordsByFileType(arg1:string):Promise<db.QueryResult>;
 
-export function GetMergeHistory(arg1:number,arg2:number):Promise<any>;
-
 export function GetPasswordInfo():Promise<db.QueryResult>;
 
 export function ImportEnterpriseList(arg1:string):Promise<db.QueryResult>;
@@ -70,7 +74,7 @@ export function Login(arg1:string):Promise<db.QueryResult>;
 
 export function Makedir(arg1:string):Promise<main.FlagResult>;
 
-export function MergeDatabase(arg1:string,arg2:string):Promise<main.MergeResult>;
+export function MergeDatabase(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<db.QueryResult>;
 
 export function ModelDataCheckAttachment2():Promise<db.QueryResult>;
 
@@ -112,7 +116,7 @@ export function QueryExportData():Promise<db.QueryResult>;
 
 export function ReadFile(arg1:string,arg2:boolean):Promise<Array<number>>;
 
-export function Readdir(arg1:string):Promise<main.FlagResult>;
+export function Readdir(arg1:string):Promise<db.QueryResult>;
 
 export function Removefile(arg1:string):Promise<main.FlagResult>;
 
@@ -131,8 +135,6 @@ export function ValidateAttachment2File(arg1:string,arg2:boolean):Promise<db.Que
 export function ValidateEnterpriseListFile(arg1:string):Promise<db.QueryResult>;
 
 export function ValidateKeyEquipmentListFile(arg1:string):Promise<db.QueryResult>;
-
-export function ValidateMergeSource(arg1:string):Promise<any>;
 
 export function ValidateTable1File(arg1:string,arg2:boolean):Promise<db.QueryResult>;
 

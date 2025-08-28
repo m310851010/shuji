@@ -68,3 +68,11 @@ export function getFileName(filePath: string) {
   filePath = filePath.replace(/\\/g, '/');
   return filePath.split('/').pop() || '';
 }
+
+/**
+ * 获取文件扩展名
+ * @param filePath
+ */
+export function getFileExtension(filePath: string) {
+  return filePath.substring(filePath.lastIndexOf('.') + 1).toLowerCase();
+}
