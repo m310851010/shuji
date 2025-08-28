@@ -25,13 +25,27 @@
 </template>
 
 <script setup lang="tsx">
-  import { message, TableColumnType, Tag } from 'ant-design-vue';
+  import { message, TableColumnType, Tag, Spin } from 'ant-design-vue';
   import { useTableHeight } from '@/hook';
   import { TableType } from '@/views/constant';
-  import { QueryTable1Process, QueryTable2Process, QueryTable3Process, QueryTableAttachment2Process } from '@wailsjs/go';
-  import { db } from '@wailsjs/models';
+  import {
+    OpenSaveDialog,
+    QueryTable1Process,
+    QueryTable2Process,
+    QueryTable3Process,
+    QueryTableAttachment2Process,
+    ExportTable1ProgressToExcel,
+    ExportTable2ProgressToExcel,
+    ExportTable3ProgressToExcel,
+    ExportAttachment2ProgressToExcel,
+    GetCachePath,
+    Removefile,
+    Movefile
+  } from '@wailsjs/go';
+  import { db, main } from '@wailsjs/models';
   import { newColumns } from '@/util';
   import { Table3Columns } from '@/views/main/components/columns';
+  import dayjs from 'dayjs';
 
   const props = defineProps({
     tableType: {
@@ -158,8 +172,39 @@
   const dataSource = ref<any>([]);
 
   // 处理导出按钮点击
-  const handleExportClick = () => {
-    // 导出当前表格数据
+  const handleExportClick = async () => {
+    if (!dataSource.value.length) {
+      message.error('导入进度没有数据，不能导出');
+      return;
+    }
+
+    const now = Date.now() + '' + Math.random();
+    const retPath = (await GetCachePath('')) + '/导出进度' + now + '.xlsx';
+
+    const fn = {
+      [TableType.table1]: () => ExportTable1ProgressToExcel(retPath),
+      [TableType.table2]: () => ExportTable2ProgressToExcel(retPath),
+      [TableType.table3]: () => ExportTable3ProgressToExcel(retPath),
+      [TableType.attachment2]: () => ExportAttachment2ProgressToExcel(retPath)
+    }[props.tableType];
+    const res = await fn();
+    if (res.ok) {
+      const ret = await OpenSaveDialog(
+        new main.FileDialogOptions({
+          title: '选择导出文件路径',
+          defaultFilename: `导出进度${dayjs().format('YYYY-MM-DD HH-mm')}.xlsx`
+        })
+      );
+      if (ret.canceled) {
+        await Removefile(retPath);
+        return;
+      }
+      const filePath = ret.filePaths[0];
+      await Movefile(retPath, filePath);
+      message.success('导出成功');
+    } else {
+      message.error(res.message);
+    }
   };
 
   interface ProcessData {

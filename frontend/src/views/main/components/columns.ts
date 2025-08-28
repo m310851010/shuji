@@ -1,4 +1,4 @@
-export const Table3Columns = [
+export const Table3Columns: any = [
   {
     title: '项目名称',
     dataIndex: 'project_name',

@@ -10,7 +10,8 @@
     <CloudUploadOutlined style="font-size: 40px; color: #9ca3af" />
     <p class="drop-text">
       将文件拖到此处，或
-      <a @click="onOpenFileDialog">点击选择文件</a> 或
+      <a @click="onOpenFileDialog">点击选择文件</a>
+      或
       <a @click="onOpenFolderDialog">点击选择文件夹</a>
     </p>
     <a-alert type="warning" style="color: #944310">
@@ -46,7 +47,7 @@
   import { main } from '@wailsjs/models';
   import { OnFileDrop, OnFileDropOff } from '@wailsapp/runtime';
   import { EXCEL_TYPES } from '@/views/constant';
-  import {getFileExtension} from '@/util/utils';
+  import { getFileExtension } from '@/util/utils';
 
   const props = defineProps({
     // 验证文件是否有效,默认是excel文件
@@ -92,16 +93,23 @@
 
   const allFiles: { file: File; valid: boolean }[] = [];
 
-  OnFileDrop((x, y, paths) => {
-    console.log('OnFileDrop==', paths);
+  OnFileDrop(async (x, y, paths) => {
     const files: EnhancedFile[] = [];
-    allFiles.forEach((item, i) => {
+    for (let i = 0; i < allFiles.length; i++) {
+      const item = allFiles[i];
       if (item.valid) {
         const fullPath = paths[i];
-        Object.assign(item.file, { isDirectory: false, isFile: true, fullPath });
-        files.push(item.file as EnhancedFile);
+        const fileInfo = await GetFileInfo(fullPath);
+        if (fileInfo.isDirectory) {
+          const _files: EnhancedFile[] = await getFilesDir(fullPath);
+          files.push(..._files);
+        } else {
+          Object.assign(item.file, { isDirectory: false, isFile: true, fullPath });
+          files.push(item.file as EnhancedFile);
+        }
       }
-    });
+    }
+
     if (files.length) {
       selectedFiles.value = files;
       emit('file-change', selectedFiles.value);
@@ -116,7 +124,6 @@
     // e.preventDefault();
     // e.stopPropagation();
 
-    console.log('handleDragEnter==', e);
     hasValidFile.value = true;
     if (!e.dataTransfer) {
       return;
@@ -128,6 +135,7 @@
       return;
     }
 
+    console.log(items);
     const accept = props.accept;
     let valid = false;
     const isFunction = typeof accept === 'function';
@@ -135,6 +143,11 @@
       const item = items[i];
       if (item.kind !== 'file') {
         continue;
+      }
+
+      if (!item.type) {
+        valid = true;
+        break;
       }
 
       if (isFunction) {
@@ -163,7 +176,6 @@
     isDragging.value = false;
   };
 
-
   const handleDrop = (e: DragEvent) => {
     console.log('handleDrop==', e);
     hasValidFile.value = true;
@@ -184,6 +196,10 @@
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (file.type === '' && file.size % 4096 === 0) {
+        allFiles.push({ file, valid: true });
+        return;
+      }
 
       if (isFunction) {
         valid = validFile(file, e);
@@ -230,39 +246,44 @@
       })
     );
 
-    console.log(result);
-    
     if (result.canceled) {
       return;
     }
 
-    const dirResult = await Readdir(result.filePaths[0]);
-    if (dirResult.ok) {
-      const files: EnhancedFile[] = [];
-      const validFile = props.validFile;
-      let valid = false;
-      const isFunction = typeof validFile === 'function';
-
-      for (const filePath of dirResult.data) {
-        const fileInfo = await GetFileInfo(filePath);
-        if (isFunction) {
-          valid = validFile(fileInfo, null);
-        } else {
-          const fileExt = getFileExtension(fileInfo.name);
-          valid = validFile.indexOf(fileExt) >= 0;
-        }
-
-        if (valid) {
-          files.push(fileInfo as unknown as EnhancedFile);
-        }
-      }
-      
-      if (files.length) {
-        selectedFiles.value = files;
-        emit('file-change', selectedFiles.value);
-      }
+    const files: EnhancedFile[] = await getFilesDir(result.filePaths[0]);
+    if (files.length) {
+      selectedFiles.value = files;
+      emit('file-change', selectedFiles.value);
     }
   };
+
+  async function getFilesDir(dirPath: string) {
+    const dirResult = await Readdir(dirPath);
+    if (!dirResult.ok) {
+      return [];
+    }
+
+    const files: EnhancedFile[] = [];
+    const validFile = props.validFile;
+    let valid = false;
+    const isFunction = typeof validFile === 'function';
+
+    for (const filePath of dirResult.data) {
+      const fileInfo = await GetFileInfo(filePath);
+      if (isFunction) {
+        valid = validFile(fileInfo, null);
+      } else {
+        const fileExt = getFileExtension(fileInfo.name);
+        valid = validFile.indexOf(fileExt) >= 0;
+      }
+
+      if (valid) {
+        files.push(fileInfo as unknown as EnhancedFile);
+      }
+    }
+
+    return files;
+  }
 
   // 移除文件
   const removeFile = (index: number) => {

@@ -42,8 +42,24 @@ export function ExitApp() {
   return window['go']['main']['App']['ExitApp']();
 }
 
+export function ExportAttachment2ProgressToExcel(arg1) {
+  return window['go']['main']['App']['ExportAttachment2ProgressToExcel'](arg1);
+}
+
 export function ExportDBData(arg1) {
   return window['go']['main']['App']['ExportDBData'](arg1);
+}
+
+export function ExportTable1ProgressToExcel(arg1) {
+  return window['go']['main']['App']['ExportTable1ProgressToExcel'](arg1);
+}
+
+export function ExportTable2ProgressToExcel(arg1) {
+  return window['go']['main']['App']['ExportTable2ProgressToExcel'](arg1);
+}
+
+export function ExportTable3ProgressToExcel(arg1) {
+  return window['go']['main']['App']['ExportTable3ProgressToExcel'](arg1);
 }
 
 export function FileExists(arg1) {

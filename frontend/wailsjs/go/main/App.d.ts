@@ -24,7 +24,15 @@ export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
 
 export function ExitApp():Promise<void>;
 
+export function ExportAttachment2ProgressToExcel(arg1:string):Promise<db.QueryResult>;
+
 export function ExportDBData(arg1:string):Promise<db.QueryResult>;
+
+export function ExportTable1ProgressToExcel(arg1:string):Promise<db.QueryResult>;
+
+export function ExportTable2ProgressToExcel(arg1:string):Promise<db.QueryResult>;
+
+export function ExportTable3ProgressToExcel(arg1:string):Promise<db.QueryResult>;
 
 export function FileExists(arg1:string):Promise<main.FlagResult>;
 

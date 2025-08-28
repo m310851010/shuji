@@ -4,16 +4,150 @@ import (
 	"fmt"
 	"shuji/db"
 	"strings"
+
+	"github.com/xuri/excelize/v2"
 )
 
-// 导入进度
+// Excel样式常量
+const (
+	HeaderBackgroundColor      = "D3D3D3" // 浅灰色
+	HeaderFontColor            = "000000" // 黑色
+	ImportedBackgroundColor    = "00B050" // 绿色
+	NotImportedBackgroundColor = "FF0000" // 红色
+	WhiteFontColor             = "FFFFFF" // 白色
+)
 
-// EnterpriseRecordStatus 企业记录状态结构
-type EnterpriseRecordStatus struct {
-	UnitName   string `json:"unit_name"`   // 企业名称
-	CreditCode string `json:"credit_code"` // 企业代码
-	// 动态年份字段将在运行时添加
+// createHeaderStyle 创建表头样式
+func createHeaderStyle(f *excelize.File) (int, error) {
+	return f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold:  true,
+			Size:  12,
+			Color: HeaderFontColor,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{HeaderBackgroundColor},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+	})
 }
+
+// createDataStyle 创建数据样式
+func createDataStyle(f *excelize.File) (int, error) {
+	return f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Size: 11,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+	})
+}
+
+// createImportedStyle 创建已导入样式（绿色）
+func createImportedStyle(f *excelize.File) (int, error) {
+	return f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Size:  11,
+			Color: WhiteFontColor,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{ImportedBackgroundColor},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+	})
+}
+
+// createNotImportedStyle 创建未导入样式（红色）
+func createNotImportedStyle(f *excelize.File) (int, error) {
+	return f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Size:  11,
+			Color: WhiteFontColor,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{NotImportedBackgroundColor},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+	})
+}
+
+// applyCommonStyles 应用通用样式设置
+func applyCommonStyles(f *excelize.File, headers []string) (int, int, int, int, error) {
+	// 创建样式
+	headerStyle, err := createHeaderStyle(f)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	dataStyle, err := createDataStyle(f)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	importedStyle, err := createImportedStyle(f)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	notImportedStyle, err := createNotImportedStyle(f)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	// 应用表头样式
+	for i := range headers {
+		cellName, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellStyle("Sheet1", cellName, cellName, headerStyle)
+	}
+
+	// 设置行高
+	f.SetRowHeight("Sheet1", 1, 25) // 表头行高
+
+	return headerStyle, dataStyle, importedStyle, notImportedStyle, nil
+}
+
+// 导入进度
 
 // QueryTable1Process 查询附表1的导入进度
 func (a *App) QueryTable1Process() db.QueryResult {
@@ -512,7 +646,22 @@ func (a *App) QueryTableAttachment2Process() db.QueryResult {
 	// 2. 根据区域级别决定查询逻辑
 	if dataLevel == 3 {
 		// 县级别：查询所有表数据，返回所有字段
-		return a.QueryDataAttachment2()
+
+		ret := a.QueryDataAttachment2()
+		if !ret.Ok || ret.Data == nil {
+			result.Ok = false
+			result.Message = "查询附表3数据失败: " + ret.Message
+			return result
+			return ret
+		}
+		// 这里ret.Data是[]map[string]interface{}，需要包装成本函数的Data结构
+		result.Ok = true
+		result.Data = map[string]interface{}{
+			"list":       ret.Data,
+			"area_level": 3,
+		}
+		result.Message = "查询成功"
+		return result
 	} else if dataLevel == 2 {
 		// 市级别：以县+年份分组
 		return a.queryAttachment2CityLevel(targetLocation)
@@ -739,5 +888,933 @@ func (a *App) queryAttachment2ProvinceLevel(targetLocation interface{}) db.Query
 	}
 	result.Message = "查询成功"
 
+	return result
+}
+
+// ExportTable1ProgressToExcel 导出附表1导入进度到Excel
+func (a *App) ExportTable1ProgressToExcel(filePath string) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 1. 获取附表1导入进度数据
+	progressResult := a.QueryTable1Process()
+	if !progressResult.Ok {
+		result.Ok = false
+		result.Message = "获取导入进度失败: " + progressResult.Message
+		return result
+	}
+
+	if progressResult.Data == nil {
+		result.Ok = false
+		result.Message = "获取导入进度失败: 导入进度没有数据"
+		return result
+	}
+
+	progressData, ok := progressResult.Data.(map[string]interface{})
+	if !ok {
+		result.Ok = false
+		result.Message = "导入进度数据格式错误"
+		return result
+	}
+
+	list, ok := progressData["list"].([]map[string]interface{})
+	if !ok {
+		result.Ok = false
+		result.Message = "导入进度列表数据格式错误"
+		return result
+	}
+
+	years, ok := progressData["years"].([]string)
+	if !ok {
+		result.Ok = false
+		result.Message = "导入进度年份数据格式错误"
+		return result
+	}
+
+	// 2. 创建Excel文件
+	f := excelize.NewFile()
+	defer f.Close()
+
+	// 3. 设置表头
+	headers := []string{"企业", "企业代码"}
+	for _, year := range years {
+		headers = append(headers, year+"年数据")
+	}
+
+	// 写入表头
+	for i, header := range headers {
+		cellName, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue("Sheet1", cellName, header)
+	}
+
+	// 4. 设置样式
+	_, dataStyle, importedStyle, notImportedStyle, err := applyCommonStyles(f, headers)
+	if err != nil {
+		result.Ok = false
+		result.Message = "创建样式失败: " + err.Error()
+		return result
+	}
+
+	// 设置列宽
+	f.SetColWidth("Sheet1", "A", "A", 25) // 企业名称
+	f.SetColWidth("Sheet1", "B", "B", 25) // 企业代码
+	for i := range years {
+		colName, _ := excelize.ColumnNumberToName(i + 3)
+		f.SetColWidth("Sheet1", colName, colName, 15) // 年份列
+	}
+
+	// 5. 写入数据
+	for rowIndex, item := range list {
+		row := rowIndex + 2 // 从第2行开始写入数据
+
+		// 企业名称
+		if unitName, ok := item["unit_name"].(string); ok {
+			cellName, _ := excelize.CoordinatesToCellName(1, row)
+			f.SetCellValue("Sheet1", cellName, unitName)
+		}
+
+		// 企业代码
+		if creditCode, ok := item["credit_code"].(string); ok {
+			cellName, _ := excelize.CoordinatesToCellName(2, row)
+			f.SetCellValue("Sheet1", cellName, creditCode)
+		}
+
+		// 年份数据
+		for yearIndex, year := range years {
+			col := yearIndex + 3 // 从第3列开始写入年份数据
+			cellName, _ := excelize.CoordinatesToCellName(col, row)
+
+			if hasData, ok := item[year].(bool); ok && hasData {
+				f.SetCellValue("Sheet1", cellName, "已导入")
+				f.SetCellStyle("Sheet1", cellName, cellName, importedStyle)
+			} else {
+				f.SetCellValue("Sheet1", cellName, "未导入")
+				f.SetCellStyle("Sheet1", cellName, cellName, notImportedStyle)
+			}
+		}
+
+		// 应用数据样式到前两列（企业名称和企业代码）
+		startCell, _ := excelize.CoordinatesToCellName(1, row)
+		endCell, _ := excelize.CoordinatesToCellName(2, row)
+		f.SetCellStyle("Sheet1", startCell, endCell, dataStyle)
+
+		// 设置数据行高
+		f.SetRowHeight("Sheet1", row, 20)
+	}
+
+	// 5. 保存文件
+	err = f.SaveAs(filePath)
+	if err != nil {
+		result.Ok = false
+		result.Message = "保存Excel文件失败: " + err.Error()
+		return result
+	}
+
+	result.Ok = true
+	result.Message = "导入进度导出成功"
+	return result
+}
+
+// ExportTable2ProgressToExcel 导出附表2导入进度到Excel
+func (a *App) ExportTable2ProgressToExcel(filePath string) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 1. 获取附表2导入进度数据
+	progressResult := a.QueryTable2Process()
+	if !progressResult.Ok {
+		result.Ok = false
+		result.Message = "获取附表2导入进度失败: " + progressResult.Message
+		return result
+	}
+
+	progressData, ok := progressResult.Data.(map[string]interface{})
+	if !ok {
+		result.Ok = false
+		result.Message = "附表2导入进度数据格式错误"
+		return result
+	}
+
+	list, ok := progressData["list"].([]map[string]interface{})
+	if !ok {
+		result.Ok = false
+		result.Message = "附表2导入进度列表数据格式错误"
+		return result
+	}
+
+	years, ok := progressData["years"].([]string)
+	if !ok {
+		result.Ok = false
+		result.Message = "附表2导入进度年份数据格式错误"
+		return result
+	}
+
+	// 2. 创建Excel文件
+	f := excelize.NewFile()
+	defer f.Close()
+
+	// 3. 设置表头
+	headers := []string{"企业"}
+	for _, year := range years {
+		headers = append(headers, year+"年数据")
+	}
+
+	// 写入表头
+	for i, header := range headers {
+		cellName, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue("Sheet1", cellName, header)
+	}
+
+	// 4. 设置样式
+	_, dataStyle, importedStyle, notImportedStyle, err := applyCommonStyles(f, headers)
+	if err != nil {
+		result.Ok = false
+		result.Message = "创建样式失败: " + err.Error()
+		return result
+	}
+
+	// 设置列宽
+	f.SetColWidth("Sheet1", "A", "A", 25) // 企业
+	for i := range years {
+		colName, _ := excelize.ColumnNumberToName(i + 2)
+		f.SetColWidth("Sheet1", colName, colName, 15) // 年份列
+	}
+
+	// 4. 写入数据
+	for rowIndex, item := range list {
+		row := rowIndex + 2 // 从第2行开始写入数据
+
+		// 企业名称
+		if areaName, ok := item["area_name"].(string); ok {
+			cellName, _ := excelize.CoordinatesToCellName(1, row)
+			f.SetCellValue("Sheet1", cellName, areaName)
+		}
+
+		// 年份数据
+		for yearIndex, year := range years {
+			col := yearIndex + 2 // 从第2列开始写入年份数据
+			cellName, _ := excelize.CoordinatesToCellName(col, row)
+
+			if hasData, ok := item[year].(bool); ok && hasData {
+				f.SetCellValue("Sheet1", cellName, "已导入")
+				f.SetCellStyle("Sheet1", cellName, cellName, importedStyle)
+			} else {
+				f.SetCellValue("Sheet1", cellName, "未导入")
+				f.SetCellStyle("Sheet1", cellName, cellName, notImportedStyle)
+			}
+		}
+
+		// 应用数据样式到第一列（企业名称）
+		startCell, _ := excelize.CoordinatesToCellName(1, row)
+		endCell, _ := excelize.CoordinatesToCellName(1, row)
+		f.SetCellStyle("Sheet1", startCell, endCell, dataStyle)
+
+		// 设置数据行高
+		f.SetRowHeight("Sheet1", row, 20)
+	}
+
+	// 5. 保存文件
+	err = f.SaveAs(filePath)
+	if err != nil {
+		result.Ok = false
+		result.Message = "保存Excel文件失败: " + err.Error()
+		return result
+	}
+
+	result.Ok = true
+	result.Message = "附表2导入进度导出成功"
+	return result
+}
+
+// ExportTable3ProgressToExcel 导出附表3导入进度到Excel
+func (a *App) ExportTable3ProgressToExcel(filePath string) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 1. 获取附表3导入进度数据
+	progressResult := a.QueryTable3Process()
+	if !progressResult.Ok {
+		result.Ok = false
+		result.Message = "获取附表3导入进度失败: " + progressResult.Message
+		return result
+	}
+
+	progressData, ok := progressResult.Data.(map[string]interface{})
+	if !ok {
+		result.Ok = false
+		result.Message = "附表3导入进度数据格式错误"
+		return result
+	}
+
+	areaLevel, ok := progressData["area_level"].(int)
+	if !ok {
+		result.Ok = false
+		result.Message = "附表3区域级别数据格式错误"
+		return result
+	}
+
+	list, ok := progressData["list"].([]map[string]interface{})
+	if !ok {
+		result.Ok = false
+		result.Message = "附表3导入进度列表数据格式错误"
+		return result
+	}
+
+	// 2. 创建Excel文件
+	f := excelize.NewFile()
+	defer f.Close()
+
+	if areaLevel == 3 {
+		// 县级别：导出所有数据
+		// 3. 设置表头
+		headers := []string{
+			"项目名称", "项目代码", "建设单位", "主要建设内容", "项目所在省", "项目所在地市", "项目所在区县",
+			"所属行业大类", "所属行业小类", "节能审查批复时间", "拟投产时间", "实际投产时间", "节能审查机关", "审查意见文号",
+			"年综合能源消费量（万吨标准煤）-当量值", "年综合能源消费量（万吨标准煤）-等价值",
+			"年煤品消费量（万吨，实物量）-煤品消费总量", "年煤品消费量（万吨，实物量）-煤炭消费量", "年煤品消费量（万吨，实物量）-焦炭消费量", "年煤品消费量（万吨，实物量）-兰炭消费量",
+			"年煤品消费量（万吨标准煤，折标量）-煤品消费总量", "年煤品消费量（万吨标准煤，折标量）-煤炭消费量", "年煤品消费量（万吨标准煤，折标量）-焦炭消费量", "年煤品消费量（万吨标准煤，折标量）-兰炭消费量",
+			"煤炭消费替代情况-是否煤炭消费替代", "煤炭消费替代情况-煤炭消费替代来源", "煤炭消费替代情况-煤炭消费替代量",
+			"原料用煤情况-年原料用煤量（万吨，实物量）", "原料用煤情况-年原料用煤量（万吨标准煤，折标量）",
+		}
+
+		// 写入表头
+		for i, header := range headers {
+			cellName, _ := excelize.CoordinatesToCellName(i+1, 1)
+			f.SetCellValue("Sheet1", cellName, header)
+		}
+
+		// 4. 设置样式
+		_, dataStyle, _, _, err := applyCommonStyles(f, headers)
+		if err != nil {
+			result.Ok = false
+			result.Message = "创建样式失败: " + err.Error()
+			return result
+		}
+
+		// 设置列宽
+		f.SetColWidth("Sheet1", "A", "A", 25)   // 项目名称
+		f.SetColWidth("Sheet1", "B", "B", 20)   // 项目代码
+		f.SetColWidth("Sheet1", "C", "C", 25)   // 建设单位
+		f.SetColWidth("Sheet1", "D", "D", 30)   // 主要建设内容
+		f.SetColWidth("Sheet1", "E", "E", 15)   // 项目所在省
+		f.SetColWidth("Sheet1", "F", "F", 15)   // 项目所在地市
+		f.SetColWidth("Sheet1", "G", "G", 15)   // 项目所在区县
+		f.SetColWidth("Sheet1", "H", "H", 20)   // 所属行业大类
+		f.SetColWidth("Sheet1", "I", "I", 20)   // 所属行业小类
+		f.SetColWidth("Sheet1", "J", "J", 20)   // 节能审查批复时间
+		f.SetColWidth("Sheet1", "K", "K", 20)   // 拟投产时间
+		f.SetColWidth("Sheet1", "L", "L", 20)   // 实际投产时间
+		f.SetColWidth("Sheet1", "M", "M", 25)   // 节能审查机关
+		f.SetColWidth("Sheet1", "N", "N", 20)   // 审查意见文号
+		f.SetColWidth("Sheet1", "O", "O", 15)   // 年综合能源消费量-当量值
+		f.SetColWidth("Sheet1", "P", "P", 15)   // 年综合能源消费量-等价值
+		f.SetColWidth("Sheet1", "Q", "Q", 15)   // 年煤品消费量-煤品消费总量
+		f.SetColWidth("Sheet1", "R", "R", 15)   // 年煤品消费量-煤炭消费量
+		f.SetColWidth("Sheet1", "S", "S", 15)   // 年煤品消费量-焦炭消费量
+		f.SetColWidth("Sheet1", "T", "T", 15)   // 年煤品消费量-兰炭消费量
+		f.SetColWidth("Sheet1", "U", "U", 15)   // 年煤品消费量折标量-煤品消费总量
+		f.SetColWidth("Sheet1", "V", "V", 15)   // 年煤品消费量折标量-煤炭消费量
+		f.SetColWidth("Sheet1", "W", "W", 15)   // 年煤品消费量折标量-焦炭消费量
+		f.SetColWidth("Sheet1", "X", "X", 15)   // 年煤品消费量折标量-兰炭消费量
+		f.SetColWidth("Sheet1", "Y", "Y", 15)   // 煤炭消费替代情况-是否煤炭消费替代
+		f.SetColWidth("Sheet1", "Z", "Z", 20)   // 煤炭消费替代情况-煤炭消费替代来源
+		f.SetColWidth("Sheet1", "AA", "AA", 20) // 煤炭消费替代情况-煤炭消费替代量
+		f.SetColWidth("Sheet1", "AB", "AB", 20) // 原料用煤情况-年原料用煤量实物量
+		f.SetColWidth("Sheet1", "AC", "AC", 20) // 原料用煤情况-年原料用煤量折标量
+
+		// 4. 写入数据
+		for rowIndex, item := range list {
+			row := rowIndex + 2 // 从第2行开始写入数据
+			col := 1
+
+			// 项目名称
+			if value, ok := item["project_name"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 项目代码
+			if value, ok := item["project_code"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 建设单位
+			if value, ok := item["construction_unit"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 主要建设内容
+			if value, ok := item["main_construction_content"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 项目所在省
+			if value, ok := item["province_name"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 项目所在地市
+			if value, ok := item["city_name"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 项目所在区县
+			if value, ok := item["country_name"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 所属行业大类
+			if value, ok := item["trade_a"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 所属行业小类
+			if value, ok := item["trade_c"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 节能审查批复时间
+			if value, ok := item["examination_approval_time"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 拟投产时间
+			if value, ok := item["scheduled_time"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 实际投产时间
+			if value, ok := item["actual_time"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 节能审查机关
+			if value, ok := item["examination_authority"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 审查意见文号
+			if value, ok := item["document_number"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年综合能源消费量（万吨标准煤）-当量值
+			if value, ok := item["equivalent_value"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年综合能源消费量（万吨标准煤）-等价值
+			if value, ok := item["equivalent_cost"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年煤品消费量（万吨，实物量）-煤品消费总量
+			if value, ok := item["pq_total_coal_consumption"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年煤品消费量（万吨，实物量）-煤炭消费量
+			if value, ok := item["pq_coal_consumption"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年煤品消费量（万吨，实物量）-焦炭消费量
+			if value, ok := item["pq_coke_consumption"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年煤品消费量（万吨，实物量）-兰炭消费量
+			if value, ok := item["pq_blue_coke_consumption"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年煤品消费量（万吨标准煤，折标量）-煤品消费总量
+			if value, ok := item["sce_total_coal_consumption"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年煤品消费量（万吨标准煤，折标量）-煤炭消费量
+			if value, ok := item["sce_coal_consumption"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年煤品消费量（万吨标准煤，折标量）-焦炭消费量
+			if value, ok := item["sce_coke_consumption"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年煤品消费量（万吨标准煤，折标量）-兰炭消费量
+			if value, ok := item["sce_blue_coke_consumption"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 煤炭消费替代情况-是否煤炭消费替代
+			if value, ok := item["is_substitution"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 煤炭消费替代情况-煤炭消费替代来源
+			if value, ok := item["substitution_source"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 煤炭消费替代情况-煤炭消费替代量
+			if value, ok := item["substitution_quantity"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 原料用煤情况-年原料用煤量（万吨，实物量）
+			if value, ok := item["pq_annual_coal_quantity"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 原料用煤情况-年原料用煤量（万吨标准煤，折标量）
+			if value, ok := item["sce_annual_coal_quantity"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+
+			// 应用数据样式到整行
+			startCell, _ := excelize.CoordinatesToCellName(1, row)
+			endCell, _ := excelize.CoordinatesToCellName(len(headers), row)
+			f.SetCellStyle("Sheet1", startCell, endCell, dataStyle)
+
+			// 设置数据行高
+			f.SetRowHeight("Sheet1", row, 20)
+		}
+	} else {
+		// 市级别或省级别：导出区域导入状态
+		// 3. 设置表头
+		areaLevelName := "区域名称"
+		if areaLevel == 1 {
+			areaLevelName = "城市"
+		} else if areaLevel == 2 {
+			areaLevelName = "区县"
+		}
+
+		headers := []string{areaLevelName, "是否导入"}
+
+		// 写入表头
+		for i, header := range headers {
+			cellName, _ := excelize.CoordinatesToCellName(i+1, 1)
+			f.SetCellValue("Sheet1", cellName, header)
+		}
+
+		// 4. 设置样式
+		_, dataStyle, importedStyle, notImportedStyle, err := applyCommonStyles(f, headers)
+		if err != nil {
+			result.Ok = false
+			result.Message = "创建样式失败: " + err.Error()
+			return result
+		}
+
+		// 设置列宽
+		f.SetColWidth("Sheet1", "A", "A", 25) // 区域名称
+		f.SetColWidth("Sheet1", "B", "B", 15) // 是否导入
+
+		// 5. 写入数据
+		for rowIndex, item := range list {
+			row := rowIndex + 2 // 从第2行开始写入数据
+
+			// 区域名称
+			if areaName, ok := item["area_name"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(1, row)
+				f.SetCellValue("Sheet1", cellName, areaName)
+			}
+
+			// 是否导入
+			if isImport, ok := item["is_import"].(bool); ok {
+				cellName, _ := excelize.CoordinatesToCellName(2, row)
+				if isImport {
+					f.SetCellValue("Sheet1", cellName, "已导入")
+					f.SetCellStyle("Sheet1", cellName, cellName, importedStyle)
+				} else {
+					f.SetCellValue("Sheet1", cellName, "未导入")
+					f.SetCellStyle("Sheet1", cellName, cellName, notImportedStyle)
+				}
+			}
+
+			// 应用数据样式到第一列（区域名称）
+			startCell, _ := excelize.CoordinatesToCellName(1, row)
+			endCell, _ := excelize.CoordinatesToCellName(1, row)
+			f.SetCellStyle("Sheet1", startCell, endCell, dataStyle)
+
+			// 设置数据行高
+			f.SetRowHeight("Sheet1", row, 20)
+		}
+	}
+
+	// 5. 保存文件
+	err := f.SaveAs(filePath)
+	if err != nil {
+		result.Ok = false
+		result.Message = "保存Excel文件失败: " + err.Error()
+		return result
+	}
+
+	result.Ok = true
+	result.Message = "附表3导入进度导出成功"
+	return result
+}
+
+// ExportAttachment2ProgressToExcel 导出附件2导入进度到Excel
+func (a *App) ExportAttachment2ProgressToExcel(filePath string) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 1. 获取附件2导入进度数据
+	progressResult := a.QueryTableAttachment2Process()
+	if !progressResult.Ok {
+		result.Ok = false
+		result.Message = "获取附件2导入进度失败: " + progressResult.Message
+		return result
+	}
+
+	progressData, ok := progressResult.Data.(map[string]interface{})
+	if !ok {
+		result.Ok = false
+		result.Message = "附件2导入进度数据格式错误"
+		return result
+	}
+
+	areaLevel, ok := progressData["area_level"].(int)
+	if !ok {
+		result.Ok = false
+		result.Message = "附件2区域级别数据格式错误"
+		return result
+	}
+
+	list, ok := progressData["list"].([]map[string]interface{})
+	if !ok {
+		result.Ok = false
+		result.Message = "附件2导入进度列表数据格式错误"
+		return result
+	}
+
+	// 2. 创建Excel文件
+	f := excelize.NewFile()
+	defer f.Close()
+
+	if areaLevel == 3 {
+		// 县级别：导出所有数据
+		// 3. 设置表头
+		headers := []string{
+			"省（市、区）", "地市（州）", "县（区）", "年份",
+			"分品种煤炭消费摸底-煤合计", "分品种煤炭消费摸底-原煤", "分品种煤炭消费摸底-洗精煤", "分品种煤炭消费摸底-其他煤炭",
+			"分用途煤炭消费摸底-能源加工转换-1.火力发电", "分用途煤炭消费摸底-能源加工转换-2.供热", "分用途煤炭消费摸底-能源加工转换-3.煤炭洗选", "分用途煤炭消费摸底-能源加工转换-4.炼焦", "分用途煤炭消费摸底-能源加工转换-5.炼油及煤制油", "分用途煤炭消费摸底-能源加工转换-6.制气",
+			"分用途煤炭消费摸底-终端消费-1.工业", "分用途煤炭消费摸底-终端消费-#用作原料、材料", "分用途煤炭消费摸底-终端消费-2.其他用途",
+			"焦炭消费摸底-焦炭",
+		}
+
+		// 写入表头
+		for i, header := range headers {
+			cellName, _ := excelize.CoordinatesToCellName(i+1, 1)
+			f.SetCellValue("Sheet1", cellName, header)
+		}
+
+		// 4. 设置样式
+		_, dataStyle, _, _, err := applyCommonStyles(f, headers)
+		if err != nil {
+			result.Ok = false
+			result.Message = "创建样式失败: " + err.Error()
+			return result
+		}
+
+		// 设置列宽
+		f.SetColWidth("Sheet1", "A", "A", 15) // 省（市、区）
+		f.SetColWidth("Sheet1", "B", "B", 15) // 地市（州）
+		f.SetColWidth("Sheet1", "C", "C", 15) // 县（区）
+		f.SetColWidth("Sheet1", "D", "D", 10) // 年份
+		f.SetColWidth("Sheet1", "E", "E", 15) // 分品种煤炭消费摸底-煤合计
+		f.SetColWidth("Sheet1", "F", "F", 15) // 分品种煤炭消费摸底-原煤
+		f.SetColWidth("Sheet1", "G", "G", 15) // 分品种煤炭消费摸底-洗精煤
+		f.SetColWidth("Sheet1", "H", "H", 15) // 分品种煤炭消费摸底-其他煤炭
+		f.SetColWidth("Sheet1", "I", "I", 15) // 分用途煤炭消费摸底-能源加工转换-1.火力发电
+		f.SetColWidth("Sheet1", "J", "J", 15) // 分用途煤炭消费摸底-能源加工转换-2.供热
+		f.SetColWidth("Sheet1", "K", "K", 15) // 分用途煤炭消费摸底-能源加工转换-3.煤炭洗选
+		f.SetColWidth("Sheet1", "L", "L", 15) // 分用途煤炭消费摸底-能源加工转换-4.炼焦
+		f.SetColWidth("Sheet1", "M", "M", 15) // 分用途煤炭消费摸底-能源加工转换-5.炼油及煤制油
+		f.SetColWidth("Sheet1", "N", "N", 15) // 分用途煤炭消费摸底-能源加工转换-6.制气
+		f.SetColWidth("Sheet1", "O", "O", 15) // 分用途煤炭消费摸底-终端消费-1.工业
+		f.SetColWidth("Sheet1", "P", "P", 15) // 分用途煤炭消费摸底-终端消费-#用作原料、材料
+		f.SetColWidth("Sheet1", "Q", "Q", 15) // 分用途煤炭消费摸底-终端消费-2.其他用途
+		f.SetColWidth("Sheet1", "R", "R", 15) // 焦炭消费摸底-焦炭
+
+		// 4. 写入数据
+		for rowIndex, item := range list {
+			row := rowIndex + 2 // 从第2行开始写入数据
+			col := 1
+
+			// 省（市、区）
+			if value, ok := item["province_name"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 地市（州）
+			if value, ok := item["city_name"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 县（区）
+			if value, ok := item["country_name"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 年份
+			if value, ok := item["stat_date"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分品种煤炭消费摸底-煤合计
+			if value, ok := item["total_coal"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分品种煤炭消费摸底-原煤
+			if value, ok := item["raw_coal"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分品种煤炭消费摸底-洗精煤
+			if value, ok := item["washed_coal"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分品种煤炭消费摸底-其他煤炭
+			if value, ok := item["other_coal"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分用途煤炭消费摸底-能源加工转换-1.火力发电
+			if value, ok := item["power_generation"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分用途煤炭消费摸底-能源加工转换-2.供热
+			if value, ok := item["heating"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分用途煤炭消费摸底-能源加工转换-3.煤炭洗选
+			if value, ok := item["coal_washing"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分用途煤炭消费摸底-能源加工转换-4.炼焦
+			if value, ok := item["coking"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分用途煤炭消费摸底-能源加工转换-5.炼油及煤制油
+			if value, ok := item["oil_refining"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分用途煤炭消费摸底-能源加工转换-6.制气
+			if value, ok := item["gas_production"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分用途煤炭消费摸底-终端消费-1.工业
+			if value, ok := item["industry"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分用途煤炭消费摸底-终端消费-#用作原料、材料
+			if value, ok := item["raw_materials"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 分用途煤炭消费摸底-终端消费-2.其他用途
+			if value, ok := item["other_uses"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+			col++
+
+			// 焦炭消费摸底-焦炭
+			if value, ok := item["coke"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+				f.SetCellValue("Sheet1", cellName, value)
+			}
+
+			// 应用数据样式到整行
+			startCell, _ := excelize.CoordinatesToCellName(1, row)
+			endCell, _ := excelize.CoordinatesToCellName(len(headers), row)
+			f.SetCellStyle("Sheet1", startCell, endCell, dataStyle)
+
+			// 设置数据行高
+			f.SetRowHeight("Sheet1", row, 20)
+		}
+	} else {
+		// 市级别或省级别：导出区域年份数据
+		years, ok := progressData["years"].([]string)
+		if !ok {
+			result.Ok = false
+			result.Message = "附件2年份数据格式错误"
+			return result
+		}
+
+		// 3. 设置表头
+		areaLevelName := "区域名称"
+		if areaLevel == 1 {
+			areaLevelName = "城市"
+		} else if areaLevel == 2 {
+			areaLevelName = "区县"
+		}
+
+		headers := []string{areaLevelName}
+		for _, year := range years {
+			headers = append(headers, year+"年数据")
+		}
+
+		// 写入表头
+		for i, header := range headers {
+			cellName, _ := excelize.CoordinatesToCellName(i+1, 1)
+			f.SetCellValue("Sheet1", cellName, header)
+		}
+
+		// 4. 设置样式
+		_, dataStyle, importedStyle, notImportedStyle, err := applyCommonStyles(f, headers)
+		if err != nil {
+			result.Ok = false
+			result.Message = "创建样式失败: " + err.Error()
+			return result
+		}
+
+		// 设置列宽
+		f.SetColWidth("Sheet1", "A", "A", 25) // 区域名称
+		for i := range years {
+			colName, _ := excelize.ColumnNumberToName(i + 2)
+			f.SetColWidth("Sheet1", colName, colName, 15) // 年份列
+		}
+
+		// 5. 写入数据
+		for rowIndex, item := range list {
+			row := rowIndex + 2 // 从第2行开始写入数据
+
+			// 区域名称
+			if areaName, ok := item["area_name"].(string); ok {
+				cellName, _ := excelize.CoordinatesToCellName(1, row)
+				f.SetCellValue("Sheet1", cellName, areaName)
+			}
+
+			// 年份数据
+			for yearIndex, year := range years {
+				col := yearIndex + 2 // 从第2列开始写入年份数据
+				cellName, _ := excelize.CoordinatesToCellName(col, row)
+
+				if hasData, ok := item[year].(bool); ok && hasData {
+					f.SetCellValue("Sheet1", cellName, "已导入")
+					f.SetCellStyle("Sheet1", cellName, cellName, importedStyle)
+				} else {
+					f.SetCellValue("Sheet1", cellName, "未导入")
+					f.SetCellStyle("Sheet1", cellName, cellName, notImportedStyle)
+				}
+			}
+
+			// 应用数据样式到第一列（区域名称）
+			startCell, _ := excelize.CoordinatesToCellName(1, row)
+			endCell, _ := excelize.CoordinatesToCellName(1, row)
+			f.SetCellStyle("Sheet1", startCell, endCell, dataStyle)
+
+					// 设置数据行高
+		f.SetRowHeight("Sheet1", row, 20)
+		}
+	}
+
+	// 5. 保存文件
+	err := f.SaveAs(filePath)
+	if err != nil {
+		result.Ok = false
+		result.Message = "保存Excel文件失败: " + err.Error()
+		return result
+	}
+
+	result.Ok = true
+	result.Message = "附件2导入进度导出成功"
 	return result
 }
