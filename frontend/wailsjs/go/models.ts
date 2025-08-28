@@ -186,56 +186,6 @@ export namespace main {
 	        this.data = source["data"];
 	    }
 	}
-	export class ImportProcess {
-	    id: string;
-	    fileName: string;
-	    fileType: string;
-	    status: string;
-	    progress: number;
-	    totalRows: number;
-	    processedRows: number;
-	    // Go type: time
-	    startTime: any;
-	    // Go type: time
-	    endTime: any;
-	    message: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ImportProcess(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.fileName = source["fileName"];
-	        this.fileType = source["fileType"];
-	        this.status = source["status"];
-	        this.progress = source["progress"];
-	        this.totalRows = source["totalRows"];
-	        this.processedRows = source["processedRows"];
-	        this.startTime = this.convertValues(source["startTime"], null);
-	        this.endTime = this.convertValues(source["endTime"], null);
-	        this.message = source["message"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 	export class MessageBoxOptions {
 	    title?: string;
 	    message: string;

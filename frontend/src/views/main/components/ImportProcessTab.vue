@@ -6,120 +6,185 @@
   </div>
 
   <div class="box-grey flex-main flex-vertical">
-    <a-alert type="info" style="margin-bottom: 10px">
+    <a-alert type="info" style="margin-bottom: 10px" v-if="titleList.length">
       <template #message>
-        <div class="process-message">
-          <span>共导入</span>
-          <span class="number-text">{{ totalEnterprise }}</span>
-          <span>家企业</span>
-
-          <!-- 项目和区域时展示 -->
-          <!-- <span class="number-text">{{ totalTable }}</span>
-          <span>个表格</span> -->
+        <div class="process-message" v-for="(item, index) in titleList">
+          <span>{{ item.label }}</span>
+          <span class="number-text">{{ item.total }}</span>
+          <span>{{ item.unit }}</span>
+          <span v-if="index < titleList.length - 1">，</span>
         </div>
       </template>
     </a-alert>
     <div class="flex-main relative">
       <div class="abs" ref="tableBoxRef" style="background-color: #fff">
         <a-table :dataSource="dataSource" :columns="columns" size="small" bordered :pagination="false" :scroll="tableScroll" />
-      
-         <!-- 分页组件 -->
-        <div class="pagination-container">
-          <a-pagination
-            v-model:current="currentPage"
-            v-model:page-size="pageSize"
-            :total="total"
-            :show-size-changer="true"
-            :show-quick-jumper="true"
-            :show-total="(total: number, range: number[]) => `共 ${total} 条记录，当前显示 ${range[0]}-${range[1]} 条`"
-            size="small"
-          />
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="tsx">
-  import { TableColumnType, Tag } from 'ant-design-vue';
+  import { message, TableColumnType, Tag } from 'ant-design-vue';
   import { useTableHeight } from '@/hook';
+  import { TableType } from '@/views/constant';
+  import { QueryTable1Process, QueryTable2Process, QueryTable3Process, QueryTableAttachment2Process } from '@wailsjs/go';
+  import { db } from '@wailsjs/models';
+  import { newColumns } from '@/util';
+  import { Table3Columns } from '@/views/main/components/columns';
 
-  const totalEnterprise = ref(100);
-  const totalTable = ref(100);
+  const props = defineProps({
+    tableType: {
+      type: String,
+      default: ''
+    }
+  });
+
+  const columns = ref<any>([]);
+  const titleList = ref<TitleItem[]>([]);
+
+  function getUnit(): string {
+    return { [TableType.table1]: '家企业', [TableType.table2]: '家企业', [TableType.table3]: '张表', [TableType.attachment2]: '张表' }[
+      props.tableType
+    ]!;
+  }
+
+  async function handleTable(result: Promise<db.QueryResult>, initColumns: (data: ProcessData) => any[]) {
+    const res = await result;
+    if (!res.ok) {
+      message.error(res.message);
+      return;
+    }
+    const data = res.data as ProcessData;
+    if (!data) {
+      return;
+    }
+    const _columns = initColumns(data);
+    if (data.years) {
+      data.years.sort();
+      data.years.forEach(year => {
+        _columns.push({
+          title: `${year}年数据`,
+          dataIndex: year,
+          key: year,
+          align: 'center',
+          customRender: (opt: any) => {
+            return <>{opt.record[year] ? <Tag color="success">已导入</Tag> : <Tag>未导入</Tag>}</>;
+          }
+        });
+      });
+
+      //计算标题
+      const yearMap = data.years.reduce(
+        (acc, year) => {
+          acc[year] = 0;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+      for (const year of data.years) {
+        for (const item of data.list) {
+          if (item[year]) {
+            yearMap[year]++;
+          }
+        }
+      }
+
+      titleList.value = data.years.map(year => ({
+        label: `${year}年已录入`,
+        total: yearMap[year],
+        unit: getUnit()
+      }));
+    }
+    columns.value = _columns;
+    dataSource.value = data.list || [];
+  }
+
+  function getAreaName(area_level: number) {
+    return { '1': '城市', '2': '区县', '3': '区县' }[area_level]!;
+  }
+
+  onMounted(async () => {
+    if (props.tableType === TableType.table1) {
+      await handleTable(QueryTable1Process(), _ => newColumns({ unit_name: '企业' }));
+    } else if (props.tableType === TableType.table2) {
+      await handleTable(QueryTable2Process(), data => newColumns({ unit_name: '企业' }));
+    } else if (props.tableType === TableType.table3) {
+      const res = await QueryTable3Process();
+      if (!res.ok) {
+        message.error(res.message);
+        return;
+      }
+      const data = res.data as ProcessData;
+      if (!data) {
+        return;
+      }
+
+      dataSource.value = data.list || [];
+      if (data.area_level === 3) {
+        titleList.value = [{ label: '共', total: data.list.length, unit: `条数据` }];
+        columns.value = Table3Columns;
+        return;
+      }
+
+      titleList.value = [{ label: '已录入', total: data.list.filter(item => item.is_import).length, unit: `张表` }];
+
+      columns.value = newColumns(
+        { area_name: getAreaName(data.area_level!) },
+        {
+          title: '是否导入',
+          dataIndex: 'is_import',
+          key: 'is_import',
+          align: 'center',
+          customRender: opt => {
+            return <>{opt.record['is_import'] ? <Tag color="success">已导入</Tag> : <Tag>未导入</Tag>}</>;
+          }
+        }
+      );
+    } else if (props.tableType === TableType.attachment2) {
+      await handleTable(QueryTableAttachment2Process(), (data: ProcessData) => {
+        if (data.area_level === 3) {
+          titleList.value = [{ label: '共', total: data.list.length, unit: `条数据` }];
+          return Table3Columns;
+        }
+        return newColumns({ area_name: getAreaName(data.area_level!) });
+      });
+    }
+  });
 
   const tableBoxRef = ref(null);
   const tableScroll = useTableHeight(tableBoxRef);
 
-  // 分页相关变量
-  const currentPage = ref(1); // 当前页码
-  const pageSize = ref(10); // 每页显示条数
-  const total = ref(5); // 总记录数
-
-  const dataSource = Array.from({ length: 5 }).fill({
-    key: '1',
-    enterpriseName: '内蒙古伊核公司',
-    age: 32
-  });
-
-  /**
-   * 处理分页变化
-   * @param page 当前页码
-   * @param size 每页显示条数
-   */
-  const handlePageChange = (page: number, size: number) => {
-    currentPage.value = page;
-    pageSize.value = size;
-    // 这里可以添加重新获取数据的逻辑
-  };
-
-  /**
-   * 监听分页变化
-   */
-  watch([currentPage, pageSize], ([newPage, newSize]) => {
-    handlePageChange(newPage, newSize);
-  });
-
-  const columns: TableColumnType[] = [
-    {
-      title: '企业名称',
-      dataIndex: 'enterpriseName',
-      key: 'enterpriseName',
-      align: 'center'
-    },
-    {
-      title: '2023年数据',
-      dataIndex: 'data_2023',
-      key: 'data_2023',
-      align: 'center',
-      customRender: opt => {
-        return <>{opt.index === 0 ? <Tag>未导入</Tag> : <Tag color="success">已导入</Tag>}</>;
-      }
-    },
-    {
-      title: '2024年数据',
-      dataIndex: 'data_2024',
-      key: 'data_2024',
-      align: 'center',
-      customRender: opt => {
-        return <>{opt.index === 0 ? <Tag>未导入</Tag> : <Tag color="success">已导入</Tag>}</>;
-      }
-    }
-  ];
+  const dataSource = ref<any>([]);
 
   // 处理导出按钮点击
   const handleExportClick = () => {
     // 导出当前表格数据
   };
+
+  interface ProcessData {
+    list: Record<string, any>[];
+    years?: string[];
+    area_level?: number;
+  }
+
+  interface TitleItem {
+    label: string;
+    total: number;
+    unit: string;
+  }
 </script>
 
 <style scoped>
   .process-message {
     color: #096aa2;
     font-size: 15px;
+    display: inline-block;
+
     .number-text {
       color: #292ea7;
       font-weight: bold;
-      margin: 0 10px;
+      margin: 0 5px;
     }
   }
 

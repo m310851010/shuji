@@ -11,7 +11,7 @@
     <transition :name="transitionName" mode="out-in" :css="true">
       <div class="page-content flex-vertical" :key="tableTab">
         <template v-for="item in TableOptions">
-          <ImportProcessTab v-if="item.value === tableTab" />
+          <ImportProcessTab v-if="item.value === tableTab" :tableType="item.value" />
         </template>
       </div>
     </transition>

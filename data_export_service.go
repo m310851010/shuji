@@ -334,25 +334,23 @@ func (a *App) getCurrentUserLocationData() (interface{}, int, string, error) {
 	provinceName := ""
 
 	dataLevel := 0
-	if areaConfig["country_name"] != nil {
-		countryName = fmt.Sprintf("%v", areaConfig["country_name"])
-		areaName = countryName
-		dataLevel = 3
-	}
-	if areaConfig["city_name"] != nil {
-		cityName = fmt.Sprintf("%v", areaConfig["city_name"])
-		areaName = cityName
-		dataLevel = 2
-	}
-	if areaConfig["province_name"] != nil {
+	if areaConfig["province_name"] != nil && areaConfig["province_name"] != "" {
 		provinceName = fmt.Sprintf("%v", areaConfig["province_name"])
 		areaName = provinceName
 		dataLevel = 1
 	}
 
-	// 调试信息：打印解析后的区域信息
-	fmt.Printf("解析后的区域信息: provinceName=%s, cityName=%s, countryName=%s, areaName=%s, dataLevel=%d\n",
-		provinceName, cityName, countryName, areaName, dataLevel)
+	if areaConfig["city_name"] != nil && areaConfig["city_name"] != "" {
+		cityName = fmt.Sprintf("%v", areaConfig["city_name"])
+		areaName = cityName
+		dataLevel = 2
+	}
+
+	if areaConfig["country_name"] != nil && areaConfig["country_name"] != "" {
+		countryName = fmt.Sprintf("%v", areaConfig["country_name"])
+		areaName = countryName
+		dataLevel = 3
+	}
 
 	// 3. 根据当前用户区域查找对应的LocationItem
 	var targetLocation interface{}
@@ -429,7 +427,6 @@ func (a *App) getCurrentUserLocationData() (interface{}, int, string, error) {
 
 	// 如果找不到匹配的区域，尝试使用第一个省份作为默认值
 	if targetLocation == nil && len(areaList) > 0 {
-		fmt.Printf("未找到匹配区域，使用第一个省份作为默认值\n")
 		targetLocation = areaList[0]
 		if provinceName == "" {
 			if firstProvince, ok := areaList[0].(map[string]interface{}); ok {

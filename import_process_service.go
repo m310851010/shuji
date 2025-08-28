@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"shuji/db"
+	"strings"
 )
 
 // 导入进度
@@ -289,112 +290,274 @@ func (a *App) QueryTable3Process() db.QueryResult {
 		return result
 	}
 
-	// 查询附表3数据，按stat_date分组
-	table3Query := `
-		SELECT 
-			stat_date,
-			COUNT(1) as record_count
-		FROM fixed_assets_investment_project 
-		GROUP BY stat_date
-		ORDER BY stat_date
-	`
-	table3Result, err := a.db.Query(table3Query)
+	// 1. 获取当前用户区域信息
+	targetLocation, dataLevel, _, err := a.getCurrentUserLocationData()
+	if err != nil {
+		result.Ok = false
+		result.Message = "获取区域信息失败: " + err.Error()
+		return result
+	}
+
+	if targetLocation == nil {
+		result.Ok = false
+		result.Message = "未找到对应的区域信息"
+		return result
+	}
+
+	// 2. 根据区域级别决定查询逻辑
+	if dataLevel == 3 {
+		ret := a.QueryDataTable3()
+		if !ret.Ok || ret.Data == nil {
+			result.Ok = false
+			result.Message = "查询附表3数据失败: " + ret.Message
+			return result
+			return ret
+		}
+		// 这里ret.Data是[]map[string]interface{}，需要包装成本函数的Data结构
+		result.Ok = true
+		result.Data = map[string]interface{}{
+			"list":       ret.Data,
+			"area_level": 3,
+		}
+		result.Message = "查询成功"
+		return result
+
+	} else if dataLevel == 2 {
+		// 市级别：以县(或区)分组
+		return a.queryTable3CityLevel(targetLocation)
+	} else {
+		// 省级别：以市分组
+		return a.queryTable3ProvinceLevel(targetLocation)
+	}
+}
+
+// queryTable3CityLevel 市级别查询：以县(或区)分组
+func (a *App) queryTable3CityLevel(targetLocation interface{}) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 1. 获取该市下的所有县区
+	countyList := make([]string, 0)
+	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+		if children, exists := targetLocationMap["children"]; exists && children != nil {
+			if childrenList, ok := children.([]interface{}); ok {
+				for _, county := range childrenList {
+					if countyMap, ok := county.(map[string]interface{}); ok {
+						if name, exists := countyMap["name"]; exists && name != nil {
+							countyList = append(countyList, fmt.Sprintf("%v", name))
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 2. 查询并解析附表3数据
+	importedCounties, err := a.queryAndParseTable3Data()
 	if err != nil {
 		result.Ok = false
 		result.Message = "查询附表3数据失败: " + err.Error()
 		return result
 	}
 
-	// 处理附表3数据
-	table3List := make([]map[string]interface{}, 0)
-	if table3Result.Ok && table3Result.Data != nil {
-		if data, ok := table3Result.Data.([]map[string]interface{}); ok {
-			for _, row := range data {
-				statDate := ""
-				if date, ok := row["stat_date"].(string); ok {
-					statDate = date
-				}
+	// 4. 构建最终结果
+	areaList := make([]map[string]interface{}, 0)
 
-				recordCount := int64(0)
-				if count, ok := row["record_count"].(int64); ok {
-					recordCount = count
-				}
-
-				table3List = append(table3List, map[string]interface{}{
-					"stat_date":    statDate,
-					"record_count": recordCount,
-				})
-			}
+	// 为每个县区创建记录
+	for _, countyName := range countyList {
+		areaStatus := map[string]interface{}{
+			"area_name": countyName,
+			"is_import": importedCounties[countyName],
 		}
+		areaList = append(areaList, areaStatus)
 	}
 
 	// 返回结果
 	result.Ok = true
-	result.Data = table3List
+	result.Data = map[string]interface{}{
+		"list":       areaList,
+		"area_level": 2,
+	}
 	result.Message = "查询成功"
 
 	return result
+}
+
+// queryTable3ProvinceLevel 省级别查询：以市分组
+func (a *App) queryTable3ProvinceLevel(targetLocation interface{}) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 1. 获取该省下的所有市
+	cityList := make([]string, 0)
+	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+		if children, exists := targetLocationMap["children"]; exists && children != nil {
+			if childrenList, ok := children.([]interface{}); ok {
+				for _, city := range childrenList {
+					if cityMap, ok := city.(map[string]interface{}); ok {
+						if name, exists := cityMap["name"]; exists && name != nil {
+							cityList = append(cityList, fmt.Sprintf("%v", name))
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if len(cityList) == 0 {
+		result.Ok = false
+		result.Message = "未找到该省下的市信息"
+		return result
+	}
+
+	// 2. 查询并解析附表3数据
+	importedCities, err := a.queryAndParseTable3Data()
+	if err != nil {
+		result.Ok = false
+		result.Message = "查询附表3数据失败: " + err.Error()
+		return result
+	}
+
+	// 4. 构建最终结果
+	areaList := make([]map[string]interface{}, 0)
+
+	// 为每个市创建记录
+	for _, cityName := range cityList {
+		areaStatus := map[string]interface{}{
+			"area_name": cityName,
+			"is_import": importedCities[cityName],
+		}
+		areaList = append(areaList, areaStatus)
+	}
+
+	// 返回结果
+	result.Ok = true
+	result.Data = map[string]interface{}{
+		"list":       areaList,
+		"area_level": 1,
+	}
+	result.Message = "查询成功"
+
+	return result
+}
+
+// queryAndParseTable3Data 查询并解析附表3数据
+func (a *App) queryAndParseTable3Data() (map[string]bool, error) {
+	// 查询附表3数据，按examination_authority分组
+	table3Query := `
+		SELECT 
+			examination_authority,
+			COUNT(1) as record_count
+		FROM fixed_assets_investment_project 
+		WHERE examination_authority IS NOT NULL AND examination_authority != ''
+		GROUP BY examination_authority
+	`
+	table3Result, err := a.db.Query(table3Query)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析节能审查机关
+	importedAreas := make(map[string]bool)
+	if table3Result.Ok && table3Result.Data != nil {
+		if data, ok := table3Result.Data.([]map[string]interface{}); ok {
+			for _, row := range data {
+				examinationAuthority := ""
+				if authority, ok := row["examination_authority"].(string); ok {
+					examinationAuthority = authority
+				}
+
+				// 提取名称，移除"发改委"后缀
+				areaName := a.extractAreaFromAuthority(examinationAuthority)
+				if areaName != "" {
+					importedAreas[areaName] = true
+				}
+			}
+		}
+	}
+
+	return importedAreas, nil
+}
+
+// extractAreaFromAuthority 从节能审查机关中提取区域名称
+func (a *App) extractAreaFromAuthority(authority string) string {
+	if authority == "" {
+		return ""
+	}
+
+	// 移除"发改委"后缀
+	authority = strings.TrimSuffix(authority, "发改委")
+	authority = strings.TrimSuffix(authority, "发展和改革委员会")
+	authority = strings.TrimSuffix(authority, "发展改革委")
+
+	return authority
 }
 
 // QueryAttachment2Process 查询附件2的导入进度
 func (a *App) QueryTableAttachment2Process() db.QueryResult {
 	result := db.QueryResult{}
 
-	// 检查数据库连接
-	if a.db == nil {
+	// 1. 获取当前用户区域信息
+	targetLocation, dataLevel, _, err := a.getCurrentUserLocationData()
+	if err != nil {
 		result.Ok = false
-		result.Message = "数据库未初始化"
+		result.Message = "获取区域信息失败: " + err.Error()
 		return result
 	}
 
-	// 1. 获取当前用户区域配置
-	areaConfigResult := a.GetAreaConfig()
-	if !areaConfigResult.Ok {
+	if targetLocation == nil {
 		result.Ok = false
-		result.Message = "获取区域配置失败: " + areaConfigResult.Message
+		result.Message = "未找到对应的区域信息"
 		return result
 	}
 
-	areaConfig, ok := areaConfigResult.Data.(map[string]interface{})
-	if !ok {
-		result.Ok = false
-		result.Message = "区域配置数据格式错误"
-		return result
-	}
-
-	// 2. 根据区域级别确定分组字段和区域名称字段
-	var groupByField string
-	var areaNameField string
-	var areaLevel string
-
-	if areaConfig["country_name"] != nil {
-		groupByField = "stat_date, country_name"
-		areaNameField = "country_name"
-		areaLevel = "县区"
-	} else if areaConfig["city_name"] != nil {
-		groupByField = "stat_date, city_name"
-		areaNameField = "city_name"
-		areaLevel = "城市"
-	} else if areaConfig["province_name"] != nil {
-		groupByField = "stat_date, province_name"
-		areaNameField = "province_name"
-		areaLevel = "省份"
+	// 2. 根据区域级别决定查询逻辑
+	if dataLevel == 3 {
+		// 县级别：查询所有表数据，返回所有字段
+		return a.QueryDataAttachment2()
+	} else if dataLevel == 2 {
+		// 市级别：以县+年份分组
+		return a.queryAttachment2CityLevel(targetLocation)
 	} else {
+		// 省级别：以市+年份分组
+		return a.queryAttachment2ProvinceLevel(targetLocation)
+	}
+}
+
+// queryAttachment2CityLevel 市级别查询：以县+年份分组
+func (a *App) queryAttachment2CityLevel(targetLocation interface{}) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 1. 获取该市下的所有县区
+	countyList := make([]string, 0)
+	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+		if children, exists := targetLocationMap["children"]; exists && children != nil {
+			if childrenList, ok := children.([]interface{}); ok {
+				for _, county := range childrenList {
+					if countyMap, ok := county.(map[string]interface{}); ok {
+						if name, exists := countyMap["name"]; exists && name != nil {
+							countyList = append(countyList, fmt.Sprintf("%v", name))
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if len(countyList) == 0 {
 		result.Ok = false
-		result.Message = "未配置区域信息"
+		result.Message = "未找到该市下的县区信息"
 		return result
 	}
 
-	// 3. 查询附件2数据，按区域级别和stat_date分组
-	attachment2Query := fmt.Sprintf(`
+	// 2. 查询附件2数据，按县和stat_date分组
+	attachment2Query := `
 		SELECT 
+			country_name as area_name,
 			stat_date,
-			%s as area_name,
 			COUNT(1) as record_count
 		FROM coal_consumption_report 
-		GROUP BY %s
-		ORDER BY stat_date
-	`, areaNameField, groupByField)
+		WHERE country_name IS NOT NULL AND country_name != ''
+		GROUP BY country_name, stat_date
+		ORDER BY country_name, stat_date`
 
 	attachment2Result, err := a.db.Query(attachment2Query)
 	if err != nil {
@@ -403,10 +566,20 @@ func (a *App) QueryTableAttachment2Process() db.QueryResult {
 		return result
 	}
 
-	// 4. 构建区域记录状态映射
+	// 3. 构建区域记录状态映射和年份集合
 	attachment2DataMap := make(map[string]map[string]bool) // area_name -> stat_date -> hasRecord
+	allYears := make(map[string]bool)
+	areaList := make([]map[string]interface{}, 0, len(countyList))
 
-	// 处理附件2数据
+	// 初始化所有县区的记录
+	for _, countyName := range countyList {
+		areaStatus := map[string]interface{}{
+			"area_name": countyName,
+		}
+		areaList = append(areaList, areaStatus)
+	}
+
+	// 处理附件2数据，同时收集年份
 	if attachment2Result.Ok && attachment2Result.Data != nil {
 		if data, ok := attachment2Result.Data.([]map[string]interface{}); ok {
 			for _, row := range data {
@@ -420,6 +593,9 @@ func (a *App) QueryTableAttachment2Process() db.QueryResult {
 					statDate = date
 				}
 
+				// 收集年份
+				allYears[statDate] = true
+
 				// 初始化区域数据映射
 				if attachment2DataMap[areaName] == nil {
 					attachment2DataMap[areaName] = make(map[string]bool)
@@ -429,68 +605,139 @@ func (a *App) QueryTableAttachment2Process() db.QueryResult {
 		}
 	}
 
-	// 5. 构建最终结果
-	attachment2List := make([]map[string]interface{}, 0)
-
-	// 为每个区域创建记录
-	for areaName, statDateMap := range attachment2DataMap {
-		areaStatus := map[string]interface{}{
-			"area_name": areaName,
-		}
-
-		// 复制所有stat_date的记录状态
-		for statDate, hasRecord := range statDateMap {
-			areaStatus[statDate] = hasRecord
-		}
-
-		attachment2List = append(attachment2List, areaStatus)
-	}
-
-	// 6. 收集所有年份
-	allYears := make(map[string]bool)
-	for _, statDateMap := range attachment2DataMap {
-		for statDate := range statDateMap {
-			allYears[statDate] = true
+	// 4. 为每个县区添加年份数据
+	for i, countyName := range countyList {
+		if statDateMap, exists := attachment2DataMap[countyName]; exists {
+			for statDate, hasRecord := range statDateMap {
+				areaList[i][statDate] = hasRecord
+			}
 		}
 	}
 
-	yearList := make([]string, 0)
+	// 5. 转换年份集合为列表
+	yearList := make([]string, 0, len(allYears))
 	for statDate := range allYears {
 		yearList = append(yearList, statDate)
 	}
 
-	// 7. 返回结果
+	// 返回结果
 	result.Ok = true
 	result.Data = map[string]interface{}{
-		"list":       attachment2List,
+		"list":       areaList,
 		"years":      yearList,
-		"area_level": areaLevel,
+		"area_level": 2,
 	}
 	result.Message = "查询成功"
 
 	return result
 }
 
-// getAreaDisplayName 获取区域显示名称
-func getAreaDisplayName(provinceName, cityName, countryName string) string {
-	if countryName != "" {
-		return countryName
-	} else if cityName != "" {
-		return cityName
-	} else if provinceName != "" {
-		return provinceName
-	}
-	return "未知区域"
-}
+// queryAttachment2ProvinceLevel 省级别查询：以市+年份分组
+func (a *App) queryAttachment2ProvinceLevel(targetLocation interface{}) db.QueryResult {
+	result := db.QueryResult{}
 
-// getAreaLevel 获取区域级别
-func getAreaLevel(countryName, cityName, provinceName string) string {
-	if countryName != "" {
-		return "县"
-	} else if cityName != "" {
-		return "市"
-	} else if provinceName != "" {
-		return "省"
+	// 1. 获取该省下的所有市
+	cityList := make([]string, 0)
+	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+		if children, exists := targetLocationMap["children"]; exists && children != nil {
+			if childrenList, ok := children.([]interface{}); ok {
+				for _, city := range childrenList {
+					if cityMap, ok := city.(map[string]interface{}); ok {
+						if name, exists := cityMap["name"]; exists && name != nil {
+							cityList = append(cityList, fmt.Sprintf("%v", name))
+						}
+					}
+				}
+			}
+		}
 	}
-	return "未知"
+
+	if len(cityList) == 0 {
+		result.Ok = false
+		result.Message = "未找到该省下的市信息"
+		return result
+	}
+
+	// 2. 查询附件2数据，按市和stat_date分组
+	attachment2Query := `
+		SELECT 
+			city_name as area_name,
+			stat_date,
+			COUNT(1) as record_count
+		FROM coal_consumption_report 
+		WHERE city_name IS NOT NULL AND city_name != ''
+		GROUP BY city_name, stat_date
+		ORDER BY city_name, stat_date`
+
+	attachment2Result, err := a.db.Query(attachment2Query)
+	if err != nil {
+		result.Ok = false
+		result.Message = "查询附件2数据失败: " + err.Error()
+		return result
+	}
+
+	// 3. 构建区域记录状态映射和年份集合
+	attachment2DataMap := make(map[string]map[string]bool) // area_name -> stat_date -> hasRecord
+	allYears := make(map[string]bool)
+	areaList := make([]map[string]interface{}, 0, len(cityList))
+
+	// 初始化所有市的记录
+	for _, cityName := range cityList {
+		areaStatus := map[string]interface{}{
+			"area_name": cityName,
+		}
+		areaList = append(areaList, areaStatus)
+	}
+
+	// 处理附件2数据，同时收集年份
+	if attachment2Result.Ok && attachment2Result.Data != nil {
+		if data, ok := attachment2Result.Data.([]map[string]interface{}); ok {
+			for _, row := range data {
+				areaName := ""
+				if name, ok := row["area_name"].(string); ok {
+					areaName = name
+				}
+
+				statDate := ""
+				if date, ok := row["stat_date"].(string); ok {
+					statDate = date
+				}
+
+				// 收集年份
+				allYears[statDate] = true
+
+				// 初始化区域数据映射
+				if attachment2DataMap[areaName] == nil {
+					attachment2DataMap[areaName] = make(map[string]bool)
+				}
+				attachment2DataMap[areaName][statDate] = true
+			}
+		}
+	}
+
+	// 4. 为每个市添加年份数据
+	for i, cityName := range cityList {
+		if statDateMap, exists := attachment2DataMap[cityName]; exists {
+			for statDate, hasRecord := range statDateMap {
+				areaList[i][statDate] = hasRecord
+			}
+		}
+	}
+
+	// 5. 转换年份集合为列表
+	yearList := make([]string, 0, len(allYears))
+	for statDate := range allYears {
+		yearList = append(yearList, statDate)
+	}
+
+	// 返回结果
+	result.Ok = true
+	result.Data = map[string]interface{}{
+		"list":       areaList,
+		"years":      yearList,
+		"area_level": 1,
+	}
+	result.Message = "查询成功"
+
+	return result
 }

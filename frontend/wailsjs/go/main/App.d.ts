@@ -8,8 +8,6 @@ export function AbsolutePath(arg1:string):Promise<main.FlagResult>;
 
 export function CacheFileExists(arg1:string,arg2:string):Promise<db.QueryResult>;
 
-export function CancelImport(arg1:string):Promise<any>;
-
 export function ConfirmDataAttachment2(arg1:Array<string>):Promise<db.QueryResult>;
 
 export function ConfirmDataTable1(arg1:Array<string>):Promise<db.QueryResult>;
@@ -53,10 +51,6 @@ export function GetEnv():Promise<main.EnvResult>;
 export function GetEquipmentByCreditCode(arg1:string):Promise<db.QueryResult>;
 
 export function GetFileInfo(arg1:string):Promise<main.FileInfo>;
-
-export function GetImportHistory(arg1:number,arg2:number):Promise<any>;
-
-export function GetImportProcess(arg1:string):Promise<main.ImportProcess>;
 
 export function GetImportRecordsByFileType(arg1:string):Promise<db.QueryResult>;
 
@@ -129,6 +123,14 @@ export function QueryDataTable2():Promise<db.QueryResult>;
 export function QueryDataTable3():Promise<db.QueryResult>;
 
 export function QueryExportData():Promise<db.QueryResult>;
+
+export function QueryTable1Process():Promise<db.QueryResult>;
+
+export function QueryTable2Process():Promise<db.QueryResult>;
+
+export function QueryTable3Process():Promise<db.QueryResult>;
+
+export function QueryTableAttachment2Process():Promise<db.QueryResult>;
 
 export function ReadFile(arg1:string,arg2:boolean):Promise<Array<number>>;
 

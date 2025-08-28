@@ -10,10 +10,6 @@ export function CacheFileExists(arg1, arg2) {
   return window['go']['main']['App']['CacheFileExists'](arg1, arg2);
 }
 
-export function CancelImport(arg1) {
-  return window['go']['main']['App']['CancelImport'](arg1);
-}
-
 export function ConfirmDataAttachment2(arg1) {
   return window['go']['main']['App']['ConfirmDataAttachment2'](arg1);
 }
@@ -100,14 +96,6 @@ export function GetEquipmentByCreditCode(arg1) {
 
 export function GetFileInfo(arg1) {
   return window['go']['main']['App']['GetFileInfo'](arg1);
-}
-
-export function GetImportHistory(arg1, arg2) {
-  return window['go']['main']['App']['GetImportHistory'](arg1, arg2);
-}
-
-export function GetImportProcess(arg1) {
-  return window['go']['main']['App']['GetImportProcess'](arg1);
 }
 
 export function GetImportRecordsByFileType(arg1) {
@@ -252,6 +240,22 @@ export function QueryDataTable3() {
 
 export function QueryExportData() {
   return window['go']['main']['App']['QueryExportData']();
+}
+
+export function QueryTable1Process() {
+  return window['go']['main']['App']['QueryTable1Process']();
+}
+
+export function QueryTable2Process() {
+  return window['go']['main']['App']['QueryTable2Process']();
+}
+
+export function QueryTable3Process() {
+  return window['go']['main']['App']['QueryTable3Process']();
+}
+
+export function QueryTableAttachment2Process() {
+  return window['go']['main']['App']['QueryTableAttachment2Process']();
 }
 
 export function ReadFile(arg1, arg2) {
