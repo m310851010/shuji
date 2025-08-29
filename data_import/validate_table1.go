@@ -498,9 +498,9 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usageData, equipData []map[string]interface{}) []string {
 	errors := []string{}
 
-	// 0. 检查主表数据条数
+	// 0. 检查主表数据条数, 显示为第7行, 社会信用代码不能为空
 	if len(mainData) == 0 {
-		errors = append(errors, "单位基本信息不能为空")
+		errors = append(errors, "第7行: 社会信用代码不能为空	")
 		return errors
 	}
 	if len(mainData) > 1 {

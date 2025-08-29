@@ -15,10 +15,10 @@
           <div class="db-header-cell">
             <div class="db-name">{{ column.title }}</div>
             <a-checkbox
-              :checked="allSelectedStates[getDbIndex(column.key)] || false"
-              :indeterminate="indeterminateStates[getDbIndex(column.key)] || false"
+              :checked="getAllSelectedState(column.key)"
+              :indeterminate="getIndeterminateState(column.key)"
               :disabled="!hasAnyConflict"
-              @change="(checked: boolean) => handleSelectAllDb(getDbIndex(column.key), checked)"
+              @change="(e: any) => handleSelectAllDb(getDbIndex(column.key), e.target.checked)"
             >
               全选
             </a-checkbox>
@@ -35,13 +35,13 @@
             <a-button 
               type="link" 
               size="small" 
-              @click="handleViewData(record, column.key)"
+               @click="handleViewDetailData(record, column.key)"
             >
               查看
             </a-button>
             <a-checkbox
               v-model:checked="record.selections[column.key]"
-              :disabled="!record.hasConflict"
+              :disabled="!record.hasConflict || isCheckboxDisabled(record, column.key)"
               @change="() => handleDbSelect(record, column.key)"
             />
           </div>
@@ -49,22 +49,24 @@
       </template>
     </a-table>
 
-    <!-- 查看数据详情模态框 -->
+    
+
+    <!-- 查看详细数据模态框 -->
     <a-modal
-      v-model:open="detailModal.visible"
-      :title="detailModal.title"
-      width="80%"
-      :footer="null"
-      @cancel="detailModal.visible = false"
+      v-model:open="confirmModal.visible"
+      :bodyStyle="{ paddingTop: 0 }"
+      class="full-screen-modal button-middle"
+      :title="confirmModal.title"
+      :cancel-button-props="{ style: 'display: none' }"
+      @ok="confirmModal.handleOk"
+      ok-text="关闭"
     >
-      <div v-if="detailModal.data" class="detail-content">
-        <div 
-          v-for="(value, key) in detailModal.data" 
-          :key="key"
-          class="detail-item"
-        >
-          <span class="detail-label">{{ getFieldLabel(String(key)) }}:</span>
-          <span class="detail-value">{{ value }}</span>
+      <div class="wh-100 relative">
+        <div class="abs">
+          <ConfirmTable1 v-if="confirmModal.tableType == 'table1'" :tableInfoList="confirmModal.tableInfoList" />
+          <ConfirmTable2 v-if="confirmModal.tableType == 'table2'" :tableInfoList="confirmModal.tableInfoList" />
+          <ConfirmTable3 v-if="confirmModal.tableType == 'table3'" :tableInfoList="confirmModal.tableInfoList" />
+          <ConfirmTable4 v-if="confirmModal.tableType == 'attachment2'" :tableInfoList="confirmModal.tableInfoList" />
         </div>
       </div>
     </a-modal>
@@ -74,7 +76,17 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue';
 import {message, TableColumnType} from 'ant-design-vue';
-import {TableType} from '@/views/constant';
+import {TableType, TableTypeName} from '@/views/constant';
+import ConfirmTable1 from './ConfirmTable1.vue';
+import ConfirmTable2 from './ConfirmTable2.vue';
+import ConfirmTable3 from './ConfirmTable3.vue';
+import ConfirmTable4 from './ConfirmTable4.vue';
+import {
+  QueryDataDetailTable1ByDBFile,
+  QueryDataDetailTable2ByDBFile,
+  QueryDataDetailTable3ByDBFile,
+  QueryDataDetailAttachment2ByDBFile
+} from '@wailsjs/go';
 
 interface ConflictSourceInfo {
   filePath: string;
@@ -113,10 +125,12 @@ interface ConflictRecord {
   conflictDetail: ConflictDetail; // 冲突详情
 }
 
-interface DetailModal {
+interface ConfirmModal {
   visible: boolean;
   title: string;
-  data: any;
+  tableType: string;
+  tableInfoList: Array<Record<string, any>>;
+  handleOk: () => void;
 }
 
 const props = defineProps<{
@@ -130,10 +144,15 @@ const emit = defineEmits<{
 }>();
 
 const conflictData = ref<ConflictRecord[]>([]);
-const detailModal = ref<DetailModal>({
+
+const confirmModal = ref<ConfirmModal>({
   visible: false,
   title: '',
-  data: null
+  tableType: '',
+  tableInfoList: [],
+  handleOk: () => {
+    confirmModal.value.visible = false;
+  }
 });
 
 const columns = computed((): TableColumnType[] => {
@@ -240,7 +259,7 @@ const allSelectedStates = ref<boolean[]>([]);
 // 初始化全选状态
 watch(() => props.dbFileNames, (newDbFileNames) => {
   if (newDbFileNames && newDbFileNames.length > 0) {
-    allSelectedStates.value = newDbFileNames.map(() => true); // 默认全选
+    allSelectedStates.value = newDbFileNames.map((_, index) => index === 0); // 默认只选中第一个
   } else {
     allSelectedStates.value = [];
   }
@@ -251,6 +270,7 @@ const updateAllSelectedStates = () => {
   props.dbFileNames.forEach((_, index) => {
     const conflictItems = conflictData.value.filter(item => item.hasConflict);
     if (conflictItems.length > 0) {
+      // 检查当前列是否在所有冲突记录中都被选中
       allSelectedStates.value[index] = conflictItems.every(item => item.selections[`db${index}`]);
     }
   });
@@ -260,7 +280,8 @@ const indeterminateStates = computed(() => {
   return props.dbFileNames.map((_, index) => {
     const conflictItems = conflictData.value.filter(item => item.hasConflict);
     const selectedCount = conflictItems.filter(item => item.selections[`db${index}`]).length;
-    return selectedCount > 0 && selectedCount < conflictItems.length;
+    // 由于每条记录只能选择一个文件，所以indeterminate状态应该始终为false
+    return false;
   });
 });
 
@@ -274,17 +295,29 @@ const getDbIndex = (columnKey: string): number => {
   return 0; // 默认返回0
 };
 
+// 安全地获取全选状态
+const getAllSelectedState = (columnKey: string): boolean => {
+  const index = getDbIndex(columnKey);
+  return allSelectedStates.value[index] || false;
+};
+
+// 安全地获取indeterminate状态
+const getIndeterminateState = (columnKey: string): boolean => {
+  const index = getDbIndex(columnKey);
+  return indeterminateStates.value[index] || false;
+};
+
 const processConflictData = (conflicts: ConflictDetail[]) => {
   const processedData: ConflictRecord[] = [];
   
   conflicts.forEach((conflict, index) => {
     if (conflict.conflict && conflict.conflict.length > 0) {
-      // 初始化选择状态，默认全部选中
+      // 初始化选择状态，默认只选中第一个文件
       const selections: Record<string, boolean> = {};
       
       props.dbFileNames.forEach((_, dbIndex) => {
         const dbKey = `db${dbIndex}`;
-        selections[dbKey] = true; // 默认选中
+        selections[dbKey] = dbIndex === 0; // 只选中第一个文件
       });
       
       // 根据表类型设置不同的字段
@@ -324,63 +357,135 @@ const processConflictData = (conflicts: ConflictDetail[]) => {
 
 watch(() => props.conflictList, (newConflicts) => {
   conflictData.value = processConflictData(newConflicts);
-  // 更新全选状态
   updateAllSelectedStates();
 }, { immediate: true, deep: true });
 
 const handleSelectAllDb = (dbIndex: number, checked: boolean) => {
   const dbKey = `db${dbIndex}`;
-  conflictData.value.forEach(item => {
-    if (item.hasConflict) {
-      item.selections[dbKey] = checked;
-    }
-  });
-  // 更新全选状态
+  
+  if (checked) {
+    // 如果选中当前列，需要先取消其他列的选择
+    conflictData.value.forEach(item => {
+      if (item.hasConflict) {
+        // 先取消所有选择
+        Object.keys(item.selections).forEach(key => {
+          item.selections[key] = false;
+        });
+        // 然后选中当前列
+        item.selections[dbKey] = true;
+      }
+    });
+  } else {
+    // 如果取消选中当前列，取消该列的所有选择
+    conflictData.value.forEach(item => {
+      if (item.hasConflict) {
+        item.selections[dbKey] = false;
+      }
+    });
+  }
+  
   allSelectedStates.value[dbIndex] = checked;
   emitSelectionChange();
 };
 
 const handleDbSelect = (record: ConflictRecord, dbKey: string) => {
+  // 如果当前复选框被选中，则取消其他所有复选框的选中状态
+  if (record.selections[dbKey]) {
+    Object.keys(record.selections).forEach(key => {
+      if (key !== dbKey) {
+        record.selections[key] = false;
+      }
+    });
+  }
+  
   // 更新全选状态
   updateAllSelectedStates();
   emitSelectionChange();
 };
 
-const handleViewData = (record: ConflictRecord, dbKey: string) => {
-  const dbIndex = parseInt(dbKey.replace('db', ''));
-  const fileName = props.dbFileNames[dbIndex];
+// 判断复选框是否应该被禁用
+const isCheckboxDisabled = (record: ConflictRecord, dbKey: string): boolean => {
+  // 如果当前复选框已选中，则不禁用
+  if (record.selections[dbKey]) {
+    return false;
+  }
   
-  // 查找对应的冲突源信息
-  const conflictSource = record.conflictDetail.conflict.find(
-    source => source.fileName === fileName
+  // 检查是否有其他复选框被选中
+  const hasOtherSelected = Object.keys(record.selections).some(key => 
+    key !== dbKey && record.selections[key]
   );
   
+  // 如果有其他复选框被选中，则禁用当前复选框
+  return hasOtherSelected;
+};
+
+
+const handleViewDetailData = async (record: ConflictRecord, dbKey: string) => {
+    const dbIndex = parseInt(dbKey.replace('db', ''));
+  
+  // 查找对应的冲突源信息
+  const conflictSource = record.conflictDetail.conflict[dbIndex];
+  
+  console.log('查看详细数据 - 记录:', record);
+  console.log('查看详细数据 - 冲突源:', conflictSource);
+  
   if (conflictSource) {
-    // 根据表类型生成不同的标题
-    let title = '';
+    try {
+      let tableInfoList: Array<Record<string, any>> = [];
+      
+      // 根据表类型调用不同的API获取详细数据
     switch (props.tableType) {
       case TableType.table1:
+          const resDetail = await QueryDataDetailTable1ByDBFile(conflictSource.obj_ids, conflictSource.filePath);
+          if (resDetail.data) {
+            // 表1返回的是数组，需要处理每个元素
+            const allData = resDetail.data as Array<Record<string, any>>;
+            if (allData.length > 0) {
+              // 取第一个数据作为示例（因为表1有复杂的嵌套结构）
+              const firstData = allData[0];
+              const { main, usage, equip } = firstData;
+              tableInfoList = [[main], usage, equip] as Array<Record<string, any>>;
+            }
+          }
+          break;
       case TableType.table2:
-        title = `${record.unitName || '未知企业'} - ${fileName} 数据详情`;
+          const table2Data = await QueryDataDetailTable2ByDBFile(conflictSource.obj_ids, conflictSource.filePath);
+          console.log('表2详细数据:', table2Data);
+          if (table2Data.data) {
+            // 表2返回的是数组
+            tableInfoList = table2Data.data as Array<Record<string, any>>;
+            console.log('表2处理后的数据:', tableInfoList);
+          }
         break;
       case TableType.table3:
-        title = `${record.projectName || '未知项目'} - ${fileName} 数据详情`;
+          const table3Data = await QueryDataDetailTable3ByDBFile(conflictSource.obj_ids, conflictSource.filePath);
+          if (table3Data.data) {
+            // 表3返回的是数组
+            tableInfoList = table3Data.data as Array<Record<string, any>>;
+          }
         break;
       case TableType.attachment2:
-        title = `${record.provinceName || ''}${record.cityName || ''}${record.countryName || ''} - ${fileName} 数据详情`;
+          const attachment2Data = await QueryDataDetailAttachment2ByDBFile(conflictSource.obj_ids, conflictSource.filePath);
+          if (attachment2Data.data) {
+            // 附件2返回的是数组
+            tableInfoList = attachment2Data.data as Array<Record<string, any>>;
+          }
         break;
     }
-    
-    detailModal.value = {
+      
+      confirmModal.value = {
       visible: true,
-      title: title,
-             data: {
-         filePath: conflictSource.filePath,
-         fileName: conflictSource.fileName,
-         tableType: conflictSource.tableType,
-         obj_ids: conflictSource.obj_ids
-       }
-    };
+        title: '基本信息',
+        tableType: props.tableType,
+        tableInfoList: tableInfoList,
+        handleOk: () => {
+          confirmModal.value.visible = false;
+        }
+      };
+    } catch (error) {
+      console.error('获取详细数据失败:', error);
+      message.error('获取详细数据失败，请重试');
+    }
   } else {
     message.warning('暂无数据可查看');
   }
@@ -405,9 +510,7 @@ const emitSelectionChange = () => {
       
       // 收集该文件中所有选中的冲突源信息
       selectedItems.forEach(item => {
-        const conflictSource = item.conflictDetail.conflict.find(
-          source => source.fileName === fileName
-        );
+        const conflictSource = item.conflictDetail.conflict[dbIndex];
         if (conflictSource) {
           // 检查是否已经存在相同的文件路径
           const existingIndex = selectedConflicts[tableType].findIndex(
@@ -433,34 +536,7 @@ const emitSelectionChange = () => {
   emit('selectionChange', selectedConflicts);
 };
 
-// 字段标签映射
-const getFieldLabel = (key: string): string => {
-  const labelMap: Record<string, string> = {
-    filePath: '文件路径',
-    fileName: '文件名',
-    tableType: '表类型',
-    obj_ids: '对象ID列表',
-    unit_name: '企业名称',
-    credit_code: '统一社会信用代码',
-    stat_date: '统计日期',
-    province_name: '省份',
-    city_name: '城市',
-    country_name: '区县',
-    equip_type: '设备类型',
-    coal_type: '煤炭类型',
-    energy_efficiency: '能源效率',
-    main_usage: '主要用途',
-    specific_usage: '具体用途',
-    input_variety: '投入品种',
-    output_energy_types: '产出能源类型',
-    project_name: '项目名称',
-    project_code: '项目代码',
-    document_number: '审查意见文号',
-    unit_level: '单位等级',
-    construction_unit: '建设单位'
-  };
-  return labelMap[key] || key;
-};
+
 
 // 暴露方法给父组件
 defineExpose({
@@ -483,9 +559,7 @@ defineExpose({
         
         // 收集该文件中所有选中的冲突源信息
         selectedItems.forEach(item => {
-          const conflictSource = item.conflictDetail.conflict.find(
-            source => source.fileName === fileName
-          );
+          const conflictSource = item.conflictDetail.conflict[dbIndex];
           if (conflictSource) {
             // 检查是否已经存在相同的文件路径
             const existingIndex = selectedConflicts[tableType].findIndex(

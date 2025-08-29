@@ -554,9 +554,9 @@ func (a *App) QueryDataDetailTable1(obj_id string) db.QueryResult {
 }
 
 // 查询附表1详细数据，指定数据库文件路径
-func (a *App) QueryDataDetailTable1ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+func (a *App) QueryDataDetailTable1ByDBFile(obj_ids []string, dbFilePath string) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
-	return dataImportService.QueryDataDetailTable1ByDBFile(obj_id, dbFilePath)
+	return dataImportService.QueryDataDetailTable1ByDBFile(obj_ids, dbFilePath)
 }
 
 // ConfirmDataTable1 确认附表1数据
@@ -578,9 +578,9 @@ func (a *App) QueryDataDetailTable2(obj_id string) db.QueryResult {
 }
 
 // QueryDataDetailTable2ByDBFile 查询附表2详细数据，指定数据库文件路径
-func (a *App) QueryDataDetailTable2ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+func (a *App) QueryDataDetailTable2ByDBFile(obj_ids []string, dbFilePath string) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
-	return dataImportService.QueryDataDetailTable2ByDBFile(obj_id, dbFilePath)
+	return dataImportService.QueryDataDetailTable2ByDBFile(obj_ids, dbFilePath)
 }
 
 // ConfirmDataTable2 确认附表2数据
@@ -602,9 +602,9 @@ func (a *App) QueryDataDetailTable3(obj_id string) db.QueryResult {
 }
 
 // QueryDataDetailTable3ByDBFile 查询附表3详细数据，指定数据库文件路径
-func (a *App) QueryDataDetailTable3ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+func (a *App) QueryDataDetailTable3ByDBFile(obj_ids []string, dbFilePath string) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
-	return dataImportService.QueryDataDetailTable3ByDBFile(obj_id, dbFilePath)
+	return dataImportService.QueryDataDetailTable3ByDBFile(obj_ids, dbFilePath)
 }
 
 // ConfirmDataTable3 确认附表3数据
@@ -626,9 +626,9 @@ func (a *App) QueryDataDetailAttachment2(obj_id string) db.QueryResult {
 }
 
 // QueryDataDetailAttachment2ByDBFile 查询附件2详细数据，指定数据库文件路径
-func (a *App) QueryDataDetailAttachment2ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+func (a *App) QueryDataDetailAttachment2ByDBFile(obj_ids []string, dbFilePath string) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
-	return dataImportService.QueryDataDetailAttachment2ByDBFile(obj_id, dbFilePath)
+	return dataImportService.QueryDataDetailAttachment2ByDBFile(obj_ids, dbFilePath)
 }
 
 // ConfirmDataAttachment2 确认附件2数据

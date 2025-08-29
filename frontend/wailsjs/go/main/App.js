@@ -150,6 +150,10 @@ export function Makedir(arg1) {
   return window['go']['main']['App']['Makedir'](arg1);
 }
 
+export function MergeConflictData(arg1, arg2) {
+  return window['go']['main']['App']['MergeConflictData'](arg1, arg2);
+}
+
 export function MergeDatabase(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['MergeDatabase'](arg1, arg2, arg3, arg4);
 }

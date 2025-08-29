@@ -135,7 +135,6 @@
       return;
     }
 
-    console.log(items);
     const accept = props.accept;
     let valid = false;
     const isFunction = typeof accept === 'function';
@@ -177,7 +176,6 @@
   };
 
   const handleDrop = (e: DragEvent) => {
-    console.log('handleDrop==', e);
     hasValidFile.value = true;
     isDragging.value = false;
 

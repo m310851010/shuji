@@ -78,6 +78,8 @@ export function Login(arg1:string):Promise<db.QueryResult>;
 
 export function Makedir(arg1:string):Promise<main.FlagResult>;
 
+export function MergeConflictData(arg1:string,arg2:Record<string, Array<main.ConflictSourceInfo>>):Promise<db.QueryResult>;
+
 export function MergeDatabase(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<db.QueryResult>;
 
 export function ModelDataCheckAttachment2():Promise<db.QueryResult>;
@@ -110,19 +112,19 @@ export function QueryDataAttachment2():Promise<db.QueryResult>;
 
 export function QueryDataDetailAttachment2(arg1:string):Promise<db.QueryResult>;
 
-export function QueryDataDetailAttachment2ByDBFile(arg1:string,arg2:string):Promise<db.QueryResult>;
+export function QueryDataDetailAttachment2ByDBFile(arg1:Array<string>,arg2:string):Promise<db.QueryResult>;
 
 export function QueryDataDetailTable1(arg1:string):Promise<db.QueryResult>;
 
-export function QueryDataDetailTable1ByDBFile(arg1:string,arg2:string):Promise<db.QueryResult>;
+export function QueryDataDetailTable1ByDBFile(arg1:Array<string>,arg2:string):Promise<db.QueryResult>;
 
 export function QueryDataDetailTable2(arg1:string):Promise<db.QueryResult>;
 
-export function QueryDataDetailTable2ByDBFile(arg1:string,arg2:string):Promise<db.QueryResult>;
+export function QueryDataDetailTable2ByDBFile(arg1:Array<string>,arg2:string):Promise<db.QueryResult>;
 
 export function QueryDataDetailTable3(arg1:string):Promise<db.QueryResult>;
 
-export function QueryDataDetailTable3ByDBFile(arg1:string,arg2:string):Promise<db.QueryResult>;
+export function QueryDataDetailTable3ByDBFile(arg1:Array<string>,arg2:string):Promise<db.QueryResult>;
 
 export function QueryDataTable1():Promise<db.QueryResult>;
 

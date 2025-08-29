@@ -82,7 +82,14 @@ func (s *DataImportService) QueryDataAttachment2() db.QueryResult {
 }
 
 // 查询附件2数据，指定数据库文件路径
-func (s *DataImportService) QueryDataDetailAttachment2ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+func (s *DataImportService) QueryDataDetailAttachment2ByDBFile(obj_ids []string, dbFilePath string) db.QueryResult {
+	if len(obj_ids) == 0 {
+		return db.QueryResult{
+			Ok:      false,
+			Message: "没有提供obj_id",
+		}
+	}
+
 	database, err := db.NewDatabase(dbFilePath, s.app.GetDBPassword())
 	if err != nil {
 		return db.QueryResult{
@@ -91,7 +98,22 @@ func (s *DataImportService) QueryDataDetailAttachment2ByDBFile(obj_id string, db
 		}
 	}
 
-	return s.queryDataDetailAttachment2Forinner(obj_id, database)
+	defer database.Close()
+
+	var allData []map[string]interface{}
+	for _, obj_id := range obj_ids {
+		result := s.queryDataDetailAttachment2Forinner(obj_id, database)
+		if result.Ok && result.Data != nil {
+			if data, ok := result.Data.(map[string]interface{}); ok {
+				allData = append(allData, data)
+			}
+		}
+	}
+
+	return db.QueryResult{
+		Ok:   true,
+		Data: allData,
+	}
 }
 
 func (s *DataImportService) queryDataDetailAttachment2Forinner(obj_id string, database *db.Database) db.QueryResult {

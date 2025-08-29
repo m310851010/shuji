@@ -186,7 +186,7 @@
       [TableType.table2]: () => ExportTable2ProgressToExcel(retPath),
       [TableType.table3]: () => ExportTable3ProgressToExcel(retPath),
       [TableType.attachment2]: () => ExportAttachment2ProgressToExcel(retPath)
-    }[props.tableType];
+    }[props.tableType]!;
     const res = await fn();
     if (res.ok) {
       const ret = await OpenSaveDialog(

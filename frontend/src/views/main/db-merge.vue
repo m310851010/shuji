@@ -66,19 +66,27 @@
     class="full-screen-modal button-middle"
     :title="modal.title"
     :cancel-button-props="{ style: 'display: none' }"
+    @cancel="modal.handleCancel"
     @ok="modal.handleOk"
     ok-text="确认数据覆盖"
   >
     <div class="wh-100 relative">
       <div class="abs" style="overflow: auto;">
-        <DBMergeCoverTable 
+        <div 
           v-for="(item, index) in modal.tableList" 
           :key="index"
-          :ref="(el) => { if (el) modal.tableRefs[index] = el }"
-          :conflictList="item.conflicts" 
-          :dbFileNames="item.fileNames" 
-          :tableType="item.tableType" 
-        />
+          class="table-section"
+        >
+          <div class="table-title">
+            {{ getTableTypeTitle(item.tableType) }}
+          </div>
+          <DBMergeCoverTable 
+            :ref="(el) => { if (el) modal.tableRefs[index] = el }"
+            :conflictList="item.conflicts" 
+            :dbFileNames="item.fileNames" 
+            :tableType="item.tableType" 
+          />
+        </div>
       </div>
     </div>
   </a-modal>
@@ -91,12 +99,29 @@ import DBMergeCoverTable from './components/DBMergeCoverTable.vue';
 import {reactive, ref} from 'vue';
 import {GetChinaAreaStr, MergeDatabase, SaveAreaConfig, MergeConflictData, OpenSaveDialog, Copyfile, Movefile, Removefile} from '@wailsjs/go';
 import { openModal } from '@/components/useModal';
-import { TableType } from '../constant';
+import { TableType, TableTypeName } from '../constant';
 import { main } from '@wailsjs/models';
+import dayjs from 'dayjs';
 
   const selectedFiles = ref<EnhancedFile[]>([]);
 
   
+  //保存合并后的DB文件到指定位置
+  async function  saveMergeDB(targetDbPath: string) {
+    message.success('合并成功, 正在保存到指定位置');
+        //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
+      const res2 = await OpenSaveDialog(new main.FileDialogOptions({
+        title: '保存合并后的DB文件',
+        defaultFilename: `export_合并_${dayjs().format('YYYYMMDDHHmmss')}.db`
+      }));
+      
+    if (res2.canceled) {
+        Removefile(targetDbPath);
+      } else {
+        await Movefile(targetDbPath, res2.filePaths[0]);
+      }
+  }
+
   const modal = reactive({
     show: false,
     tableList: [] as any[],
@@ -108,9 +133,15 @@ import { main } from '@wailsjs/models';
       modal.tableList = data;
       modal.tableRefs = [];
     },
+    handleCancel: async () => {
+      modal.show = false;
+      modal.tableList = [];
+      modal.tableRefs = [];
+      await saveMergeDB(modal.targetDbPath);
+
+    },
     handleOk: async () => {
       try {
-        // 收集所有选中的冲突数据
         const allSelectedConflicts: Record<string, any[]> = {};
         
         modal.tableRefs.forEach((tableRef) => {
@@ -129,36 +160,18 @@ import { main } from '@wailsjs/models';
         // 检查是否有选中的数据
         const hasSelectedData = Object.keys(allSelectedConflicts).length > 0 && 
           Object.values(allSelectedConflicts).some(conflicts => conflicts.length > 0);
+        console.log('hasSelectedData==', hasSelectedData);
         
         if (hasSelectedData) {
-           // 调用后端接口处理冲突数据
             const result = await MergeConflictData(modal.targetDbPath, allSelectedConflicts);
-            if (!result.ok) {
-              message.error(result.message);
-              Removefile(modal.targetDbPath);
-              return;
-            }
+            console.log('MergeConflictData==', result);
         }
         
-        
+        await saveMergeDB(modal.targetDbPath);
         modal.show = false;
-          //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
-        const res = await OpenSaveDialog(new main.FileDialogOptions({
-          title: '保存合并后的DB文件',
-          defaultFilename: modal.targetDbPath,
-          defaultPath: modal.targetDbPath,
-        }));
-
-        
-        if (res.canceled) {
-            Removefile(modal.targetDbPath);
-          } else {
-            await Movefile(modal.targetDbPath, res.filePaths[0]);
-          }
-        
       } catch (error) {
-        console.error('处理冲突数据失败:', error);
-        message.error('处理冲突数据失败');
+        console.error('覆盖冲突数据失败:', error);
+        message.error('覆盖冲突数据失败');
       }
     }
   });
@@ -205,7 +218,21 @@ import { main } from '@wailsjs/models';
             })).filter((item) => item.conflicts.length);
 
             modal.showModal(tableList);
-          }
+            return;
+          } 
+
+          message.success('合并成功');
+            //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
+          const res2 = await OpenSaveDialog(new main.FileDialogOptions({
+            title: '保存合并后的DB文件',
+            defaultFilename: `export_合并_${dayjs().format('YYYYMMDDHHmmss')}.db`
+          }));
+          
+          if (res2.canceled) {
+              Removefile(res.data.targetDbPath);
+            } else {
+              await Movefile(res.data.targetDbPath, res2.filePaths[0]);
+            }
         }).catch(() => {});
   }
 
@@ -235,8 +262,8 @@ interface FormState {
 }
 
 const formState = reactive<FormState>({
-  province: '河北省',
-  city: '秦皇岛市',
+  province: null,
+  city: null,
   district: null,
 });
 
@@ -303,10 +330,39 @@ const filterOption = (input: string, option: any) => {
   return option.label.indexOf(input) >= 0;
 };
 
+const getTableTypeTitle = (tableType: string) => {
+  switch (tableType) {
+    case TableType.table1:
+      return TableTypeName.table1;
+    case TableType.table2:
+      return TableTypeName.table2;
+    case TableType.table3:
+      return TableTypeName.table3;
+    case TableType.attachment2:
+      return TableTypeName.attachment2;
+    default:
+      return '未知表格';
+  }
+};
+
 </script>
 
 <style scoped>
 .form-item-cls {
   width: 200px;
+}
+
+.table-section {
+  margin-bottom: 20px;
+}
+
+.table-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #1A5284;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border-left: 4px solid #1A5284;
 }
 </style>

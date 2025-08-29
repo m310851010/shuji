@@ -131,7 +131,15 @@ func (s *DataImportService) ConfirmDataTable2(obj_id []string) db.QueryResult {
 }
 
 // 查询附表2数据，指定数据库文件路径
-func (s *DataImportService) QueryDataDetailTable2ByDBFile(obj_id string, dbFilePath string) db.QueryResult {
+func (s *DataImportService) QueryDataDetailTable2ByDBFile(obj_ids []string, dbFilePath string) db.QueryResult {
+
+	if len(obj_ids) == 0 {
+		return db.QueryResult{
+			Ok:      false,
+			Message: "没有提供obj_id",
+		}
+	}
+
 	database, err := db.NewDatabase(dbFilePath, s.app.GetDBPassword())
 	if err != nil {
 		return db.QueryResult{
@@ -140,21 +148,24 @@ func (s *DataImportService) QueryDataDetailTable2ByDBFile(obj_id string, dbFileP
 		}
 	}
 
-	data := s.queryDataTable2Forinner(database, obj_id)
-	// 只返回一条数据, 按create_time
-	if data.Ok {
-		dataList, ok := data.Data.([]map[string]interface{})
-		if ok {
-			data.Ok, data.Message = true, "success"
-			if len(dataList) > 0 {
-				data.Data = dataList[len(dataList)-1]
-			} else {
-				data.Data = nil
+	defer database.Close()
+
+	var allData []map[string]interface{}
+	for _, obj_id := range obj_ids {
+		data := s.queryDataTable2Forinner(database, obj_id)
+		if data.Ok {
+			dataList, ok := data.Data.([]map[string]interface{})
+			if ok && len(dataList) > 0 {
+				// 只取最新的一条数据
+				allData = append(allData, dataList[len(dataList)-1])
 			}
-			return db.QueryResult{Ok: data.Ok, Data: data}
 		}
 	}
-	return db.QueryResult{Ok: false, Message: "获取失败"}
+
+	return db.QueryResult{
+		Ok:   true,
+		Data: allData,
+	}
 }
 
 // 查询附表2数据
