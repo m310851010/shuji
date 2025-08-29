@@ -4,14 +4,15 @@
   </a-flex>
 
   <div class="box-grey no-bg" style="height: 340px">
-
     <div v-if="model.passed == null">
-      <h1 style="text-align: center;margin-top: 100px; color: #999">点击上面“校验”按钮开始自动校验</h1>
+      <h1 style="text-align: center; margin-top: 100px; color: #999">点击上面“校验”按钮开始自动校验</h1>
     </div>
 
     <a-flex v-else align="center" justify="space-between" :vertical="true" class="h-100">
       <div></div>
-      <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">数据{{ model.passed ? '已' : '未' }}通过自动校验</div>
+      <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">
+        数据{{ model.passed ? '已' : '未' }}通过自动校验
+      </div>
       <div v-if="model.errorMessage">{{ model.errorMessage }}</div>
       <div>
         <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">下载模型报告</a-button>
@@ -21,11 +22,11 @@
 </template>
 
 <script setup lang="tsx">
-import {openInfoModal, openModal} from '@/components/useModal';
+  import { openInfoModal, openModal } from '@/components/useModal';
   import TodoCoverTable from './TodoCoverTable.vue';
-import {getFileName} from '@/util';
-import {ModelDataCheckReportDownload} from '@wailsjs/go';
-import { db, main } from '@wailsjs/models';
+  import { getFileName } from '@/util';
+  import { ModelDataCheckReportDownload } from '@wailsjs/go';
+  import { db, main } from '@wailsjs/models';
 
   const model = defineModel({
     type: Object,
@@ -40,39 +41,38 @@ import { db, main } from '@wailsjs/models';
   const handleDownloadReport = async () => {
     const result = await ModelDataCheckReportDownload(model.value.tableType);
     console.log(result);
-  }
-
+  };
 
   const handleCheckClick = async () => {
     const handleResult = (result: db.QueryResult) => {
       model.value.canDownloadReport = result.data.hasFailedFiles;
       model.value.passed = !result.data.hasFailedFiles;
       model.value.isChecking = false;
-      if  (model.value.canDownloadReport) {
+      if (model.value.canDownloadReport) {
         model.value.errorMessage = result.message;
       } else {
         model.value.errorMessage = '';
       }
-    }
+    };
 
     model.value.isChecking = true;
-    const result = await  model.value.checkFunc();
-    console.log("自动校验结果", result);
+    const result = await model.value.checkFunc();
+    console.log('自动校验结果', result);
     if (!result.ok) {
       model.value.isChecking = false;
-     openInfoModal({
-       title: '校验失败',
-       content: result.message
-     })
+      openInfoModal({
+        title: '校验失败',
+        content: result.message
+      });
       return;
     }
-    const {cover_files} = result.data;
+    const { cover_files } = result.data;
 
     // 有覆盖文件
     if (cover_files.length) {
       const confirmCoverList = cover_files.map((f: string) => ({
         fileName: getFileName(f),
-        fullPath: f,
+        fullPath: f
       }));
 
       let todoCoverList: string[] = [];
@@ -80,17 +80,17 @@ import { db, main } from '@wailsjs/models';
         width: 800,
         title: '文件覆盖确认',
         content: () => (
-            <>
-              <h3 style="color: #f5222d;margin-bottom:15px;text-align:center">校验通过，以下文件重复导入是否覆盖？</h3>
-              <div style="max-height: 350px; overflow: auto">
-                <TodoCoverTable
-                    fileList={confirmCoverList}
-                    onUpdateFileList={(val: any) => {
-                      todoCoverList = val;
-                    }}
-                />
-              </div>
-            </>
+          <>
+            <h3 style="color: #faad14;margin-bottom:15px;text-align:center">校验通过，以下文件重复导入是否覆盖？</h3>
+            <div style="max-height: 350px; overflow: auto">
+              <TodoCoverTable
+                fileList={confirmCoverList}
+                onUpdateFileList={(val: any) => {
+                  todoCoverList = val;
+                }}
+              />
+            </div>
+          </>
         ),
         onOk: async () => {
           await model.value.coverFunc(todoCoverList);
@@ -104,5 +104,5 @@ import { db, main } from '@wailsjs/models';
     }
 
     handleResult(result);
-  }
+  };
 </script>

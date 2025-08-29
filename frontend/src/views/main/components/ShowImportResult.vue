@@ -7,8 +7,8 @@
         </a-tag>
       </template>
       <template v-else-if="column.dataIndex === 'data'">
-        <div v-for="(msg, idx) in record.data" :key="idx" style="color: #ff4d4f;">
-            {{ msg }}
+        <div v-for="(msg, idx) in record.data" :key="idx" style="color: #ff4d4f">
+          {{ msg }}
         </div>
       </template>
       <template v-else>
@@ -19,35 +19,35 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, computed } from 'vue'
+  import { defineProps, computed } from 'vue';
 
-const props = defineProps<{
-  resultList: Array<{
-    fileName: string
-    ok: boolean
-    data: string[]
-  }>
-}>()
+  const props = defineProps<{
+    resultList: Array<{
+      fileName: string;
+      ok: boolean;
+      data: string[];
+    }>;
+  }>();
 
-const columns = [
-  {
-    title: '文件名',
-    dataIndex: 'fileName',
-    key: 'fileName',
-    width: 280,
-    ellipsis: true,
-  },
-  {
-    title: '导入状态',
-    dataIndex: 'ok',
-    key: 'ok',
-    width: 80,
-  },
-  {
-    title: '备注',
-    dataIndex: 'data',
-    key: 'data',
-  }
-]
+  const columns = [
+    {
+      title: '文件名',
+      dataIndex: 'fileName',
+      key: 'fileName',
+      width: 280,
+      ellipsis: true
+    },
+    {
+      title: '导入状态',
+      dataIndex: 'ok',
+      key: 'ok',
+      width: 80,
+      align: 'center'
+    },
+    {
+      title: '备注',
+      dataIndex: 'data',
+      key: 'data'
+    }
+  ];
 </script>
-

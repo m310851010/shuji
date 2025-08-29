@@ -44,7 +44,7 @@
   } from '@wailsjs/go';
   import { db, main } from '@wailsjs/models';
   import { newColumns } from '@/util';
-  import { Table3Columns } from '@/views/main/components/columns';
+  import { Table3Columns, TableAttachment2Columns } from '@/views/main/components/columns';
   import dayjs from 'dayjs';
 
   const props = defineProps({
@@ -65,6 +65,7 @@
 
   async function handleTable(result: Promise<db.QueryResult>, initColumns: (data: ProcessData) => any[]) {
     const res = await result;
+    console.log(res);
     if (!res.ok) {
       message.error(res.message);
       return;
@@ -119,6 +120,7 @@
   }
 
   onMounted(async () => {
+    console.log(props.tableType);
     if (props.tableType === TableType.table1) {
       await handleTable(QueryTable1Process(), _ => newColumns({ unit_name: '企业' }));
     } else if (props.tableType === TableType.table2) {
@@ -159,7 +161,7 @@
       await handleTable(QueryTableAttachment2Process(), (data: ProcessData) => {
         if (data.area_level === 3) {
           titleList.value = [{ label: '共', total: data.list.length, unit: `条数据` }];
-          return Table3Columns;
+          return TableAttachment2Columns;
         }
         return newColumns({ area_name: getAreaName(data.area_level!) });
       });

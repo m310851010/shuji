@@ -117,7 +117,7 @@
         title: '文件覆盖确认',
         content: () => (
           <>
-            <h3 style="color: #f5222d;margin-bottom:15px;text-align:center">校验通过，以下文件重复导入是否覆盖？</h3>
+            <h3 style="color: #faad14;margin-bottom:15px;text-align:center">以下文件重复导入是否覆盖？</h3>
             <div style="max-height: 350px; overflow: auto">
               <TodoCoverTable
                 fileList={confirmCoverList.value}

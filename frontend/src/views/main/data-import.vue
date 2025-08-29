@@ -26,28 +26,28 @@
     selectedFiles: [],
     name: TableTypeName.table1,
     tableType: TableType.table1,
-    checkFunc: ValidateTable1File,
+    checkFunc: ValidateTable1File
   });
 
   const data_2 = reactive({
     selectedFiles: [],
     name: TableTypeName.table2,
     tableType: TableType.table2,
-    checkFunc: ValidateTable2File,
+    checkFunc: ValidateTable2File
   });
 
   const data_3 = reactive({
     selectedFiles: [],
     name: TableTypeName.table3,
     tableType: TableType.table3,
-    checkFunc: ValidateTable3File,
+    checkFunc: ValidateTable3File
   });
 
   const data_4 = reactive({
     selectedFiles: [],
     name: TableTypeName.attachment2,
     tableType: TableType.attachment2,
-    checkFunc: ValidateAttachment2File,
+    checkFunc: ValidateAttachment2File
   });
 
   const dataMap = {

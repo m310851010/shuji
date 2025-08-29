@@ -78,7 +78,7 @@
   });
 
   let LOCATION_DATA: any[] = [];
-  const provinceOptions = ref<SelectProps['options']>([] );
+  const provinceOptions = ref<SelectProps['options']>([]);
 
   const cityOptions = ref<SelectProps['options']>([]);
   const districtOptions = ref<SelectProps['options']>([]);
@@ -88,12 +88,12 @@
 
   onMounted(async () => {
     const res = await GetChinaAreaStr();
-    LOCATION_DATA = JSON.parse(res.data)
+    LOCATION_DATA = JSON.parse(res.data);
 
     provinceOptions.value = LOCATION_DATA.map(item => ({
       value: item.code,
       label: item.name
-    }))
+    }));
   });
 
   const handleProvinceChange = (value: string) => {
@@ -160,5 +160,15 @@
   .text-tip :deep(.ant-form-item-control-input-content) {
     font-size: 18px;
     text-align: center;
+  }
+
+  .ant-btn-primary.ant-btn-background-ghost {
+    width: 120px;
+    background-color: #1a5284;
+    color: #fff;
+  }
+  .ant-btn-primary.ant-btn-background-ghost:not(:disabled):hover {
+    background-color: #1a5384d6;
+    color: #fff;
   }
 </style>

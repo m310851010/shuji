@@ -1,17 +1,15 @@
 <template>
   <!-- 头部区域 -->
   <div class="page-header">
-    <a-flex justify="space-between">
+    <a-flex justify="space-between" style="width: 100%">
       <div class="span-line">
         <a-radio-group v-model:value="checkTab" @change="handleCheckTabChange">
           <a-radio-button v-for="item in CheckTypeOptions" :key="item.value" :value="item.value" class="tab-button-check">
             {{ item.label }}
           </a-radio-button>
         </a-radio-group>
-
-        
       </div>
-     
+
       <a-radio-group v-model:value="tableTab" @change="handleTabChange">
         <a-radio-button v-for="item in TableOptions" :key="item.value" :value="item.value" class="tab-button">
           {{ item.label }}
@@ -19,7 +17,6 @@
       </a-radio-group>
     </a-flex>
   </div>
-
 
   <transition :name="transitionName" mode="out-in" :css="true">
     <div class="page-content" :key="tableTab + checkTab">
@@ -32,19 +29,19 @@
 </template>
 
 <script setup lang="tsx">
-import {CheckType, CheckTypeOptions, TableOptions, TableType, TableTypeName} from '@/views/constant';
+  import { CheckType, CheckTypeOptions, TableOptions, TableType, TableTypeName } from '@/views/constant';
   import DataCheckModel from './components/DataCheckModel.vue';
   import DataCheckManual from './components/DataCheckManual.vue';
-import {
-  ModelDataCheckAttachment2,
-  ModelDataCheckTable1,
-  ModelDataCheckTable2,
-  ModelDataCheckTable3,
-  ModelDataCoverAttachment2,
-  ModelDataCoverTable1,
-  ModelDataCoverTable2,
-  ModelDataCoverTable3,
-} from '@wailsjs/go';
+  import {
+    ModelDataCheckAttachment2,
+    ModelDataCheckTable1,
+    ModelDataCheckTable2,
+    ModelDataCheckTable3,
+    ModelDataCoverAttachment2,
+    ModelDataCoverTable1,
+    ModelDataCoverTable2,
+    ModelDataCoverTable3
+  } from '@wailsjs/go';
 
   let previousIndex: number = 0;
   const transitionName = ref('slide');
@@ -63,9 +60,9 @@ import {
     previousIndex = index;
   };
 
-  const modelCheckMap = getModelCheckModel()
+  const modelCheckMap = getModelCheckModel();
 
-  function getModelCheckModel () {
+  function getModelCheckModel() {
     const data_1 = reactive({
       name: TableTypeName.table1,
       tableType: TableType.table1,
