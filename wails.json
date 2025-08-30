@@ -16,5 +16,20 @@
     "productVersion": "1.0.0",
     "copyright": "2025 北京数极智能科技有限公司",
     "companyName": "北京数极智能科技有限公司"
+  },
+  "package": {
+    "linux": {
+      "deb": {
+        "depends": [
+          "libgtk-3-0",
+          "libwebkit2gtk-4.0-37"
+        ],
+        "arch": "amd64",
+        "files": {
+          "build/linux/煤炭摸底数据校验软件.desktop": "/usr/share/applications/煤炭摸底数据校验软件.desktop",
+          "build/linux/appicon.png": "/usr/share/icons/hicolor/256x256/apps/appicon.png"
+        }
+      }
+    }
   }
 }

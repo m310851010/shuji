@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -148,19 +149,19 @@ func (s *DataImportService) parseNumericValue(value string) string {
 }
 
 // validateRequiredField 校验必填字段的通用函数
-func (s *DataImportService) validateRequiredField(data map[string]interface{}, fieldName, fieldDisplayName string, rowIndex int) []string {
+func (s *DataImportService) validateRequiredField(data map[string]interface{}, fieldName, fieldDisplayName string, rowNo int) []string {
 	errors := []string{}
 	if value, ok := data[fieldName].(string); !ok || value == "" {
-		errors = append(errors, fmt.Sprintf("第%d行：%s不能为空", rowIndex+1, fieldDisplayName))
+		errors = append(errors, fmt.Sprintf("第%d行：%s不能为空", rowNo, fieldDisplayName))
 	}
 	return errors
 }
 
 // validateRequiredFields 批量校验必填字段
-func (s *DataImportService) validateRequiredFields(data map[string]interface{}, fields map[string]string, rowIndex int) []string {
+func (s *DataImportService) validateRequiredFields(data map[string]interface{}, fields map[string]string, rowNo int) []string {
 	errors := []string{}
 	for fieldName, displayName := range fields {
-		fieldErrors := s.validateRequiredField(data, fieldName, displayName, rowIndex)
+		fieldErrors := s.validateRequiredField(data, fieldName, displayName, rowNo)
 		errors = append(errors, fieldErrors...)
 	}
 	return errors
@@ -191,15 +192,16 @@ func (s *DataImportService) getStringValue(value interface{}) string {
 
 // validateEnterpriseAndCreditCode 企业名称和统一社会信用代码校验（从表1、表2提取的通用逻辑）
 func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]interface{}, unitRowNum, regionRowNum int) []string {
-	errors := []string{}
 
+	errors := []string{}
 	unitName, _ := data["unit_name"].(string)
 	creditCode, _ := data["credit_code"].(string)
 
+	provinceName := s.getStringValue(data["province_name"])
+	cityName := s.getStringValue(data["city_name"])
+	countryName := s.getStringValue(data["country_name"])
+
 	if unitName != "" && creditCode != "" {
-		provinceName := s.getStringValue(data["province_name"])
-		cityName := s.getStringValue(data["city_name"])
-		countryName := s.getStringValue(data["country_name"])
 
 		// 第一步: 调用s.app.IsEnterpriseListExist(), 检查企业清单是否存在, 不存在直接校验通过
 		hasEnterpriseList, err := s.app.IsEnterpriseListExist()
@@ -216,21 +218,24 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 				return errors
 			}
 
-			enterpriseInfo := result.Data.(map[string]interface{})
-			dbUnitName := enterpriseInfo["unit_name"].(string)
-			dbProvinceName := enterpriseInfo["province_name"].(string)
-			dbCityName := enterpriseInfo["city_name"].(string)
-			dbCountryName := enterpriseInfo["country_name"].(string)
+			if provinceName != "" && cityName != "" && countryName != "" {
+				enterpriseInfo := result.Data.(map[string]interface{})
+				dbUnitName := enterpriseInfo["unit_name"].(string)
+				dbProvinceName := enterpriseInfo["province_name"].(string)
+				dbCityName := enterpriseInfo["city_name"].(string)
+				dbCountryName := enterpriseInfo["country_name"].(string)
 
-			// 如果查询到企业名了，比较企业名称是否相同
-			if dbUnitName != unitName {
-				errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和导入的企业名称不对应", unitRowNum, creditCode))
-				return errors
+				// 如果查询到企业名了，比较企业名称是否相同
+				if dbUnitName != unitName {
+					errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和导入的企业名称不对应", unitRowNum, creditCode))
+					return errors
+				}
+
+				// 如果查询到企业名了，比较省市县是否相同
+				errors = s.checkRegionMatch(provinceName, cityName, countryName, dbProvinceName, dbCityName, dbCountryName, regionRowNum)
 			}
 
-			// 如果查询到企业名了，比较省市县是否相同
-			errors = s.checkRegionMatch(provinceName, cityName, countryName, dbProvinceName, dbCityName, dbCountryName, regionRowNum)
-		} else {
+		} else if provinceName != "" && cityName != "" && countryName != "" {
 			errors = s.validateRegionOnly(data, regionRowNum)
 		}
 	}
@@ -339,18 +344,9 @@ var (
 
 	// 附表2必填字段
 	Table2RequiredFields = map[string]string{
-		"unit_name":     "单位名称",
-		"credit_code":   "统一社会信用代码",
-		"province_name": "单位地址",
-		"city_name":     "单位地址",
-		"country_name":  "单位地址",
-		"trade_a":       "所属行业",
-		"trade_b":       "所属行业",
-		"trade_c":       "所属行业",
-		"stat_date":     "数据年份",
 		"coal_type":     "类型",
-		"row_no":        "编号",
-		"coal_no":       "累计使用时间",
+		"coal_no":       "编号",
+		"usage_time":    "累计使用时间",
 		"design_life":   "设计年限",
 		"capacity_unit": "容量单位",
 		"capacity":      "容量",
@@ -390,10 +386,10 @@ var (
 		"coking":           "炼焦",
 		"oil_refining":     "炼油及煤制油",
 		"gas_production":   "制气",
-		"industry":         "工业",
-		"raw_materials":    "用作原料、材料",
+		"industry":         "1.工业",
+		"raw_materials":    "1.工业（#用作原料、材料）",
 		"other_uses":       "其他用途",
-		"coke":             "焦炭消费摸底",
+		"coke":             "焦炭",
 	}
 )
 
@@ -414,6 +410,38 @@ func (s *DataImportService) parseFloat(value string) (float64, error) {
 	}
 
 	return strconv.ParseFloat(value, 64)
+}
+
+// parseBigFloat 解析字符串为 *big.Float，简化定点数处理
+func (s *DataImportService) parseBigFloat(value string) *big.Float {
+	// 移除逗号和空格
+	value = strings.ReplaceAll(value, ",", "")
+	value = strings.TrimSpace(value)
+
+	if value == "" {
+		return big.NewFloat(0)
+	}
+
+	result := new(big.Float)
+	result.SetString(value)
+	return result
+}
+
+// GetCellValue 获取单元格值
+func (s *DataImportService) GetCellValueByRow(row []string, cellIndex int) string {
+	if len(row) > cellIndex {
+		return s.cleanCellValue(row[cellIndex])
+	}
+	return ""
+}
+
+func (s *DataImportService) GetCellValueByRows(rows [][]string, rowIndex int, cellIndex int) string {
+	if len(rows) > rowIndex {
+		if len(rows[rowIndex]) > cellIndex {
+			return s.cleanCellValue(rows[rowIndex][cellIndex])
+		}
+	}
+	return ""
 }
 
 // getExcelRowNumber 获取记录中的Excel行号

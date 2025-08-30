@@ -11,46 +11,46 @@ import (
 )
 
 // parseTable2Excel 解析附表2Excel文件
-func (s *DataImportService) parseTable2Excel(f *excelize.File, skipValidate bool) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseTable2Excel(f *excelize.File, skipValidate bool) (map[string]interface{}, []map[string]interface{}, error) {
 	// 获取所有工作表
 	sheets := f.GetSheetList()
 	if len(sheets) == 0 {
-		return nil, fmt.Errorf("Excel文件没有工作表")
+		return nil, nil, fmt.Errorf("Excel文件没有工作表")
 	}
 
 	// 解析主表数据
-	mainData, err := s.parseTable2MainSheet(f, sheets[0], skipValidate)
+	unitInfo, mainData, err := s.parseTable2MainSheet(f, sheets[0], skipValidate)
 	if err != nil {
-		return nil, fmt.Errorf("和%s模板不匹配,  %v", TableName2, err)
+		return nil, nil, fmt.Errorf("和%s模板不匹配,  %v", TableName2, err)
 	}
 
 	if len(mainData) == 0 {
-		return nil, fmt.Errorf("导入文件没有检测到数据, 请检查文件是否正确")
+		return nil, nil, fmt.Errorf("导入文件没有检测到数据, 请检查文件是否正确")
 	}
 
-	return mainData, nil
+	return unitInfo, mainData, nil
 }
 
 // parseTable2MainSheet 解析附表2主表数据
-func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName string, skipValidate bool) ([]map[string]interface{}, error) {
+func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName string, skipValidate bool) (map[string]interface{}, []map[string]interface{}, error) {
 	var mainData []map[string]interface{}
 
 	// 读取表格数据
 	rows, err := f.GetRows(sheetName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// 解析单位基本信息（第3-4行）
 	unitInfo, err := s.parseTable2UnitInfo(rows)
 	if err != nil {
-		return nil, fmt.Errorf("解析单位基本信息失败: %v", err)
+		return nil, nil, fmt.Errorf("解析单位基本信息失败: %v", err)
 	}
 
 	// 查找设备表格的开始位置（第5行是表头）
 	startRow := 4 // 从第5行开始（0索引为4）
 	if startRow >= len(rows) {
-		return nil, fmt.Errorf("表格行数不足")
+		return unitInfo, nil, fmt.Errorf("表格行数不足")
 	}
 
 	// 获取表头
@@ -66,19 +66,14 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 	headerMap := make(map[int]string)
 
 	if !skipValidate {
-		// 检查表头一致性
-		if len(headers) < len(expectedHeaders) {
-			return nil, fmt.Errorf("表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
-		}
-
 		for i, expected := range expectedHeaders {
 			if i >= len(headers) {
-				return nil, fmt.Errorf("缺少表头：%s", expected)
+				return unitInfo, nil, fmt.Errorf("缺少表头：%s", expected)
 			}
 
 			actual := strings.TrimSpace(headers[i])
 			if actual != expected {
-				return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+				return unitInfo, nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
 			}
 		}
 	}
@@ -91,9 +86,10 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 	}
 
 	// 解析数据行（跳过表头下的第一行说明行）
+	fmt.Println("开始行号 + 2", startRow+2)
 	for i := startRow + 2; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) < 2 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
+		if len(row) < 2 {
 			continue // 跳过空行
 		}
 
@@ -104,21 +100,23 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 		}
 		dataRow["_excel_row"] = i + 1 // 0索引转换为1索引
 
+		hasData := false
 		// 添加设备信息
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
 				dataRow[fieldName] = cleanedValue
+				hasData = true
 			}
 		}
 
-		// 只添加有耗煤类型的数据行
-		if equipType, ok := dataRow["coal_type"].(string); ok && equipType != "" {
+		// 只添加有数据的行
+		if hasData {
 			mainData = append(mainData, dataRow)
 		}
 	}
 
-	return mainData, nil
+	return unitInfo, mainData, nil
 }
 
 // parseTable2UnitInfo 解析附表2单位基本信息
@@ -131,49 +129,25 @@ func (s *DataImportService) parseTable2UnitInfo(rows [][]string) (map[string]int
 	}
 
 	row3 := rows[2] // 第3行（0索引为2）
-	if len(row3) >= 6 {
-		// 单位名称（第1列）
-		unitName := s.cleanCellValue(row3[1])
-		unitInfo["unit_name"] = unitName
 
-		// 统一社会信用代码（第6列）
-		creditCode := s.cleanCellValue(row3[6])
-		unitInfo["credit_code"] = creditCode
-	}
-
-	// 第4行：单位地址、所属行业、数据年份
-	if len(rows) < 4 {
-		return nil, fmt.Errorf("表格行数不足，无法解析单位基本信息")
-	}
+	// 单位名称（第2列）
+	unitInfo["unit_name"] = s.GetCellValueByRow(row3, 1)
+	//  统一社会信用代码（第7列）
+	unitInfo["credit_code"] = s.GetCellValueByRow(row3, 6)
 
 	row4 := rows[3] // 第4行（0索引为3）
-	if len(row4) >= 11 {
-		// 单位地址：省（第1列）、市（第2列）、区县（第3列）
-		province := s.cleanCellValue(row4[1])
-		city := s.cleanCellValue(row4[2])
-		country := s.cleanCellValue(row4[3])
 
-		unitInfo["province_name"] = province
-		unitInfo["city_name"] = city
-		unitInfo["country_name"] = country
+	unitInfo["province_name"] = s.GetCellValueByRow(row4, 1)
+	unitInfo["city_name"] = s.GetCellValueByRow(row4, 2)
+	unitInfo["country_name"] = s.GetCellValueByRow(row4, 3)
 
-		// 所属行业：门类（第6列）、大类（第7列）、小类（第8列）
-		if len(row4) >= 8 {
-			industryDoor := s.cleanCellValue(row4[6])
-			industryBig := s.cleanCellValue(row4[7])
-			industrySmall := s.cleanCellValue(row4[8])
+	// 所属行业：门类（第6列）、大类（第7列）、小类（第8列）
+	unitInfo["trade_a"] = s.GetCellValueByRow(row4, 6)
+	unitInfo["trade_b"] = s.GetCellValueByRow(row4, 7)
+	unitInfo["trade_c"] = s.GetCellValueByRow(row4, 8)
 
-			unitInfo["trade_a"] = industryDoor
-			unitInfo["trade_b"] = industryBig
-			unitInfo["trade_c"] = industrySmall
-		}
-
-		// 数据年份（第10列）
-		if len(row4) >= 10 {
-			statDate := s.cleanCellValue(row4[10])
-			unitInfo["stat_date"] = statDate
-		}
-	}
+	// 数据年份（第10列）
+	unitInfo["stat_date"] = s.GetCellValueByRow(row4, 10)
 
 	return unitInfo, nil
 }
@@ -206,31 +180,48 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		s.app.InsertImportRecord(fileName, TableType2, "导入失败", "文件不存在")
+		errorMessage := "文件不存在"
+		s.app.InsertImportRecord(fileName, TableType2, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: "文件不存在",
+			Data:    []string{errorMessage},
+			Message: errorMessage,
 		}
 	}
 
 	// 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		s.app.InsertImportRecord(fileName, TableType2, "导入失败", fmt.Sprintf("读取Excel文件失败: %v", err))
+		errorMessage := fmt.Sprintf("读取Excel文件失败: %v", err)
+		s.app.InsertImportRecord(fileName, TableType2, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("读取Excel文件失败: %v", err),
+			Data:    []string{errorMessage},
+			Message: errorMessage,
 		}
 	}
 	defer f.Close()
 
 	// 文件是否和模板文件匹配
-	mainData, err := s.parseTable2Excel(f, false)
+	unitInfo, mainData, err := s.parseTable2Excel(f, false)
 	if err != nil {
 		errorMessage := fmt.Sprintf("解析Excel文件失败: %v", err)
 		s.app.InsertImportRecord(fileName, TableType2, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,
+			Data:    []string{errorMessage},
+			Message: errorMessage,
+		}
+	}
+
+	// 按行读取文件数据并校验
+	validationErrors := s.validateTable2DataWithEnterpriseCheck(unitInfo, mainData)
+	if len(validationErrors) > 0 {
+		errorMessage := fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; "))
+		s.app.InsertImportRecord(fileName, TableType2, "导入失败", errorMessage)
+		return db.QueryResult{
+			Ok:      false,
+			Data:    validationErrors,
 			Message: errorMessage,
 		}
 	}
@@ -249,31 +240,18 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 		}
 	}
 
-	// 按行读取文件数据并校验
-	validationErrors := s.validateTable2DataWithEnterpriseCheck(mainData)
-	if len(validationErrors) > 0 {
-		s.app.InsertImportRecord(fileName, TableType2, "导入失败", fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")))
+	// 复制文件到缓存目录（只有校验通过才复制）
+	copyResult := s.app.CopyFileToCache(TableType2, filePath)
+	if !copyResult.Ok {
+		copyMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)
+		s.app.InsertImportRecord(fileName, TableType2, "导入失败", copyMessage)
 		return db.QueryResult{
 			Ok:      false,
-			Data:    validationErrors,
-			Message: fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; ")),
+			Data:    []string{copyMessage},
+			Message: copyMessage,
 		}
 	}
-
-	if len(validationErrors) == 0 {
-		// 复制文件到缓存目录（只有校验通过才复制）
-		copyResult := s.app.CopyFileToCache(TableType2, filePath)
-		if !copyResult.Ok {
-			copyMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)
-			s.app.InsertImportRecord(fileName, TableType2, "导入失败", copyMessage)
-			return db.QueryResult{
-				Ok:      false,
-				Data:    []string{copyMessage},
-				Message: copyMessage,
-			}
-		}
-		s.app.InsertImportRecord(fileName, TableType2, "导入成功", "校验通过")
-	}
+	s.app.InsertImportRecord(fileName, TableType2, "导入成功", "校验通过")
 
 	return db.QueryResult{
 		Ok:      true,
@@ -282,21 +260,38 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 }
 
 // validateTable2DataWithEnterpriseCheck 校验附表2数据（包含企业名称和统一信用代码校验）
-func (s *DataImportService) validateTable2DataWithEnterpriseCheck(mainData []map[string]interface{}) []string {
+func (s *DataImportService) validateTable2DataWithEnterpriseCheck(unitInfo map[string]interface{}, mainData []map[string]interface{}) []string {
 	errors := []string{}
 
-	firstRowData := mainData[0]
+	unitInfoRequiredFields := map[string]string{
+		"unit_name":   "单位名称",
+		"credit_code": "统一社会信用代码",
+	}
+	// 检查基本信息必填字段
+	unitInfoFieldErrors := s.validateRequiredFields(unitInfo, unitInfoRequiredFields, 3)
+	errors = append(errors, unitInfoFieldErrors...)
+
+	regionRequiredFields := map[string]string{
+		"province_name": "单位所在省/市/区",
+		"city_name":     "单位所在地市",
+		"country_name":  "单位所在区县",
+		"stat_date":     "年份",
+		"trade_a":       "所属行业门类",
+		"trade_b":       "所属行业大类",
+		"trade_c":       "所属行业中类",
+	}
+
+	fmt.Println("unitInfo", unitInfo)
+	regionFieldErrors := s.validateRequiredFields(unitInfo, regionRequiredFields, 4)
+	errors = append(errors, regionFieldErrors...)
+
 	// 企业名称和统一信用代码校验
-	enterpriseErrors := s.validateEnterpriseAndCreditCode(firstRowData, 3, 4)
+	enterpriseErrors := s.validateEnterpriseAndCreditCode(unitInfo, 3, 4)
 	errors = append(errors, enterpriseErrors...)
 
-	// 省市县和统一社会信用代码对应关系校验
-	regionErrors := s.validateRegionTable2Correspondence(firstRowData, 4)
-	errors = append(errors, regionErrors...)
-
+	fmt.Println("主数据", mainData)
 	// 在一个循环中完成所有验证
 	for _, data := range mainData {
-		// Excel中的实际行号：设备数据从第7行开始（表头第5行+1行说明+1行数据）
 		excelRowNum := s.getExcelRowNumber(data)
 
 		// 检查必填字段
@@ -311,51 +306,6 @@ func (s *DataImportService) validateTable2DataWithEnterpriseCheck(mainData []map
 	return errors
 }
 
-// validateRegionCorrespondence 省市县和统一社会信用代码对应关系校验
-func (s *DataImportService) validateRegionTable2Correspondence(data map[string]interface{}, excelRowNum int) []string {
-	errors := []string{}
-
-	provinceName, _ := data["province_name"].(string)
-	cityName, _ := data["city_name"].(string)
-	countryName, _ := data["country_name"].(string)
-	creditCodeForRegion, _ := data["credit_code"].(string)
-
-	if provinceName != "" && cityName != "" && countryName != "" && creditCodeForRegion != "" {
-		//  调用s.app.IsEquipmentListExist(), 清单存在时调用s.app.GetEquipmentByCreditCode(统一社会信用代码),清单不存在时, 调用s.app.GetAreaConfig(), 获取province_name, city_name, country_name
-		hasEquipmentList, err := s.app.IsEquipmentListExist()
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("第%d行：装置清单检查失败", excelRowNum))
-			return errors
-		}
-
-		var expectedProvince, expectedCity, expectedCountry string
-
-		if hasEquipmentList {
-			// 清单存在时，从装置清单获取省市县信息
-			equipmentResult := s.app.GetEquipmentByCreditCode(creditCodeForRegion)
-			if equipmentResult.Ok && equipmentResult.Data != nil {
-				if equipmentData, ok := equipmentResult.Data.(map[string]interface{}); ok {
-					expectedProvince = s.getStringValue(equipmentData["province_name"])
-					expectedCity = s.getStringValue(equipmentData["city_name"])
-					expectedCountry = s.getStringValue(equipmentData["country_name"])
-				}
-			}
-		} else {
-			// 清单不存在时，从区域配置获取省市县信息
-			areaResult := s.app.GetAreaConfig()
-			areaData := areaResult.Data.(map[string]interface{})
-			expectedProvince = s.getStringValue(areaData["province_name"])
-			expectedCity = s.getStringValue(areaData["city_name"])
-			expectedCountry = s.getStringValue(areaData["country_name"])
-		}
-
-		// 使用公共函数检查省市县是否匹配
-		return s.checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry, excelRowNum)
-	}
-
-	return errors
-}
-
 // validateTable2CoalConsumption 校验附表2年耗煤量（状态为"停用"时可以为空，其他情况下不能为空）
 func (s *DataImportService) validateTable2CoalConsumption(data map[string]interface{}, excelRowNum int) []string {
 	errors := []string{}
@@ -365,12 +315,12 @@ func (s *DataImportService) validateTable2CoalConsumption(data map[string]interf
 	annualCoalConsumption, _ := data["annual_coal_consumption"].(string)
 
 	// 如果状态为"停用"，年耗煤量可以为空
-	if status == "停用" {
+	if status == "停用" || status == "" {
 		return errors
 	}
 
 	// 其他情况下，年耗煤量不能为空
-	if annualCoalConsumption == "" {
+	if status != "" && annualCoalConsumption == "" {
 		errors = append(errors, fmt.Sprintf("第%d行：年耗煤量不能为空（状态为\"%s\"时）", excelRowNum, status))
 	}
 

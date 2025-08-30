@@ -134,24 +134,26 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 	// 解析数据行（跳过表头下的第一行）
 	for i := startRow + 2; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) < 2 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
+		if len(row) < 2 {
 			continue // 跳过空行
 		}
 
 		// 构建数据行
 		dataRow := make(map[string]interface{})
+		hasData := false
 		for j, cell := range row {
 			if j < len(headerArr) && headerArr[j] != "" {
 				fieldName := headerArr[j]
 				cleanedValue := s.cleanCellValue(cell)
 				dataRow[fieldName] = cleanedValue
+				hasData = true
 			}
 		}
 
 		dataRow["_excel_row"] = i + 1
 
 		// 只添加有项目名称的数据行
-		if projectName, ok := dataRow["project_code"].(string); ok && projectName != "" {
+		if hasData {
 			mainData = append(mainData, dataRow)
 		}
 	}
@@ -199,20 +201,6 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 		}
 	}
 
-	// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
-	if isCover {
-		// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
-		cacheResult := s.app.CacheFileExists(TableType3, fileName)
-		if cacheResult.Ok {
-			// 文件已存在，直接返回，需要前端确认
-			return db.QueryResult{
-				Ok:      false,
-				Message: "文件已存在，需要确认是否覆盖",
-				Data:    "FILE_EXISTS",
-			}
-		}
-	}
-
 	// 按行读取文件数据并校验
 	validationErrors := s.validateTable3Data(mainData)
 	if len(validationErrors) > 0 {
@@ -227,6 +215,20 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 
 	// 复制文件到缓存目录（只有校验通过才复制）
 	if len(validationErrors) == 0 {
+		// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+		if isCover {
+			// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+			cacheResult := s.app.CacheFileExists(TableType3, fileName)
+			if cacheResult.Ok {
+				// 文件已存在，直接返回，需要前端确认
+				return db.QueryResult{
+					Ok:      false,
+					Message: "文件已存在，需要确认是否覆盖",
+					Data:    "FILE_EXISTS",
+				}
+			}
+		}
+
 		copyResult := s.app.CopyFileToCache(TableType3, filePath)
 		if !copyResult.Ok {
 			errorMessage := fmt.Sprintf("文件复制到缓存失败: %s", copyResult.Message)

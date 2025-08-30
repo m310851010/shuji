@@ -43,7 +43,7 @@ func (s *DataImportService) ModelDataCoverTable2(filePaths []string) db.QueryRes
 				continue
 			}
 
-			mainData, err := s.parseTable2Excel(f, true)
+			_, mainData, err := s.parseTable2Excel(f, true)
 
 			f.Close()
 			os.Remove(filePath)
@@ -106,7 +106,7 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 				continue
 			}
 
-			mainData, err := s.parseTable2Excel(f, true)
+			_, mainData, err := s.parseTable2Excel(f, true)
 			f.Close()
 
 			if err != nil {
@@ -217,7 +217,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	if totalRuntime < 0 || totalRuntime > 50 {
 		cells := []string{s.getCellPosition(TableType2, "usage_time", rowNum)}
 		errors = append(errors, ValidationError{
-			RowNumber: rowNum, 
+			RowNumber: rowNum,
 			Message:   "累计使用时间应在0-50之间",
 			Cells:     cells,
 		})
@@ -225,7 +225,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	if totalRuntime != float64(int(totalRuntime)) {
 		cells := []string{s.getCellPosition(TableType2, "usage_time", rowNum)}
 		errors = append(errors, ValidationError{
-			RowNumber: rowNum, 
+			RowNumber: rowNum,
 			Message:   "累计使用时间应为整数",
 			Cells:     cells,
 		})
@@ -234,7 +234,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	if designLife < 0 || designLife > 50 {
 		cells := []string{s.getCellPosition(TableType2, "design_life", rowNum)}
 		errors = append(errors, ValidationError{
-			RowNumber: rowNum, 
+			RowNumber: rowNum,
 			Message:   "设计年限应在0-50之间",
 			Cells:     cells,
 		})
@@ -242,7 +242,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	if designLife != float64(int(designLife)) {
 		cells := []string{s.getCellPosition(TableType2, "design_life", rowNum)}
 		errors = append(errors, ValidationError{
-			RowNumber: rowNum, 
+			RowNumber: rowNum,
 			Message:   "设计年限应为整数",
 			Cells:     cells,
 		})
@@ -254,7 +254,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	if capacity < 0 {
 		cells := []string{s.getCellPosition(TableType2, "capacity", rowNum)}
 		errors = append(errors, ValidationError{
-			RowNumber: rowNum, 
+			RowNumber: rowNum,
 			Message:   "容量不能为负数",
 			Cells:     cells,
 		})
@@ -262,7 +262,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	if capacity != float64(int(capacity)) {
 		cells := []string{s.getCellPosition(TableType2, "capacity", rowNum)}
 		errors = append(errors, ValidationError{
-			RowNumber: rowNum, 
+			RowNumber: rowNum,
 			Message:   "容量应为整数",
 			Cells:     cells,
 		})
@@ -274,7 +274,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	if annualCoalConsumption < 0 {
 		cells := []string{s.getCellPosition(TableType2, "annual_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{
-			RowNumber: rowNum, 
+			RowNumber: rowNum,
 			Message:   "年耗煤量不能为负数",
 			Cells:     cells,
 		})
@@ -282,7 +282,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	if annualCoalConsumption > 1000000000 {
 		cells := []string{s.getCellPosition(TableType2, "annual_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{
-			RowNumber: rowNum, 
+			RowNumber: rowNum,
 			Message:   "年耗煤量不能大于1000000000",
 			Cells:     cells,
 		})
@@ -378,7 +378,7 @@ func (s *DataImportService) addValidationErrorsToExcelTable2(filePath string, er
 	errorMap := make(map[int]string)
 	// 收集所有需要高亮的单元格
 	var allCells []string
-	
+
 	for _, err := range errors {
 		// 如果该行已有错误信息，则追加
 		if existing, exists := errorMap[err.RowNumber]; exists {
@@ -386,7 +386,7 @@ func (s *DataImportService) addValidationErrorsToExcelTable2(filePath string, er
 		} else {
 			errorMap[err.RowNumber] = err.Message
 		}
-		
+
 		// 收集涉及到的单元格
 		if err.Cells != nil {
 			allCells = append(allCells, err.Cells...)

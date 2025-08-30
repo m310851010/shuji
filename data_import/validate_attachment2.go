@@ -169,7 +169,7 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 	// 解析数据行（从第8行开始，跳过表头、子表头等）
 	for i := startDataRow; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) < 2 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
+		if len(row) < 2 {
 			continue // 跳过空行
 		}
 
@@ -180,15 +180,17 @@ func (s *DataImportService) parseAttachment2MainSheet(f *excelize.File, sheetNam
 		dataRow["report_unit"] = reportUnit
 		dataRow["_excel_row"] = i + 1 // 0索引转换为1索引
 
+		hasData := false
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
 				dataRow[fieldName] = cleanedValue
+				hasData = true
 			}
 		}
 
-		// 只添加有省份名称的数据行
-		if provinceName, ok := dataRow["province_name"].(string); ok && provinceName != "" {
+		// 只添加有数据的行
+		if hasData {
 			mainData = append(mainData, dataRow)
 		}
 	}
@@ -236,19 +238,6 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 		}
 	}
 
-	if isCover {
-		// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
-		cacheResult := s.app.CacheFileExists(TableTypeAttachment2, fileName)
-		if cacheResult.Ok {
-			// 文件已存在，直接返回，需要前端确认
-			return db.QueryResult{
-				Ok:      false,
-				Message: "文件已存在，需要确认是否覆盖",
-				Data:    "FILE_EXISTS",
-			}
-		}
-	}
-
 	// 按行读取文件数据并校验
 	validationErrors := s.validateAttachment2Data(mainData)
 	if len(validationErrors) > 0 {
@@ -262,6 +251,19 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 	}
 
 	if len(validationErrors) == 0 {
+		if isCover {
+			// 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+			cacheResult := s.app.CacheFileExists(TableTypeAttachment2, fileName)
+			if cacheResult.Ok {
+				// 文件已存在，直接返回，需要前端确认
+				return db.QueryResult{
+					Ok:      false,
+					Message: "文件已存在，需要确认是否覆盖",
+					Data:    "FILE_EXISTS",
+				}
+			}
+		}
+
 		// 复制文件到缓存目录（只有校验通过才复制）
 		copyResult := s.app.CopyFileToCache(TableTypeAttachment2, filePath)
 		if !copyResult.Ok {

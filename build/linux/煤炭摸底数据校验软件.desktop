@@ -1,0 +1,15 @@
+[Desktop Entry]
+Name=煤炭摸底数据校验软件
+Comment=煤炭摸底数据校验软件
+Exec=煤炭摸底数据校验软件
+Icon=appicon
+Type=Application
+Categories=Utility;
+Keywords=国产系统;校验软件;煤炭摸底;
+StartupWMClass=myapp
+# 以下行对国产系统兼容性很重要
+GenericName=煤炭摸底数据校验软件
+MimeType=
+Path=
+Terminal=false
+StartupNotify=true

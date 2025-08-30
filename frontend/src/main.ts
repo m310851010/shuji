@@ -19,3 +19,25 @@ setupDuplicateData();
 // OnFileDrop((x, y, paths) => {
 //   console.log(x, y, paths);
 // }, true);
+
+setTimeout(() => {
+  // @ts-ignore
+  const wapp = window.go.main.App;
+  for (const k in wapp) {
+    const fn = wapp[k];
+    wapp[k] = function () {
+      const args = [...arguments];
+      console.log('函数:' + k, '参数==', args);
+      const res = fn.apply(app, args);
+      return res
+        .then((data: any) => {
+          console.log('函数:' + k, '返回值==', data);
+          return data;
+        })
+        .catch((err: any) => {
+          console.log('函数:' + k, '错误==', err);
+          return err;
+        });
+    };
+  }
+});

@@ -111,6 +111,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 
 	// 查找综合能源消费情况和煤炭消费情况表格的开始位置（它们在同一行）
 	energyCoalStartRow := -1
+
 	for i := startRow + 3; i < len(rows); i++ {
 		row := rows[i]
 		if len(row) > 0 && (strings.Contains(row[0], "综合能源消费情况") || strings.Contains(row[0], "煤炭消费情况")) {
@@ -158,11 +159,7 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 		}
 	}
 
-	// 只添加有企业名称的数据行
-	if unitName, ok := dataRow["unit_name"].(string); ok && unitName != "" {
-		mainData = append(mainData, dataRow)
-	}
-
+	mainData = append(mainData, dataRow)
 	return mainData, nil
 }
 
@@ -220,7 +217,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 	dataRowIndex := 0
 	for i := startRow + 2; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) == 0 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
+		if len(row) < 2 {
 			continue
 		}
 
@@ -234,15 +231,17 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 		// 记录实际Excel行号
 		dataRow["_excel_row"] = i + 1 // 0索引转换为1索引
 
+		hasData := false
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
 				dataRow[fieldName] = cleanedValue
+				hasData = true
 			}
 		}
 
-		// 只添加有主要用途的数据行
-		if mainUsage, ok := dataRow["main_usage"].(string); ok && mainUsage != "" {
+		// 只添加有数据的行
+		if hasData {
 			usageData = append(usageData, dataRow)
 		}
 		dataRowIndex++
@@ -304,7 +303,7 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 	// 解析数据行（跳过表头下的第一行提示行）
 	for i := startRow + 2; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) == 0 || (len(row) > 0 && strings.TrimSpace(row[0]) == "") {
+		if len(row) < 2 {
 			continue
 		}
 
@@ -313,15 +312,17 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 		// 记录实际Excel行号
 		dataRow["_excel_row"] = i + 1 // 0索引转换为1索引
 
+		hasData := false
 		for j, cell := range row {
 			if fieldName, exists := headerMap[j]; exists && fieldName != "" {
 				cleanedValue := s.cleanCellValue(cell)
 				dataRow[fieldName] = cleanedValue
+				hasData = true
 			}
 		}
 
-		// 只添加有设备类型的数据行
-		if equipType, ok := dataRow["equip_type"].(string); ok && equipType != "" {
+		// 只添加有数据的行
+		if hasData {
 			equipData = append(equipData, dataRow)
 		}
 	}
@@ -444,19 +445,6 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 		}
 	}
 
-	if isCover {
-		// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
-		cacheResult := s.app.CacheFileExists(TableType1, fileName)
-		if cacheResult.Ok {
-			// 文件已存在，直接返回，需要前端确认
-			return db.QueryResult{
-				Ok:      false,
-				Message: "文件已存在，需要确认是否覆盖",
-				Data:    "FILE_EXISTS",
-			}
-		}
-	}
-
 	// 第五步: 按行读取文件数据并校验
 	validationErrors := s.validateTable1DataWithEnterpriseCheck(mainData, usageData, equipData)
 	if len(validationErrors) > 0 {
@@ -472,6 +460,19 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 
 	// 第六步: 复制文件到缓存目录（只有校验通过才复制）
 	if len(validationErrors) == 0 {
+
+		if isCover {
+			// 第四步: 去缓存目录检查是否有同名的文件, 直接返回,需要前端确认
+			cacheResult := s.app.CacheFileExists(TableType1, fileName)
+			if cacheResult.Ok {
+				// 文件已存在，直接返回，需要前端确认
+				return db.QueryResult{
+					Ok:      false,
+					Message: "文件已存在，需要确认是否覆盖",
+					Data:    "FILE_EXISTS",
+				}
+			}
+		}
 
 		copyResult := s.app.CopyFileToCache(TableType1, filePath)
 		if !copyResult.Ok {
@@ -498,13 +499,8 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usageData, equipData []map[string]interface{}) []string {
 	errors := []string{}
 
-	// 0. 检查主表数据条数, 显示为第7行, 社会信用代码不能为空
-	if len(mainData) == 0 {
-		errors = append(errors, "第7行: 社会信用代码不能为空	")
-		return errors
-	}
 	if len(mainData) > 1 {
-		errors = append(errors, fmt.Sprintf("%d条", len(mainData)))
+		errors = append(errors, "单位基本信息只能有一条数据")
 		return errors
 	}
 
@@ -553,6 +549,7 @@ func (s *DataImportService) validateTable1RequiredFieldsWithRowNumbers(data map[
 		"annual_energy_equivalent_cost":  "年综合能耗等价值（万吨标准煤，含原料用能）",
 	}
 
+	fmt.Println("第一部分表格的字段（企业基本信息）", data)
 	// 校验第一部分字段
 	for fieldName, displayName := range part1Fields {
 		if value, ok := data[fieldName].(string); !ok || value == "" {
