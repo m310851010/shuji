@@ -504,44 +504,26 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 		return errors
 	}
 
-	firstRowData := mainData[0]
+	unitInfo := mainData[0]
 	// 企业名称和统一信用代码校验
-	enterpriseErrors := s.validateEnterpriseAndCreditCode(firstRowData, 3, 3)
+	enterpriseErrors := s.validateEnterpriseAndCreditCode(unitInfo, 7, 7)
 	errors = append(errors, enterpriseErrors...)
 
-	// 1. 在一个循环中完成所有验证
-	for _, data := range mainData {
-		// 使用记录的实际Excel行号
-		excelRowNum := s.getExcelRowNumber(data)
-
-		// 获取第二部分表格的行号
-		excelRowNum2 := data["_excel_row2"].(int)
-
-		// 1.1 校验必填字段
-		fieldErrors := s.validateTable1RequiredFieldsWithRowNumbers(data, excelRowNum, excelRowNum2)
-		errors = append(errors, fieldErrors...)
-	}
-
-	return errors
-}
-
-// validateTable1RequiredFieldsWithRowNumbers 校验附表1必填字段（支持两个不同行号）
-func (s *DataImportService) validateTable1RequiredFieldsWithRowNumbers(data map[string]interface{}, rowNum1, rowNum2 int) []string {
-	errors := []string{}
-
-	// 第一部分表格的字段（企业基本信息）
-	part1Fields := map[string]string{
+    unitInfoRequiredFields := map[string]string{
 		"stat_date":     "年份",
-		"unit_name":     "单位名称",
-		"credit_code":   "统一社会信用代码",
-		"trade_a":       "行业门类",
-		"trade_b":       "行业大类",
-		"trade_c":       "行业中类",
-		"province_name": "单位所在省/市/区",
-		"city_name":     "单位所在地市",
-		"country_name":  "单位所在区县",
-		"tel":           "联系电话",
+        "unit_name":     "单位名称",
+        "credit_code":   "统一社会信用代码",
+        "trade_a":       "行业门类",
+        "trade_b":       "行业大类",
+        "trade_c":       "行业中类",
+        "province_name": "单位所在省/市/区",
+        "city_name":     "单位所在地市",
+        "country_name":  "单位所在区县",
+        "tel":           "联系电话",
 	}
+	// 检查基本信息必填字段
+	fieldErrors1 := s.validateRequiredFields(unitInfo, unitInfoRequiredFields, 7)
+    errors = append(errors, fieldErrors1...)
 
 	// 第二部分表格的字段（综合能源消费情况）
 	part2Fields := map[string]string{
@@ -549,20 +531,12 @@ func (s *DataImportService) validateTable1RequiredFieldsWithRowNumbers(data map[
 		"annual_energy_equivalent_cost":  "年综合能耗等价值（万吨标准煤，含原料用能）",
 	}
 
-	fmt.Println("第一部分表格的字段（企业基本信息）", data)
-	// 校验第一部分字段
-	for fieldName, displayName := range part1Fields {
-		if value, ok := data[fieldName].(string); !ok || value == "" {
-			errors = append(errors, fmt.Sprintf("第%d行：%s不能为空", rowNum1, displayName))
-		}
-	}
-
-	// 校验第二部分字段
-	for fieldName, displayName := range part2Fields {
-		if value, ok := data[fieldName].(string); !ok || value == "" {
-			errors = append(errors, fmt.Sprintf("第%d行：%s不能为空", rowNum2, displayName))
-		}
-	}
+    // 获取第二部分表格的行号
+    if excelRowNum2, ok := unitInfo["_excel_row2"].(int); ok {
+        // 1.1 校验必填字段
+        fieldErrors2 := s.validateRequiredFields(unitInfo, part2Fields, excelRowNum2)
+        errors = append(errors, fieldErrors2...)
+    }
 
 	return errors
 }

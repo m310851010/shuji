@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -14,6 +15,27 @@ import (
 
 // ModelDataCoverTable2 覆盖附表2数据
 func (s *DataImportService) ModelDataCoverTable2(filePaths []string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return s.modelDataCoverTable2WithRecover(filePaths)
+}
+
+// modelDataCoverTable2WithRecover 带异常处理的覆盖附表2数据函数
+func (s *DataImportService) modelDataCoverTable2WithRecover(filePaths []string) db.QueryResult {
+	var result db.QueryResult
+
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ModelDataCoverTable2 发生异常: %v", r)
+			// 设置错误结果
+			result = db.QueryResult{
+				Ok:      false,
+				Message: fmt.Sprintf("函数执行异常: %v", r),
+				Data:    nil,
+			}
+		}
+	}()
+
 	cacheDir := s.app.GetCachePath(TableType2)
 	files, err := os.ReadDir(cacheDir)
 	if err != nil {
@@ -44,7 +66,6 @@ func (s *DataImportService) ModelDataCoverTable2(filePaths []string) db.QueryRes
 			}
 
 			_, mainData, err := s.parseTable2Excel(f, true)
-
 			f.Close()
 			os.Remove(filePath)
 
@@ -62,7 +83,7 @@ func (s *DataImportService) ModelDataCoverTable2(filePaths []string) db.QueryRes
 		}
 	}
 
-	return db.QueryResult{
+	result = db.QueryResult{
 		Ok:      true,
 		Message: "覆盖完成",
 		Data: map[string]interface{}{
@@ -70,19 +91,42 @@ func (s *DataImportService) ModelDataCoverTable2(filePaths []string) db.QueryRes
 			"errors":       validationErrors, // 错误信息
 		},
 	}
+	return result
 }
 
 // ModelDataCheckTable2 附表2模型校验函数
 func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
+	// 使用包装函数来处理异常
+	return s.modelDataCheckTable2WithRecover()
+}
+
+// modelDataCheckTable2WithRecover 带异常处理的附表2模型校验函数
+func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
+	var result db.QueryResult
+
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ModelDataCheckTable2 发生异常: %v", r)
+			// 设置错误结果
+			result = db.QueryResult{
+				Ok:      false,
+				Message: fmt.Sprintf("函数执行异常: %v", r),
+				Data:    nil,
+			}
+		}
+	}()
+
 	// 1. 读取缓存目录指定表格类型下的所有Excel文件
 	cacheDir := s.app.GetCachePath(TableType2)
 
 	files, err := os.ReadDir(cacheDir)
 	if err != nil {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("读取缓存目录失败: %v", err),
 		}
+		return result
 	}
 
 	var validationErrors []ValidationError = []ValidationError{} // 错误信息
@@ -153,10 +197,11 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 	}
 
 	if !hasExcelFile {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: "没有待校验Excel文件，请先进行数据导入",
 		}
+		return result
 	}
 
 	// 7. 把所有的模型验证失败的文件打个zip包
@@ -178,7 +223,7 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 		message += "。详细错误信息请查看生成的错误报告。"
 	}
 
-	return db.QueryResult{
+	result = db.QueryResult{
 		Ok:      true,
 		Message: message,
 		Data: map[string]interface{}{
@@ -186,6 +231,7 @@ func (s *DataImportService) ModelDataCheckTable2() db.QueryResult {
 			"hasFailedFiles": len(failedFiles) > 0, // 是否有失败的文件
 		},
 	}
+	return result
 }
 
 // validateTable2DataForModel 校验附表2数据（模型校验专用）

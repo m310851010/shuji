@@ -340,6 +340,19 @@ func (a *App) Makedir(path string) FlagResult {
 
 // Readdir 读取目录内容
 func (a *App) Readdir(path string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.readdirWithRecover(path)
+}
+
+// readdirWithRecover 带异常处理的读取目录内容函数
+func (a *App) readdirWithRecover(path string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Readdir 发生异常: %v", r)
+		}
+	}()
+
 	log.Printf("Readdir: %s", path)
 
 	fullPath := GetPath(path)
@@ -403,6 +416,19 @@ func (a *App) GetCachePath(tableType string) string {
 
 // CacheFileExists 检查缓存文件是否存在
 func (a *App) CacheFileExists(tableType string, fileName string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.cacheFileExistsWithRecover(tableType, fileName)
+}
+
+// cacheFileExistsWithRecover 带异常处理的检查缓存文件是否存在函数
+func (a *App) cacheFileExistsWithRecover(tableType string, fileName string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("CacheFileExists 发生异常: %v", r)
+		}
+	}()
+
 	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, tableType, fileName))
 	_, err := os.Stat(cachePath)
 	if err == nil {
@@ -416,6 +442,19 @@ func (a *App) CacheFileExists(tableType string, fileName string) db.QueryResult 
 
 // CopyFileToCache 复制文件到缓存目录
 func (a *App) CopyFileToCache(tableType string, filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.copyFileToCacheWithRecover(tableType, filePath)
+}
+
+// copyFileToCacheWithRecover 带异常处理的复制文件到缓存目录函数
+func (a *App) copyFileToCacheWithRecover(tableType string, filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("CopyFileToCache 发生异常: %v", r)
+		}
+	}()
+
 	cachePath, err := CopyCacheFile(filePath, tableType)
 	if err != nil {
 		return db.QueryResult{Ok: false, Message: err.Error()}

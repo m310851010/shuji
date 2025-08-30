@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"shuji/db"
 	"strings"
 
@@ -12,6 +13,19 @@ import (
 
 // SetUserPassword 设置用户密码
 func (a *App) SetUserPassword(password string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.setUserPasswordWithRecover(password)
+}
+
+// setUserPasswordWithRecover 带异常处理的设置用户密码函数
+func (a *App) setUserPasswordWithRecover(password string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("SetUserPassword 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{
 		Ok:      false,
 		Message: "",
@@ -77,6 +91,19 @@ func (a *App) SetUserPassword(password string) db.QueryResult {
 
 // GetPasswordInfo 获取密码信息
 func (a *App) GetPasswordInfo() db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.getPasswordInfoWithRecover()
+}
+
+// getPasswordInfoWithRecover 带异常处理的获取密码信息函数
+func (a *App) getPasswordInfoWithRecover() db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("GetPasswordInfo 发生异常: %v", r)
+		}
+	}()
+
 	result, err := a.db.Query("SELECT obj_id, user_pws FROM pws_info LIMIT 1")
 	if err != nil {
 		return db.QueryResult{Ok: false, Message: "查询密码信息失败: " + err.Error()}
@@ -87,6 +114,19 @@ func (a *App) GetPasswordInfo() db.QueryResult {
 
 // 对密码加密后从数据库中查询密码是否正确
 func (a *App) Login(password string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.loginWithRecover(password)
+}
+
+// loginWithRecover 带异常处理的登录函数
+func (a *App) loginWithRecover(password string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Login 发生异常: %v", r)
+		}
+	}()
+
 	// 验证密码不能为空
 	if strings.TrimSpace(password) == "" {
 		return db.QueryResult{Ok: false, Message: "密码不能为空"}
@@ -146,6 +186,19 @@ type AreaConfig struct {
 
 // SaveAreaConfig 保存区域表数据到area_config表
 func (a *App) SaveAreaConfig(config AreaConfig) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.saveAreaConfigWithRecover(config)
+}
+
+// saveAreaConfigWithRecover 带异常处理的保存区域配置函数
+func (a *App) saveAreaConfigWithRecover(config AreaConfig) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("SaveAreaConfig 发生异常: %v", r)
+		}
+	}()
+
 	// 生成UUID作为obj_id
 	objID := uuid.New().String()
 	_, err := a.db.Exec(
@@ -162,6 +215,19 @@ var areaConfigData map[string]interface{}
 
 // 获取区域表(area_config)第一条数据
 func (a *App) GetAreaConfig() db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.getAreaConfigWithRecover()
+}
+
+// getAreaConfigWithRecover 带异常处理的获取区域配置函数
+func (a *App) getAreaConfigWithRecover() db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("GetAreaConfig 发生异常: %v", r)
+		}
+	}()
+
 	if areaConfigData != nil {
 		return db.QueryResult{Ok: true, Data: areaConfigData, Message: "获取成功"}
 	}
@@ -197,6 +263,19 @@ func (a *App) GetChinaAreaMap() (map[string]interface{}, error) {
 }
 
 func (a *App) GetChinaAreaStr() db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.getChinaAreaStrWithRecover()
+}
+
+// getChinaAreaStrWithRecover 带异常处理的获取中国区域信息字符串函数
+func (a *App) getChinaAreaStrWithRecover() db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("GetChinaAreaStr 发生异常: %v", r)
+		}
+	}()
+
 	areaData, err := a.ReadFile(CHINA_AREA_FILE_PATH, true)
 	if err != nil {
 		return db.QueryResult{Ok: false, Message: "获取区域信息失败: " + err.Error()}

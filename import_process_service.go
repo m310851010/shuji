@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"shuji/db"
 	"strings"
 
@@ -151,6 +152,19 @@ func applyCommonStyles(f *excelize.File, headers []string) (int, int, int, int, 
 
 // QueryTable1Process 查询附表1的导入进度
 func (a *App) QueryTable1Process() db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.queryTable1ProcessWithRecover()
+}
+
+// queryTable1ProcessWithRecover 带异常处理的查询附表1导入进度函数
+func (a *App) queryTable1ProcessWithRecover() db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("QueryTable1Process 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{
 		Ok:   false,
 		Data: make([]map[string]interface{}, 0),
@@ -276,6 +290,19 @@ func (a *App) QueryTable1Process() db.QueryResult {
 
 // QueryTable2Process 查询附表2的导入进度
 func (a *App) QueryTable2Process() db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.queryTable2ProcessWithRecover()
+}
+
+// queryTable2ProcessWithRecover 带异常处理的查询附表2导入进度函数
+func (a *App) queryTable2ProcessWithRecover() db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("QueryTable2Process 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{
 		Ok:   false,
 		Data: make([]map[string]interface{}, 0),
@@ -893,6 +920,19 @@ func (a *App) queryAttachment2ProvinceLevel(targetLocation interface{}) db.Query
 
 // ExportTable1ProgressToExcel 导出附表1导入进度到Excel
 func (a *App) ExportTable1ProgressToExcel(filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.exportTable1ProgressToExcelWithRecover(filePath)
+}
+
+// exportTable1ProgressToExcelWithRecover 带异常处理的导出附表1导入进度到Excel函数
+func (a *App) exportTable1ProgressToExcelWithRecover(filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ExportTable1ProgressToExcel 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{}
 
 	// 1. 获取附表1导入进度数据
@@ -1016,6 +1056,19 @@ func (a *App) ExportTable1ProgressToExcel(filePath string) db.QueryResult {
 
 // ExportTable2ProgressToExcel 导出附表2导入进度到Excel
 func (a *App) ExportTable2ProgressToExcel(filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.exportTable2ProgressToExcelWithRecover(filePath)
+}
+
+// exportTable2ProgressToExcelWithRecover 带异常处理的导出附表2导入进度到Excel函数
+func (a *App) exportTable2ProgressToExcelWithRecover(filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ExportTable2ProgressToExcel 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{}
 
 	// 1. 获取附表2导入进度数据
@@ -1126,6 +1179,19 @@ func (a *App) ExportTable2ProgressToExcel(filePath string) db.QueryResult {
 
 // ExportTable3ProgressToExcel 导出附表3导入进度到Excel
 func (a *App) ExportTable3ProgressToExcel(filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.exportTable3ProgressToExcelWithRecover(filePath)
+}
+
+// exportTable3ProgressToExcelWithRecover 带异常处理的导出附表3导入进度到Excel函数
+func (a *App) exportTable3ProgressToExcelWithRecover(filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ExportTable3ProgressToExcel 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{}
 
 	// 1. 获取附表3导入进度数据
@@ -1511,6 +1577,19 @@ func (a *App) ExportTable3ProgressToExcel(filePath string) db.QueryResult {
 
 // ExportAttachment2ProgressToExcel 导出附件2导入进度到Excel
 func (a *App) ExportAttachment2ProgressToExcel(filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.exportAttachment2ProgressToExcelWithRecover(filePath)
+}
+
+// exportAttachment2ProgressToExcelWithRecover 带异常处理的导出附件2导入进度到Excel函数
+func (a *App) exportAttachment2ProgressToExcelWithRecover(filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ExportAttachment2ProgressToExcel 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{}
 
 	// 1. 获取附件2导入进度数据
@@ -1801,8 +1880,8 @@ func (a *App) ExportAttachment2ProgressToExcel(filePath string) db.QueryResult {
 			endCell, _ := excelize.CoordinatesToCellName(1, row)
 			f.SetCellStyle("Sheet1", startCell, endCell, dataStyle)
 
-					// 设置数据行高
-		f.SetRowHeight("Sheet1", row, 20)
+			// 设置数据行高
+			f.SetRowHeight("Sheet1", row, 20)
 		}
 	}
 

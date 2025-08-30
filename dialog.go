@@ -10,6 +10,18 @@ import (
 
 // OpenSaveDialog 选择需要处理的文件
 func (a *App) OpenSaveDialog(option FileDialogOptions) FileDialogResult {
+	// 使用包装函数来处理异常
+	return a.openSaveDialogWithRecover(option)
+}
+
+// openSaveDialogWithRecover 带异常处理的打开保存对话框函数
+func (a *App) openSaveDialogWithRecover(option FileDialogOptions) FileDialogResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("OpenSaveDialog 发生异常: %v", r)
+		}
+	}()
 
 	// DefaultPath 默认值
 	if option.DefaultPath == "" {
@@ -63,6 +75,19 @@ func padRight(s string) string {
 // defaultId: 默认按钮索引
 // cancelId: 取消按钮索引
 func (a *App) ShowMessageBox(options MessageBoxOptions) MessageBoxResult {
+	// 使用包装函数来处理异常
+	return a.showMessageBoxWithRecover(options)
+}
+
+// showMessageBoxWithRecover 带异常处理的显示消息框函数
+func (a *App) showMessageBoxWithRecover(options MessageBoxOptions) MessageBoxResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ShowMessageBox 发生异常: %v", r)
+		}
+	}()
+
 	// 设置默认按钮
 	buttons := options.Buttons
 	if len(buttons) == 0 {
@@ -146,6 +171,19 @@ func (a *App) transformFileFilters(filters []FileFilter) []runtime.FileFilter {
 
 // OpenFileDialog 选择需要处理的文件
 func (a *App) OpenFileDialog(option FileDialogOptions) FileDialogResult {
+	// 使用包装函数来处理异常
+	return a.openFileDialogWithRecover(option)
+}
+
+// openFileDialogWithRecover 带异常处理的打开文件对话框函数
+func (a *App) openFileDialogWithRecover(option FileDialogOptions) FileDialogResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("OpenFileDialog 发生异常: %v", r)
+		}
+	}()
+
 	// option.Filters 默认值
 	if len(option.Filters) == 0 {
 		option.Filters = []FileFilter{

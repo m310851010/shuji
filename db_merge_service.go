@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"path/filepath"
 	"shuji/db"
 	"strings"
@@ -61,6 +62,19 @@ type ConflictSourceInfo struct {
 
 // MergeDatabase 合并数据库
 func (a *App) MergeDatabase(province string, city string, country string, sourceDbPath []string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.mergeDatabaseWithRecover(province, city, country, sourceDbPath)
+}
+
+// mergeDatabaseWithRecover 带异常处理的合并数据库函数
+func (a *App) mergeDatabaseWithRecover(province string, city string, country string, sourceDbPath []string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("MergeDatabase 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{}
 
 	// 1. 验证区域一致性
@@ -1032,6 +1046,19 @@ func (a *App) mergeAttachment2DataWithTx(tx *sql.Tx, nonConflictData []map[strin
 
 // 合并冲突数据
 func (a *App) MergeConflictData(dbFilePath string, conflicts map[string][]ConflictSourceInfo) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.mergeConflictDataWithRecover(dbFilePath, conflicts)
+}
+
+// mergeConflictDataWithRecover 带异常处理的合并冲突数据函数
+func (a *App) mergeConflictDataWithRecover(dbFilePath string, conflicts map[string][]ConflictSourceInfo) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("MergeConflictData 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{}
 
 	if len(conflicts) == 0 {

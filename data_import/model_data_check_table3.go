@@ -2,6 +2,8 @@ package data_import
 
 import (
 	"fmt"
+	"log"
+	"math/big"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -14,13 +16,35 @@ import (
 
 // ModelDataCoverTable3 覆盖附表3数据
 func (s *DataImportService) ModelDataCoverTable3(filePaths []string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return s.modelDataCoverTable3WithRecover(filePaths)
+}
+
+// modelDataCoverTable3WithRecover 带异常处理的覆盖附表3数据函数
+func (s *DataImportService) modelDataCoverTable3WithRecover(filePaths []string) db.QueryResult {
+	var result db.QueryResult
+
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ModelDataCoverTable3 发生异常: %v", r)
+			// 设置错误结果
+			result = db.QueryResult{
+				Ok:      false,
+				Message: fmt.Sprintf("函数执行异常: %v", r),
+				Data:    nil,
+			}
+		}
+	}()
+
 	cacheDir := s.app.GetCachePath(TableType3)
 	files, err := os.ReadDir(cacheDir)
 	if err != nil {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("读取缓存目录失败: %v", err),
 		}
+		return result
 	}
 
 	var validationErrors []ValidationError
@@ -61,7 +85,7 @@ func (s *DataImportService) ModelDataCoverTable3(filePaths []string) db.QueryRes
 		}
 	}
 
-	return db.QueryResult{
+	result = db.QueryResult{
 		Ok:      true,
 		Message: "覆盖完成",
 		Data: map[string]interface{}{
@@ -69,19 +93,42 @@ func (s *DataImportService) ModelDataCoverTable3(filePaths []string) db.QueryRes
 			"errors":       validationErrors, // 错误信息
 		},
 	}
+	return result
 }
 
 // ModelDataCheckTable3 附表3模型校验函数
 func (s *DataImportService) ModelDataCheckTable3() db.QueryResult {
+	// 使用包装函数来处理异常
+	return s.modelDataCheckTable3WithRecover()
+}
+
+// modelDataCheckTable3WithRecover 带异常处理的附表3模型校验函数
+func (s *DataImportService) modelDataCheckTable3WithRecover() db.QueryResult {
+	var result db.QueryResult
+
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ModelDataCheckTable3 发生异常: %v", r)
+			// 设置错误结果
+			result = db.QueryResult{
+				Ok:      false,
+				Message: fmt.Sprintf("函数执行异常: %v", r),
+				Data:    nil,
+			}
+		}
+	}()
+
 	// 1. 读取缓存目录指定表格类型下的所有Excel文件
 	cacheDir := s.app.GetCachePath(TableType3)
 
 	files, err := os.ReadDir(cacheDir)
 	if err != nil {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("读取缓存目录失败: %v", err),
 		}
+		return result
 	}
 
 	var validationErrors []ValidationError = []ValidationError{} // 错误信息
@@ -152,10 +199,11 @@ func (s *DataImportService) ModelDataCheckTable3() db.QueryResult {
 	}
 
 	if !hasExcelFile {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: "没有待校验Excel文件，请先进行数据导入",
 		}
+		return result
 	}
 
 	// 7. 把所有的模型验证失败的文件打个zip包
@@ -177,7 +225,7 @@ func (s *DataImportService) ModelDataCheckTable3() db.QueryResult {
 		message += "。详细错误信息请查看生成的错误报告。"
 	}
 
-	return db.QueryResult{
+	result = db.QueryResult{
 		Ok:      true,
 		Message: message,
 		Data: map[string]interface{}{
@@ -185,6 +233,7 @@ func (s *DataImportService) ModelDataCheckTable3() db.QueryResult {
 			"hasFailedFiles": len(failedFiles) > 0, // 是否有失败的文件
 		},
 	}
+	return result
 }
 
 // validateTable3DataForModel 校验附表3数据（模型校验专用）
@@ -250,88 +299,88 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	// 2. 年煤品消费量部分校验
 	// 煤品消费总量（实物量）、煤炭消费量（实物量）、焦炭消费量（实物量）、兰炭消费量（实物量）
 	// 煤品消费总量（折标量）、煤炭消费量（折标量）、焦炭消费量（折标量）、兰炭消费量（折标量）
-	pqTotalCoalConsumption, _ := s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
-	pqCoalConsumption, _ := s.parseFloat(s.getStringValue(data["pq_coal_consumption"]))
-	pqCokeConsumption, _ := s.parseFloat(s.getStringValue(data["pq_coke_consumption"]))
-	pqBlueCokeConsumption, _ := s.parseFloat(s.getStringValue(data["pq_blue_coke_consumption"]))
+	pqTotalCoalConsumption := s.parseBigFloat(s.getStringValue(data["pq_total_coal_consumption"]))
+	pqCoalConsumption := s.parseBigFloat(s.getStringValue(data["pq_coal_consumption"]))
+	pqCokeConsumption := s.parseBigFloat(s.getStringValue(data["pq_coke_consumption"]))
+	pqBlueCokeConsumption := s.parseBigFloat(s.getStringValue(data["pq_blue_coke_consumption"]))
 
-	sceTotalCoalConsumption, _ := s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
-	sceCoalConsumption, _ := s.parseFloat(s.getStringValue(data["sce_coal_consumption"]))
-	sceCokeConsumption, _ := s.parseFloat(s.getStringValue(data["sce_coke_consumption"]))
-	sceBlueCokeConsumption, _ := s.parseFloat(s.getStringValue(data["sce_blue_coke_consumption"]))
+	sceTotalCoalConsumption := s.parseBigFloat(s.getStringValue(data["sce_total_coal_consumption"]))
+	sceCoalConsumption := s.parseBigFloat(s.getStringValue(data["sce_coal_consumption"]))
+	sceCokeConsumption := s.parseBigFloat(s.getStringValue(data["sce_coke_consumption"]))
+	sceBlueCokeConsumption := s.parseBigFloat(s.getStringValue(data["sce_blue_coke_consumption"]))
 
 	// ①≧0
-	if pqTotalCoalConsumption < 0 {
+	if pqTotalCoalConsumption.Cmp(big.NewFloat(0)) < 0 {
 		cells := []string{s.getCellPosition(TableType3, "pq_total_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（实物量）不能为负数", Cells: cells})
 	}
-	if pqCoalConsumption < 0 {
+	if pqCoalConsumption.Cmp(big.NewFloat(0)) < 0 {
 		cells := []string{s.getCellPosition(TableType3, "pq_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（实物量）不能为负数", Cells: cells})
 	}
-	if pqCokeConsumption < 0 {
+	if pqCokeConsumption.Cmp(big.NewFloat(0)) < 0 {
 		cells := []string{s.getCellPosition(TableType3, "pq_coke_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（实物量）不能为负数", Cells: cells})
 	}
-	if pqBlueCokeConsumption < 0 {
+	if pqBlueCokeConsumption.Cmp(big.NewFloat(0)) < 0 {
 		cells := []string{s.getCellPosition(TableType3, "pq_blue_coke_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（实物量）不能为负数", Cells: cells})
 	}
 
-	if sceTotalCoalConsumption < 0 {
+	if sceTotalCoalConsumption.Cmp(big.NewFloat(0)) < 0 {
 		cells := []string{s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（折标量）不能为负数", Cells: cells})
 	}
-	if sceCoalConsumption < 0 {
+	if sceCoalConsumption.Cmp(big.NewFloat(0)) < 0 {
 		cells := []string{s.getCellPosition(TableType3, "sce_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（折标量）不能为负数", Cells: cells})
 	}
-	if sceCokeConsumption < 0 {
+	if sceCokeConsumption.Cmp(big.NewFloat(0)) < 0 {
 		cells := []string{s.getCellPosition(TableType3, "sce_coke_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（折标量）不能为负数", Cells: cells})
 	}
-	if sceBlueCokeConsumption < 0 {
+	if sceBlueCokeConsumption.Cmp(big.NewFloat(0)) < 0 {
 		cells := []string{s.getCellPosition(TableType3, "sce_blue_coke_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（折标量）不能为负数", Cells: cells})
 	}
 
 	// ②≦100000
-	if pqTotalCoalConsumption > 100000 {
+	if pqTotalCoalConsumption.Cmp(big.NewFloat(100000)) > 0 {
 		cells := []string{s.getCellPosition(TableType3, "pq_total_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（实物量）不能大于100000", Cells: cells})
 	}
-	if pqCoalConsumption > 100000 {
+	if pqCoalConsumption.Cmp(big.NewFloat(100000)) > 0 {
 		cells := []string{s.getCellPosition(TableType3, "pq_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（实物量）不能大于100000", Cells: cells})
 	}
-	if pqCokeConsumption > 100000 {
+	if pqCokeConsumption.Cmp(big.NewFloat(100000)) > 0 {
 		cells := []string{s.getCellPosition(TableType3, "pq_coke_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（实物量）不能大于100000", Cells: cells})
 	}
-	if pqBlueCokeConsumption > 100000 {
+	if pqBlueCokeConsumption.Cmp(big.NewFloat(100000)) > 0 {
 		cells := []string{s.getCellPosition(TableType3, "pq_blue_coke_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（实物量）不能大于100000", Cells: cells})
 	}
 
-	if sceTotalCoalConsumption > 100000 {
+	if sceTotalCoalConsumption.Cmp(big.NewFloat(100000)) > 0 {
 		cells := []string{s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（折标量）不能大于100000", Cells: cells})
 	}
-	if sceCoalConsumption > 100000 {
+	if sceCoalConsumption.Cmp(big.NewFloat(100000)) > 0 {
 		cells := []string{s.getCellPosition(TableType3, "sce_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（折标量）不能大于100000", Cells: cells})
 	}
-	if sceCokeConsumption > 100000 {
+	if sceCokeConsumption.Cmp(big.NewFloat(100000)) > 0 {
 		cells := []string{s.getCellPosition(TableType3, "sce_coke_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（折标量）不能大于100000", Cells: cells})
 	}
-	if sceBlueCokeConsumption > 100000 {
+	if sceBlueCokeConsumption.Cmp(big.NewFloat(100000)) > 0 {
 		cells := []string{s.getCellPosition(TableType3, "sce_blue_coke_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（折标量）不能大于100000", Cells: cells})
 	}
 
 	// ③煤炭消费量（实物量）≧煤炭消费量（折标量）
-	if pqCoalConsumption < sceCoalConsumption {
+	if pqCoalConsumption.Cmp(sceCoalConsumption) < 0 {
 		cells := []string{
 			s.getCellPosition(TableType3, "pq_coal_consumption", rowNum),
 			s.getCellPosition(TableType3, "sce_coal_consumption", rowNum),
@@ -344,7 +393,7 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	}
 
 	// ④焦炭消费量（实物量）≧焦炭消费量（折标量）
-	if pqCokeConsumption < sceCokeConsumption {
+	if pqCokeConsumption.Cmp(sceCokeConsumption) < 0 {
 		cells := []string{
 			s.getCellPosition(TableType3, "pq_coke_consumption", rowNum),
 			s.getCellPosition(TableType3, "sce_coke_consumption", rowNum),
@@ -357,7 +406,7 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	}
 
 	// ⑤兰炭消费量（实物量）≧兰炭消费量（折标量）
-	if pqBlueCokeConsumption < sceBlueCokeConsumption {
+	if pqBlueCokeConsumption.Cmp(sceBlueCokeConsumption) < 0 {
 		cells := []string{
 			s.getCellPosition(TableType3, "pq_blue_coke_consumption", rowNum),
 			s.getCellPosition(TableType3, "sce_blue_coke_consumption", rowNum),
@@ -370,8 +419,9 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	}
 
 	// ⑥煤品消费总量（实物量）=煤炭消费量（实物量）+焦炭消费量（实物量）+兰炭消费量（实物量）
-	expectedPqTotal := pqCoalConsumption + pqCokeConsumption + pqBlueCokeConsumption
-	if pqTotalCoalConsumption != expectedPqTotal {
+	expectedPqTotal := new(big.Float).Add(pqCoalConsumption, pqCokeConsumption)
+	expectedPqTotal.Add(expectedPqTotal, pqBlueCokeConsumption)
+	if pqTotalCoalConsumption.Cmp(expectedPqTotal) != 0 {
 		cells := []string{
 			s.getCellPosition(TableType3, "pq_total_coal_consumption", rowNum),
 			s.getCellPosition(TableType3, "pq_coal_consumption", rowNum),
@@ -386,8 +436,9 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	}
 
 	// ⑦煤品消费总量（折标量）=煤炭消费量（折标量）+焦炭消费量（折标量）+兰炭消费量（折标量）
-	expectedSceTotal := sceCoalConsumption + sceCokeConsumption + sceBlueCokeConsumption
-	if sceTotalCoalConsumption != expectedSceTotal {
+	expectedSceTotal := new(big.Float).Add(sceCoalConsumption, sceCokeConsumption)
+	expectedSceTotal.Add(expectedSceTotal, sceBlueCokeConsumption)
+	if sceTotalCoalConsumption.Cmp(expectedSceTotal) != 0 {
 		cells := []string{
 			s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum),
 			s.getCellPosition(TableType3, "sce_coal_consumption", rowNum),

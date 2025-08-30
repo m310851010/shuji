@@ -8,22 +8,22 @@ import (
 
 // BatchInsertResult 批量插入结果
 type BatchInsertResult struct {
-	TotalRows    int64   `json:"totalRows"`    // 总行数
-	SuccessRows  int64   `json:"successRows"`  // 成功行数
-	FailedRows   int64   `json:"failedRows"`   // 失败行数
-	LastInsertID int64   `json:"lastInsertId"` // 最后插入ID
-	Errors       []string `json:"errors"`      // 错误信息
-	Duration     int64   `json:"duration"`     // 执行时间(毫秒)
+	TotalRows    int64    `json:"totalRows"`    // 总行数
+	SuccessRows  int64    `json:"successRows"`  // 成功行数
+	FailedRows   int64    `json:"failedRows"`   // 失败行数
+	LastInsertID int64    `json:"lastInsertId"` // 最后插入ID
+	Errors       []string `json:"errors"`       // 错误信息
+	Duration     int64    `json:"duration"`     // 执行时间(毫秒)
 }
 
 // BatchUpdateResult 批量更新结果
 type BatchUpdateResult struct {
-	TotalRows    int64     `json:"totalRows"`    // 总行数
-	SuccessRows  int64     `json:"successRows"`  // 成功行数
-	FailedRows   int64     `json:"failedRows"`   // 失败行数
-	RowsAffected int64     `json:"rowsAffected"` // 影响行数
-	Errors       []string  `json:"errors"`       // 错误信息
-	Duration     int64     `json:"duration"`     // 执行时间(毫秒)
+	TotalRows    int64    `json:"totalRows"`    // 总行数
+	SuccessRows  int64    `json:"successRows"`  // 成功行数
+	FailedRows   int64    `json:"failedRows"`   // 失败行数
+	RowsAffected int64    `json:"rowsAffected"` // 影响行数
+	Errors       []string `json:"errors"`       // 错误信息
+	Duration     int64    `json:"duration"`     // 执行时间(毫秒)
 }
 
 // BatchData 批量数据项
@@ -144,18 +144,18 @@ func (d *Database) BatchInsertWithMultiValue(tableName string, dataList []map[st
 		}
 
 		batch := dataList[i:end]
-		
+
 		// 构建多值插入语句
 		var valueStrings []string
 		var allValues []interface{}
-		
+
 		for _, data := range batch {
 			placeholders := make([]string, len(columns))
 			for j := range placeholders {
 				placeholders[j] = "?"
 			}
 			valueStrings = append(valueStrings, "("+strings.Join(placeholders, ", ")+")")
-			
+
 			for _, col := range columns {
 				allValues = append(allValues, data[col])
 			}
@@ -296,7 +296,7 @@ func (d *Database) BatchDelete(tableName string, ids []interface{}, idColumn str
 		}
 
 		batch := ids[i:end]
-		
+
 		// 构建IN查询
 		placeholders := make([]string, len(batch))
 		for j := range placeholders {
@@ -362,18 +362,18 @@ func (d *Database) BatchUpsert(tableName string, dataList []map[string]interface
 		}
 
 		batch := dataList[i:end]
-		
+
 		// 构建REPLACE INTO语句
 		var valueStrings []string
 		var allValues []interface{}
-		
+
 		for _, data := range batch {
 			placeholders := make([]string, len(columns))
 			for j := range placeholders {
 				placeholders[j] = "?"
 			}
 			valueStrings = append(valueStrings, "("+strings.Join(placeholders, ", ")+")")
-			
+
 			for _, col := range columns {
 				allValues = append(allValues, data[col])
 			}
@@ -438,18 +438,18 @@ func (d *Database) BatchInsertWithIgnore(tableName string, dataList []map[string
 		}
 
 		batch := dataList[i:end]
-		
+
 		// 构建INSERT OR IGNORE语句
 		var valueStrings []string
 		var allValues []interface{}
-		
+
 		for _, data := range batch {
 			placeholders := make([]string, len(columns))
 			for j := range placeholders {
 				placeholders[j] = "?"
 			}
 			valueStrings = append(valueStrings, "("+strings.Join(placeholders, ", ")+")")
-			
+
 			for _, col := range columns {
 				allValues = append(allValues, data[col])
 			}

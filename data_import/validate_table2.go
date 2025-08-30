@@ -205,7 +205,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 	// 文件是否和模板文件匹配
 	unitInfo, mainData, err := s.parseTable2Excel(f, false)
 	if err != nil {
-		errorMessage := fmt.Sprintf("解析Excel文件失败: %v", err)
+		errorMessage := err.Error()
 		s.app.InsertImportRecord(fileName, TableType2, "导入失败", errorMessage)
 		return db.QueryResult{
 			Ok:      false,

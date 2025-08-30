@@ -39,14 +39,14 @@
   });
 
   const handleDownloadReport = async () => {
-    const result = await ModelDataCheckReportDownload(model.value.tableType);
-    console.log(result);
+    await ModelDataCheckReportDownload(model.value.tableType);
   };
 
   const handleCheckClick = async () => {
     const handleResult = (result: db.QueryResult) => {
-      model.value.canDownloadReport = result.data.hasFailedFiles;
-      model.value.passed = !result.data.hasFailedFiles;
+      const data = result.data || {};
+      model.value.canDownloadReport = data.hasExportReport;
+      model.value.passed = !data.hasExportReport;
       model.value.isChecking = false;
       if (model.value.canDownloadReport) {
         model.value.errorMessage = result.message;

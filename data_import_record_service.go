@@ -102,6 +102,19 @@ func (s *DataImportRecordService) InsertImportRecord(fileName, fileType, importS
 
 // GetAllImportRecords 获取所有导入记录
 func (s *DataImportRecordService) GetImportRecordsByFileType(fileType string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return s.getImportRecordsByFileTypeWithRecover(fileType)
+}
+
+// getImportRecordsByFileTypeWithRecover 带异常处理的获取导入记录函数
+func (s *DataImportRecordService) getImportRecordsByFileTypeWithRecover(fileType string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("GetImportRecordsByFileType 发生异常: %v", r)
+		}
+	}()
+
 	query := "SELECT * FROM data_import_record WHERE file_type = ? ORDER BY import_time DESC"
 	result, err := s.db.Query(query, fileType)
 	if err != nil {

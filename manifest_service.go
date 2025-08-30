@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -14,6 +15,19 @@ import (
 
 // ValidateEnterpriseListFile 校验企业清单文件并返回数据
 func (a *App) ValidateEnterpriseListFile(filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.validateEnterpriseListFileWithRecover(filePath)
+}
+
+// validateEnterpriseListFileWithRecover 带异常处理的校验企业清单文件函数
+func (a *App) validateEnterpriseListFileWithRecover(filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ValidateEnterpriseListFile 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{
 		Ok:      false,
 		Data:    nil,
@@ -97,6 +111,19 @@ func (a *App) ValidateEnterpriseListFile(filePath string) db.QueryResult {
 
 // ValidateKeyEquipmentListFile 校验装置清单文件
 func (a *App) ValidateKeyEquipmentListFile(filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.validateKeyEquipmentListFileWithRecover(filePath)
+}
+
+// validateKeyEquipmentListFileWithRecover 带异常处理的校验装置清单文件函数
+func (a *App) validateKeyEquipmentListFileWithRecover(filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ValidateKeyEquipmentListFile 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{
 		Ok:      false,
 		Data:    nil,
@@ -192,6 +219,18 @@ func (a *App) ValidateKeyEquipmentListFile(filePath string) db.QueryResult {
 
 // ImportEnterpriseList 导入企业清单
 func (a *App) ImportEnterpriseList(filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.importEnterpriseListWithRecover(filePath)
+}
+
+// importEnterpriseListWithRecover 带异常处理的导入企业清单函数
+func (a *App) importEnterpriseListWithRecover(filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ImportEnterpriseList 发生异常: %v", r)
+		}
+	}()
 
 	result := db.QueryResult{
 		Ok:      false,
@@ -278,6 +317,19 @@ func (a *App) ImportEnterpriseList(filePath string) db.QueryResult {
 
 // ImportKeyEquipmentList 导入装置清单
 func (a *App) ImportKeyEquipmentList(filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.importKeyEquipmentListWithRecover(filePath)
+}
+
+// importKeyEquipmentListWithRecover 带异常处理的导入装置清单函数
+func (a *App) importKeyEquipmentListWithRecover(filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ImportKeyEquipmentList 发生异常: %v", r)
+		}
+	}()
+
 	var result db.QueryResult
 	fileName := filepath.Base(filePath)
 	fileNameTip := "文件:" + fileName + " "

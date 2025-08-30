@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"path/filepath"
 	"shuji/db"
 	"time"
@@ -252,6 +253,19 @@ func (a *App) QueryExportData() db.QueryResult {
 }
 
 func (a *App) CopySystemDb(fileName string) (*db.Database, string, error) {
+	// 使用包装函数来处理异常
+	return a.copySystemDbWithRecover(fileName)
+}
+
+// copySystemDbWithRecover 带异常处理的复制系统数据库函数
+func (a *App) copySystemDbWithRecover(fileName string) (*db.Database, string, error) {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("CopySystemDb 发生异常: %v", r)
+		}
+	}()
+
 	dbDstPath := GetPath(filepath.Join(DATA_DIR_NAME, DB_FILE_NAME))
 	dbTempPath := GetPath(filepath.Join(DATA_DIR_NAME, fileName+time.Now().Format("20060102150405")))
 
@@ -277,6 +291,19 @@ func (a *App) CopySystemDb(fileName string) (*db.Database, string, error) {
 
 // ExportData 导出数据
 func (a *App) ExportDBData(filePath string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.exportDBDataWithRecover(filePath)
+}
+
+// exportDBDataWithRecover 带异常处理的数据导出函数
+func (a *App) exportDBDataWithRecover(filePath string) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ExportDBData 发生异常: %v", r)
+		}
+	}()
+
 	result := db.QueryResult{}
 
 	newDb, dbTempPath, err := a.CopySystemDb("export_")

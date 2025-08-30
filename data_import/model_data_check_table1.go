@@ -3,6 +3,7 @@ package data_import
 import (
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -10,12 +11,35 @@ import (
 	"strings"
 	"time"
 
+	"log"
+
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/xuri/excelize/v2"
 )
 
 // ModelDataCheckReportDownload 下载模型校验结果
 func (s *DataImportService) ModelDataCheckReportDownload(tableType string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return s.modelDataCheckReportDownloadWithRecover(tableType)
+}
+
+// modelDataCheckReportDownloadWithRecover 带异常处理的下载模型校验结果函数
+func (s *DataImportService) modelDataCheckReportDownloadWithRecover(tableType string) db.QueryResult {
+	var result db.QueryResult
+
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ModelDataCheckReportDownload 发生异常: %v", r)
+			// 设置错误结果
+			result = db.QueryResult{
+				Ok:      false,
+				Message: fmt.Sprintf("函数执行异常: %v", r),
+				Data:    nil,
+			}
+		}
+	}()
+
 	cacheDir := s.app.GetCachePath(tableType)
 	// 创建ZIP文件
 	zipFileName := fmt.Sprintf("%s模型报告.zip", s.getTableName(tableType))
@@ -32,34 +56,38 @@ func (s *DataImportService) ModelDataCheckReportDownload(tableType string) db.Qu
 	})
 
 	if err != nil {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("下载模型报告失败: %v", err),
 		}
+		return result
 	}
 
 	if selectPath == "" {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: "下载模型报告失败: 未选择文件",
 		}
+		return result
 	}
 
 	dstFile, err := os.OpenFile(selectPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("下载模型校验结果失败: %v", err),
 		}
+		return result
 	}
 	defer dstFile.Close()
 
 	srcFile, err := os.Open(zipFilePath)
 	if err != nil {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("下载模型校验结果失败: %v", err),
 		}
+		return result
 	}
 	defer srcFile.Close()
 
@@ -67,21 +95,44 @@ func (s *DataImportService) ModelDataCheckReportDownload(tableType string) db.Qu
 	_, err = io.Copy(dstFile, srcFile)
 
 	if err != nil {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: fmt.Sprintf("下载模型校验结果失败: %v", err),
 		}
+		return result
 	}
 
-	return db.QueryResult{
+	result = db.QueryResult{
 		Ok:      true,
 		Message: "下载模型校验结果成功",
 	}
+	return result
 
 }
 
 // ModelDataCoverTable1 覆盖附表1数据
 func (s *DataImportService) ModelDataCoverTable1(filePaths []string) db.QueryResult {
+	// 使用包装函数来处理异常
+	return s.modelDataCoverTable1WithRecover(filePaths)
+}
+
+// modelDataCoverTable1WithRecover 带异常处理的覆盖附表1数据函数
+func (s *DataImportService) modelDataCoverTable1WithRecover(filePaths []string) db.QueryResult {
+	var result db.QueryResult
+
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ModelDataCoverTable1 发生异常: %v", r)
+			// 设置错误结果
+			result = db.QueryResult{
+				Ok:      false,
+				Message: fmt.Sprintf("函数执行异常: %v", r),
+				Data:    nil,
+			}
+		}
+	}()
+
 	cacheDir := s.app.GetCachePath(TableType1)
 	files, err := os.ReadDir(cacheDir)
 	if err != nil {
@@ -129,7 +180,7 @@ func (s *DataImportService) ModelDataCoverTable1(filePaths []string) db.QueryRes
 		}
 	}
 
-	return db.QueryResult{
+	result = db.QueryResult{
 		Ok:      true,
 		Message: "覆盖完成",
 		Data: map[string]interface{}{
@@ -137,10 +188,32 @@ func (s *DataImportService) ModelDataCoverTable1(filePaths []string) db.QueryRes
 			"errors":       validationErrors, // 错误信息
 		},
 	}
+	return result
 }
 
 // ModelDataCheckTable1 附表1模型校验函数
 func (s *DataImportService) ModelDataCheckTable1() db.QueryResult {
+	// 使用包装函数来处理异常
+	return s.modelDataCheckTable1WithRecover()
+}
+
+// modelDataCheckTable1WithRecover 带异常处理的附表1模型校验函数
+func (s *DataImportService) modelDataCheckTable1WithRecover() db.QueryResult {
+	var result db.QueryResult
+
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ModelDataCheckTable1 发生异常: %v", r)
+			// 设置错误结果
+			result = db.QueryResult{
+				Ok:      false,
+				Message: fmt.Sprintf("函数执行异常: %v", r),
+				Data:    nil,
+			}
+		}
+	}()
+
 	// 1. 读取缓存目录指定表格类型下的所有Excel文件
 	cacheDir := s.app.GetCachePath(TableType1)
 
@@ -220,10 +293,11 @@ func (s *DataImportService) ModelDataCheckTable1() db.QueryResult {
 	}
 
 	if !hasExcelFile {
-		return db.QueryResult{
+		result = db.QueryResult{
 			Ok:      false,
 			Message: "没有待校验Excel文件，请先进行数据导入",
 		}
+		return result
 	}
 
 	// 7. 把所有的模型验证失败的文件打个zip包
@@ -245,7 +319,7 @@ func (s *DataImportService) ModelDataCheckTable1() db.QueryResult {
 		message += "。详细错误信息请查看生成的错误报告。"
 	}
 
-	return db.QueryResult{
+	result = db.QueryResult{
 		Ok:      true,
 		Message: message,
 		Data: map[string]interface{}{
@@ -253,6 +327,7 @@ func (s *DataImportService) ModelDataCheckTable1() db.QueryResult {
 			"hasFailedFiles": len(failedFiles) > 0, // 是否有失败的文件
 		},
 	}
+	return result
 }
 
 // coverTable1Data 覆盖附表1数据
@@ -704,8 +779,15 @@ func (s *DataImportService) validateTable1MainNumericFields(data map[string]inte
 	}
 
 	// ⑤耗煤总量（实物量）=原煤消费（实物量）+洗精煤消费（实物量）+其他煤炭消费（实物量）
-	expectedTotal := annualRawCoalConsumption + annualCleanCoalConsumption + annualOtherCoalConsumption
-	if annualTotalCoalConsumption != expectedTotal {
+	// 这里需要精确计算，所以使用 parseBigFloat
+	annualRawCoalConsumptionBig := s.parseBigFloat(s.getStringValue(data["annual_raw_coal_consumption"]))
+	annualCleanCoalConsumptionBig := s.parseBigFloat(s.getStringValue(data["annual_clean_coal_consumption"]))
+	annualOtherCoalConsumptionBig := s.parseBigFloat(s.getStringValue(data["annual_other_coal_consumption"]))
+	annualTotalCoalConsumptionBig := s.parseBigFloat(s.getStringValue(data["annual_total_coal_consumption"]))
+
+	expectedTotal := new(big.Float).Add(annualRawCoalConsumptionBig, annualCleanCoalConsumptionBig)
+	expectedTotal.Add(expectedTotal, annualOtherCoalConsumptionBig)
+	if annualTotalCoalConsumptionBig.Cmp(expectedTotal) != 0 {
 		// 获取涉及到的单元格位置
 		cells := []string{
 			s.getCellPosition(TableType1, "annual_total_coal_consumption", rowNum),
@@ -809,6 +891,7 @@ func (s *DataImportService) validateTable1EquipNumericFields(data map[string]int
 		cells := []string{s.getCellPosition(TableType1, "total_runtime", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应在0-50之间", Cells: cells})
 	}
+	// 检查是否为整数
 	if totalRuntime != float64(int(totalRuntime)) {
 		cells := []string{s.getCellPosition(TableType1, "total_runtime", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应为整数", Cells: cells})
@@ -818,6 +901,7 @@ func (s *DataImportService) validateTable1EquipNumericFields(data map[string]int
 		cells := []string{s.getCellPosition(TableType1, "design_life", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应在0-50之间", Cells: cells})
 	}
+	// 检查是否为整数
 	if designLife != float64(int(designLife)) {
 		cells := []string{s.getCellPosition(TableType1, "design_life", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应为整数", Cells: cells})
@@ -829,6 +913,7 @@ func (s *DataImportService) validateTable1EquipNumericFields(data map[string]int
 		cells := []string{s.getCellPosition(TableType1, "capacity", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量不能为负数", Cells: cells})
 	}
+	// 检查是否为整数
 	if capacity != float64(int(capacity)) {
 		cells := []string{s.getCellPosition(TableType1, "capacity", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量应为整数", Cells: cells})
