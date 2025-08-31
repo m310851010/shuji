@@ -238,6 +238,8 @@ func (s *DataImportService) ValidateTable3File(filePath string, isCover bool) db
 				Data:    []string{errorMessage},
 				Message: errorMessage,
 			}
+		} else {
+			s.UnprotecFile(copyResult.Data.(string))
 		}
 		s.app.InsertImportRecord(fileName, TableType3, "导入成功", "校验通过")
 	}

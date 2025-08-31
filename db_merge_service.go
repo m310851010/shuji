@@ -87,7 +87,6 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 
 	// 2. 复制系统数据库到临时文件并打开数据库连接
 	newDb, dbTempPath, err := a.CopySystemDb("merge_")
-	fmt.Println("newDb dbTempPath", dbTempPath)
 	if err != nil {
 		result.Ok = false
 		result.Message = "复制数据库文件失败: " + err.Error()
@@ -105,16 +104,13 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 		fileName := filepath.Base(sourceDbPath)
 		dbDstPath := GetPath(filepath.Join(DATA_DIR_NAME, time.Now().Format("20060102150405")+"_"+fileName))
 		copyResult := a.Copyfile(sourceDbPath, dbDstPath)
-		fmt.Println("复制文件copyResult", copyResult)
 		if !copyResult.Ok {
 			failedFiles = append(failedFiles, sourceDbPath)
 			continue
 		}
 
-		fmt.Println("链接数据库", dbDstPath)
 		// 创建数据库连接
 		sourceDb, err := db.NewDatabase(dbDstPath, DB_PASSWORD)
-		fmt.Println("链接数据库sourceDb", sourceDb)
 		if err != nil {
 			failedFiles = append(failedFiles, sourceDbPath)
 			continue

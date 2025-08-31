@@ -86,7 +86,6 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 	}
 
 	// 解析数据行（跳过表头下的第一行说明行）
-	fmt.Println("开始行号 + 2", startRow+2)
 	for i := startRow + 2; i < len(rows); i++ {
 		row := rows[i]
 		if len(row) < 2 {
@@ -250,7 +249,10 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 			Data:    []string{copyMessage},
 			Message: copyMessage,
 		}
+	} else {
+		s.UnprotecFile(copyResult.Data.(string))
 	}
+
 	s.app.InsertImportRecord(fileName, TableType2, "导入成功", "校验通过")
 
 	return db.QueryResult{
@@ -281,7 +283,6 @@ func (s *DataImportService) validateTable2DataWithEnterpriseCheck(unitInfo map[s
 		"trade_c":       "所属行业中类",
 	}
 
-	fmt.Println("unitInfo", unitInfo)
 	regionFieldErrors := s.validateRequiredFields(unitInfo, regionRequiredFields, 4)
 	errors = append(errors, regionFieldErrors...)
 
@@ -289,7 +290,6 @@ func (s *DataImportService) validateTable2DataWithEnterpriseCheck(unitInfo map[s
 	enterpriseErrors := s.validateEnterpriseAndCreditCode(unitInfo, 3, 4)
 	errors = append(errors, enterpriseErrors...)
 
-	fmt.Println("主数据", mainData)
 	// 在一个循环中完成所有验证
 	for _, data := range mainData {
 		excelRowNum := s.getExcelRowNumber(data)

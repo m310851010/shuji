@@ -696,3 +696,32 @@ func (s *DataImportService) highlightCellsInExcel(f *excelize.File, sheetName st
 
 	return nil
 }
+
+// UnprotecFile 解除Excel文件的保护并保存
+func (s *DataImportService) UnprotecFile(filePath string) error {
+	// 打开Excel文件
+	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		return fmt.Errorf("打开文件失败: %v", err)
+	}
+	defer f.Close()
+
+	// 解除所有工作表的保护
+	sheets := f.GetSheetList()
+	for _, sheetName := range sheets {
+		// 首先尝试使用空密码解除工作表保护
+		err := f.UnprotectSheet(sheetName)
+		if err != nil {
+			// 如果空密码失败，尝试使用"shuji"密码
+			_ = f.UnprotectSheet(sheetName, "shuji")
+		}
+	}
+
+	// 保存修改后的文件
+	if err := f.Save(); err != nil {
+		return fmt.Errorf("保存解除保护后的文件失败: %v", err)
+	}
+
+	fmt.Printf("成功解除文件 %s 的保护并保存\n", filePath)
+	return nil
+}

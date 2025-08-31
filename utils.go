@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -132,20 +131,8 @@ func GetCurrentOSUser() string {
 	return currentUser.Username
 }
 
-// CopyCacheFile 复制缓存文件
+// copyCacheFile 带异常处理的复制缓存文件函数
 func CopyCacheFile(filePath string, tableType string) (string, error) {
-	// 使用包装函数来处理异常
-	return copyCacheFileWithRecover(filePath, tableType)
-}
-
-// copyCacheFileWithRecover 带异常处理的复制缓存文件函数
-func copyCacheFileWithRecover(filePath string, tableType string) (string, error) {
-	// 添加异常处理，防止函数崩溃
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("CopyCacheFile 发生异常: %v", r)
-		}
-	}()
 
 	fileName := filepath.Base(filePath)
 	cachePath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, tableType, fileName))

@@ -484,6 +484,8 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 				Data:    []string{errorMessage},
 				Message: errorMessage,
 			}
+		} else {
+			s.UnprotecFile(copyResult.Data.(string))
 		}
 
 		s.app.InsertImportRecord(fileName, TableType1, "导入成功", "校验通过")
@@ -509,21 +511,21 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 	enterpriseErrors := s.validateEnterpriseAndCreditCode(unitInfo, 7, 7)
 	errors = append(errors, enterpriseErrors...)
 
-    unitInfoRequiredFields := map[string]string{
+	unitInfoRequiredFields := map[string]string{
 		"stat_date":     "年份",
-        "unit_name":     "单位名称",
-        "credit_code":   "统一社会信用代码",
-        "trade_a":       "行业门类",
-        "trade_b":       "行业大类",
-        "trade_c":       "行业中类",
-        "province_name": "单位所在省/市/区",
-        "city_name":     "单位所在地市",
-        "country_name":  "单位所在区县",
-        "tel":           "联系电话",
+		"unit_name":     "单位名称",
+		"credit_code":   "统一社会信用代码",
+		"trade_a":       "行业门类",
+		"trade_b":       "行业大类",
+		"trade_c":       "行业中类",
+		"province_name": "单位所在省/市/区",
+		"city_name":     "单位所在地市",
+		"country_name":  "单位所在区县",
+		"tel":           "联系电话",
 	}
 	// 检查基本信息必填字段
 	fieldErrors1 := s.validateRequiredFields(unitInfo, unitInfoRequiredFields, 7)
-    errors = append(errors, fieldErrors1...)
+	errors = append(errors, fieldErrors1...)
 
 	// 第二部分表格的字段（综合能源消费情况）
 	part2Fields := map[string]string{
@@ -531,12 +533,12 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 		"annual_energy_equivalent_cost":  "年综合能耗等价值（万吨标准煤，含原料用能）",
 	}
 
-    // 获取第二部分表格的行号
-    if excelRowNum2, ok := unitInfo["_excel_row2"].(int); ok {
-        // 1.1 校验必填字段
-        fieldErrors2 := s.validateRequiredFields(unitInfo, part2Fields, excelRowNum2)
-        errors = append(errors, fieldErrors2...)
-    }
+	// 获取第二部分表格的行号
+	if excelRowNum2, ok := unitInfo["_excel_row2"].(int); ok {
+		// 1.1 校验必填字段
+		fieldErrors2 := s.validateRequiredFields(unitInfo, part2Fields, excelRowNum2)
+		errors = append(errors, fieldErrors2...)
+	}
 
 	return errors
 }

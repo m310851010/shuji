@@ -274,6 +274,8 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 				Message: errorMessage,
 				Data:    []string{errorMessage},
 			}
+		} else {
+			s.UnprotecFile(copyResult.Data.(string))
 		}
 
 		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "导入成功", "校验通过")
