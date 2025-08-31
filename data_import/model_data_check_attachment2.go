@@ -277,37 +277,37 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 	otherCoal, _ := s.parseFloat(s.getStringValue(data["other_coal"]))
 
 	// ①≧0
-	if totalCoal < 0 {
+	if s.isLessThan(totalCoal, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能为负数", Cells: cells})
 	}
-	if rawCoal < 0 {
+	if s.isLessThan(rawCoal, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能为负数", Cells: cells})
 	}
-	if washedCoal < 0 {
+	if s.isLessThan(washedCoal, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能为负数", Cells: cells})
 	}
-	if otherCoal < 0 {
+	if s.isLessThan(otherCoal, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能为负数", Cells: cells})
 	}
 
 	// ②≦200000
-	if totalCoal > 200000 {
+	if s.isGreaterThan(totalCoal, 200000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能大于200000", Cells: cells})
 	}
-	if rawCoal > 200000 {
+	if s.isGreaterThan(rawCoal, 200000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能大于200000", Cells: cells})
 	}
-	if washedCoal > 200000 {
+	if s.isGreaterThan(washedCoal, 200000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能大于200000", Cells: cells})
 	}
-	if otherCoal > 200000 {
+	if s.isGreaterThan(otherCoal, 200000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能大于200000", Cells: cells})
 	}
@@ -324,77 +324,77 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 	otherUses, _ := s.parseFloat(s.getStringValue(data["other_uses"]))
 
 	// ①≧0
-	if powerGeneration < 0 {
+	if s.isLessThan(powerGeneration, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能为负数", Cells: cells})
 	}
-	if heating < 0 {
+	if s.isLessThan(heating, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "heating", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能为负数", Cells: cells})
 	}
-	if coalWashing < 0 {
+	if s.isLessThan(coalWashing, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能为负数", Cells: cells})
 	}
-	if coking < 0 {
+	if s.isLessThan(coking, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coking", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能为负数", Cells: cells})
 	}
-	if oilRefining < 0 {
+	if s.isLessThan(oilRefining, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能为负数", Cells: cells})
 	}
-	if gasProduction < 0 {
+	if s.isLessThan(gasProduction, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能为负数", Cells: cells})
 	}
-	if industry < 0 {
+	if s.isLessThan(industry, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "industry", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能为负数", Cells: cells})
 	}
-	if rawMaterials < 0 {
+	if s.isLessThan(rawMaterials, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能为负数", Cells: cells})
 	}
-	if otherUses < 0 {
+	if s.isLessThan(otherUses, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能为负数", Cells: cells})
 	}
 
 	// ②≦100000
-	if powerGeneration > 100000 {
+	if s.isGreaterThan(powerGeneration, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能大于100000", Cells: cells})
 	}
-	if heating > 100000 {
+	if s.isGreaterThan(heating, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "heating", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能大于100000", Cells: cells})
 	}
-	if coalWashing > 100000 {
+	if s.isGreaterThan(coalWashing, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能大于100000", Cells: cells})
 	}
-	if coking > 100000 {
+	if s.isGreaterThan(coking, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coking", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能大于100000", Cells: cells})
 	}
-	if oilRefining > 100000 {
+	if s.isGreaterThan(oilRefining, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能大于100000", Cells: cells})
 	}
-	if gasProduction > 100000 {
+	if s.isGreaterThan(gasProduction, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能大于100000", Cells: cells})
 	}
-	if industry > 100000 {
+	if s.isGreaterThan(industry, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "industry", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能大于100000", Cells: cells})
 	}
-	if rawMaterials > 100000 {
+	if s.isGreaterThan(rawMaterials, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能大于100000", Cells: cells})
 	}
-	if otherUses > 100000 {
+	if s.isGreaterThan(otherUses, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能大于100000", Cells: cells})
 	}
@@ -403,13 +403,13 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 	coke, _ := s.parseFloat(s.getStringValue(data["coke"]))
 
 	// ①≧0
-	if coke < 0 {
+	if s.isLessThan(coke, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coke", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能为负数", Cells: cells})
 	}
 
 	// ②≦100000
-	if coke > 100000 {
+	if s.isGreaterThan(coke, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coke", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能大于100000", Cells: cells})
 	}
@@ -476,8 +476,9 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 	// 终端消费 = 工业 + 其他用途
 	terminalConsumption := new(big.Float).Add(industry, otherUses)
 
-	// 计算能源加工转换+终端消费
+	// 计算能源加工转换+终端消费-工业（#用作原料、材料）
 	totalConsumption := new(big.Float).Add(energyConversion, terminalConsumption)
+	totalConsumption.Sub(totalConsumption, rawMaterials)
 
 	if totalCoal.Cmp(totalConsumption) < 0 {
 		cells := []string{
@@ -490,8 +491,9 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 			s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum),
 			s.getCellPosition(TableTypeAttachment2, "industry", rowNum),
 			s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum),
+			s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum),
 		}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应大于等于能源加工转换+终端消费", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应大于等于能源加工转换+终端消费-工业（#用作原料、材料）", Cells: cells})
 	}
 
 	return errors
@@ -503,40 +505,7 @@ func (s *DataImportService) validateAttachment2OverallRulesForRow(data map[strin
 
 	// 获取当前行的数值
 	totalCoal := s.parseBigFloat(s.getStringValue(data["total_coal"]))
-	powerGeneration := s.parseBigFloat(s.getStringValue(data["power_generation"]))
-	heating := s.parseBigFloat(s.getStringValue(data["heating"]))
-	coalWashing := s.parseBigFloat(s.getStringValue(data["coal_washing"]))
-	coking := s.parseBigFloat(s.getStringValue(data["coking"]))
-	oilRefining := s.parseBigFloat(s.getStringValue(data["oil_refining"]))
-	gasProduction := s.parseBigFloat(s.getStringValue(data["gas_production"]))
-	industry := s.parseBigFloat(s.getStringValue(data["industry"]))
-	otherUses := s.parseBigFloat(s.getStringValue(data["other_uses"]))
 	coke := s.parseBigFloat(s.getStringValue(data["coke"]))
-
-	// ①煤炭消费总量与各用途消费量的逻辑关系
-	// 煤炭消费总量应大于等于各用途消费量之和
-	totalUsage := new(big.Float).Add(powerGeneration, heating)
-	totalUsage.Add(totalUsage, coalWashing)
-	totalUsage.Add(totalUsage, coking)
-	totalUsage.Add(totalUsage, oilRefining)
-	totalUsage.Add(totalUsage, gasProduction)
-	totalUsage.Add(totalUsage, industry)
-	totalUsage.Add(totalUsage, otherUses)
-
-	if totalCoal.Cmp(totalUsage) < 0 {
-		cells := []string{
-			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "heating", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "coking", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "industry", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum),
-		}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费总量应大于等于各用途消费量之和", Cells: cells})
-	}
 
 	// ②焦炭消费量与煤炭消费量的逻辑关系
 	// 焦炭消费量应小于等于煤炭消费总量（焦炭是煤炭的加工产品）
@@ -546,30 +515,6 @@ func (s *DataImportService) validateAttachment2OverallRulesForRow(data map[strin
 			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
 		}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量应小于等于煤炭消费总量", Cells: cells})
-	}
-
-	// ③能源加工转换与终端消费的逻辑关系
-	// 能源加工转换量应大于等于终端消费量（加工转换会产生损耗）
-	energyConversion := new(big.Float).Add(powerGeneration, heating)
-	energyConversion.Add(energyConversion, coalWashing)
-	energyConversion.Add(energyConversion, coking)
-	energyConversion.Add(energyConversion, oilRefining)
-	energyConversion.Add(energyConversion, gasProduction)
-
-	terminalConsumption := new(big.Float).Add(industry, otherUses)
-
-	if energyConversion.Cmp(terminalConsumption) < 0 {
-		cells := []string{
-			s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "heating", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "coking", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "industry", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum),
-		}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "能源加工转换量应大于等于终端消费量", Cells: cells})
 	}
 
 	return errors

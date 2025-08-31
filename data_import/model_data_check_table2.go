@@ -269,7 +269,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	totalRuntime, _ := s.parseFloat(s.getStringValue(data["usage_time"]))
 	designLife, _ := s.parseFloat(s.getStringValue(data["design_life"]))
 
-	if totalRuntime < 0 || totalRuntime > 50 {
+	if s.isLessThan(totalRuntime, 0) || s.isGreaterThan(totalRuntime, 50) {
 		cells := []string{s.getCellPosition(TableType2, "usage_time", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -277,7 +277,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 			Cells:     cells,
 		})
 	}
-	if totalRuntime != float64(int(totalRuntime)) {
+	if !s.isInteger(totalRuntime) {
 		cells := []string{s.getCellPosition(TableType2, "usage_time", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -286,7 +286,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 		})
 	}
 
-	if designLife < 0 || designLife > 50 {
+	if s.isLessThan(designLife, 0) || s.isGreaterThan(designLife, 50) {
 		cells := []string{s.getCellPosition(TableType2, "design_life", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -294,7 +294,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 			Cells:     cells,
 		})
 	}
-	if designLife != float64(int(designLife)) {
+	if !s.isInteger(designLife) {
 		cells := []string{s.getCellPosition(TableType2, "design_life", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -306,7 +306,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	// 2. 容量校验
 	// 应为正整数
 	capacity, _ := s.parseFloat(s.getStringValue(data["capacity"]))
-	if capacity < 0 {
+	if s.isLessThan(capacity, 0) {
 		cells := []string{s.getCellPosition(TableType2, "capacity", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -314,7 +314,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 			Cells:     cells,
 		})
 	}
-	if capacity != float64(int(capacity)) {
+	if !s.isInteger(capacity) {
 		cells := []string{s.getCellPosition(TableType2, "capacity", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -326,7 +326,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 	// 3. 年耗煤量校验
 	// ≧0且≦1000000000
 	annualCoalConsumption, _ := s.parseFloat(s.getStringValue(data["annual_coal_consumption"]))
-	if annualCoalConsumption < 0 {
+	if s.isLessThan(annualCoalConsumption, 0) {
 		cells := []string{s.getCellPosition(TableType2, "annual_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -334,7 +334,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 			Cells:     cells,
 		})
 	}
-	if annualCoalConsumption > 1000000000 {
+	if s.isGreaterThan(annualCoalConsumption, 1000000000) {
 		cells := []string{s.getCellPosition(TableType2, "annual_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -465,16 +465,7 @@ func (s *DataImportService) addValidationErrorsToExcelTable2(filePath string, er
 		}
 	}
 
-	// 获取最大列数
-	cols, err := f.GetCols(sheetName)
-	if err != nil {
-		return err
-	}
-
-	maxCol := len(cols)
-	if maxCol == 0 {
-		maxCol = 10
-	}
+	maxCol := 11
 
 	// 为每个错误行添加错误信息
 	for excelRow, errorMsg := range errorMap {

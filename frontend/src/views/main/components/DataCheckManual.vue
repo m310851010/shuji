@@ -105,7 +105,24 @@
     dataSource.value = [];
     const resDetail = await QueryDataTable2();
     if (resDetail.data) {
-      dataSource.value = resDetail.data;
+      // 按社会信用代码+年份分组, 再按年份倒序
+      const groupedData = resDetail.data.reduce((acc: Record<string, any>, item: Record<string, any>) => {
+        const key = `${item.stat_date}-${item.credit_code}`;
+        if (!acc[key]) {
+          acc[key] = {
+            ...item,
+            obj_id: key,
+            data: []
+          };
+        }
+        acc[key].data.push(item);
+        return acc;
+      }, {});
+      dataSource.value = Object.values(groupedData).sort((a: any, b: any) => {
+        return b.stat_date.localeCompare(a.stat_date);
+      }) as any;
+
+      // dataSource.value = resDetail.data;
     }
   };
 
@@ -120,19 +137,15 @@
   const queryAttachment2Data = async () => {
     dataSource.value = [];
     const resDetail = await QueryDataAttachment2();
-    if (resDetail.data && resDetail.data.length > 0) {
+    if (resDetail.data) {
       // 按年份和省市县分组, 再按年份倒序
       const groupedData = resDetail.data.reduce((acc: Record<string, any>, item: Record<string, any>) => {
         const key = `${item.stat_date}-${item.province_name}-${item.city_name}-${item.country_name}`;
         if (!acc[key]) {
           acc[key] = {
+            ...item,
+            city_name: [item.city_name, item.country_name].filter(v => !!v).join(' '),
             obj_id: key,
-            create_time: item.create_time,
-            is_confirm: item.is_confirm,
-            stat_date: item.stat_date,
-            province_name: item.province_name,
-            city_name: item.city_name,
-            country_name: item.country_name,
             data: []
           };
         }
@@ -140,11 +153,9 @@
         return acc;
       }, {});
 
-      const list = Object.values(groupedData).sort((a: any, b: any) => {
+      dataSource.value = Object.values(groupedData).sort((a: any, b: any) => {
         return b.stat_date.localeCompare(a.stat_date);
       }) as any;
-
-      dataSource.value = list;
     }
   };
 
@@ -179,7 +190,8 @@
           }
           break;
         case 'table2':
-          tableInfoList.value = [modal.data as Record<string, any>];
+          objId.value = modal.data.data.map((item: any) => item.obj_id);
+          tableInfoList.value = modal.data.data as Record<string, any>[];
           break;
         case 'table3':
           tableInfoList.value = [modal.data as Record<string, any>];
@@ -259,12 +271,13 @@
       return;
     }
 
-    if (props.tableType === 'attachment2') {
-      selectedRowKeys.value = selectedRows.value.map(item => item.data.map((item: any) => item.obj_id)).flat();
+    let rowKeys = selectedRowKeys.value;
+    if (props.tableType === 'attachment2' || props.tableType === 'table3') {
+      rowKeys = selectedRows.value.map(item => item.data.map((item: any) => item.obj_id)).flat();
     }
 
     try {
-      await executeConfirm(props.tableType, selectedRowKeys.value);
+      await executeConfirm(props.tableType, rowKeys);
       selectedRowKeys.value = [];
       queryDataByTableType(props.tableType);
     } catch (error) {

@@ -511,6 +511,19 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 	enterpriseErrors := s.validateEnterpriseAndCreditCode(unitInfo, 7, 7)
 	errors = append(errors, enterpriseErrors...)
 
+	unitInfoFieldsOrdered := []string{
+		"stat_date",
+		"unit_name",
+		"credit_code",
+		"trade_a",
+		"trade_b",
+		"trade_c",
+		"province_name",
+		"city_name",
+		"country_name",
+		"tel",
+	}
+
 	unitInfoRequiredFields := map[string]string{
 		"stat_date":     "年份",
 		"unit_name":     "单位名称",
@@ -523,8 +536,10 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 		"country_name":  "单位所在区县",
 		"tel":           "联系电话",
 	}
-	// 检查基本信息必填字段
-	fieldErrors1 := s.validateRequiredFields(unitInfo, unitInfoRequiredFields, 7)
+
+	// 这里可能还需要优化一下，在表里，行业门类、大类、中类是在一起的，联系电话在最后。提示语也按照这个顺序吧，要不显得比较粗糙
+	// 检查基本信息必填字段,按顺序显示,显得专业些
+	fieldErrors1 := s.validateRequiredFieldsOrdered(unitInfo, unitInfoFieldsOrdered, unitInfoRequiredFields, 7)
 	errors = append(errors, fieldErrors1...)
 
 	// 第二部分表格的字段（综合能源消费情况）

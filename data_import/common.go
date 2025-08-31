@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -146,6 +147,18 @@ func (s *DataImportService) parseNumericValue(value string) string {
 	}
 
 	return cleaned
+}
+
+// validateRequiredFieldsOrdered 批量校验必填字段（保证顺序）
+func (s *DataImportService) validateRequiredFieldsOrdered(data map[string]interface{}, fieldOrder []string, fields map[string]string, rowNo int) []string {
+	errors := []string{}
+	for _, fieldName := range fieldOrder {
+		if displayName, exists := fields[fieldName]; exists {
+			fieldErrors := s.validateRequiredField(data, fieldName, displayName, rowNo)
+			errors = append(errors, fieldErrors...)
+		}
+	}
+	return errors
 }
 
 // validateRequiredField 校验必填字段的通用函数
@@ -410,6 +423,37 @@ func (s *DataImportService) parseFloat(value string) (float64, error) {
 	}
 
 	return strconv.ParseFloat(value, 64)
+}
+
+// isInteger 判断浮点数是否为整数（考虑精度误差）
+func (s *DataImportService) isInteger(value float64) bool {
+	// 使用math包来处理浮点数精度问题
+	return math.Abs(value-math.Round(value)) < 1e-10
+}
+
+// isEqual 判断两个浮点数是否相等（考虑精度误差）
+func (s *DataImportService) isEqual(a, b float64) bool {
+	return math.Abs(a-b) < 1e-10
+}
+
+// isLessThan 判断a是否小于b（考虑精度误差）
+func (s *DataImportService) isLessThan(a, b float64) bool {
+	return a < b && !s.isEqual(a, b)
+}
+
+// isLessThanOrEqual 判断a是否小于等于b（考虑精度误差）
+func (s *DataImportService) isLessThanOrEqual(a, b float64) bool {
+	return a < b || s.isEqual(a, b)
+}
+
+// isGreaterThan 判断a是否大于b（考虑精度误差）
+func (s *DataImportService) isGreaterThan(a, b float64) bool {
+	return a > b && !s.isEqual(a, b)
+}
+
+// isGreaterThanOrEqual 判断a是否大于等于b（考虑精度误差）
+func (s *DataImportService) isGreaterThanOrEqual(a, b float64) bool {
+	return a > b || s.isEqual(a, b)
 }
 
 // parseBigFloat 解析字符串为 *big.Float，简化定点数处理
