@@ -266,10 +266,10 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 
 	// 1. 累计使用时间、设计年限校验
 	// 应为0-50（含0和50）间的整数
-	totalRuntime, _ := s.parseFloat(s.getStringValue(data["usage_time"]))
-	designLife, _ := s.parseFloat(s.getStringValue(data["design_life"]))
+	totalRuntime:= s.parseFloat(s.getStringValue(data["usage_time"]))
+	designLife:= s.parseFloat(s.getStringValue(data["design_life"]))
 
-	if s.isLessThan(totalRuntime, 0) || s.isGreaterThan(totalRuntime, 50) {
+	if s.isIntegerLessThan(totalRuntime, 0) || s.isIntegerGreaterThan(totalRuntime, 50) {
 		cells := []string{s.getCellPosition(TableType2, "usage_time", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -277,7 +277,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 			Cells:     cells,
 		})
 	}
-	if !s.isInteger(totalRuntime) {
+	if !s.isIntegerInteger(totalRuntime) {
 		cells := []string{s.getCellPosition(TableType2, "usage_time", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -286,7 +286,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 		})
 	}
 
-	if s.isLessThan(designLife, 0) || s.isGreaterThan(designLife, 50) {
+	if s.isIntegerLessThan(designLife, 0) || s.isIntegerGreaterThan(designLife, 50) {
 		cells := []string{s.getCellPosition(TableType2, "design_life", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -294,7 +294,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 			Cells:     cells,
 		})
 	}
-	if !s.isInteger(designLife) {
+	if !s.isIntegerInteger(designLife) {
 		cells := []string{s.getCellPosition(TableType2, "design_life", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -305,8 +305,8 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 
 	// 2. 容量校验
 	// 应为正整数
-	capacity, _ := s.parseFloat(s.getStringValue(data["capacity"]))
-	if s.isLessThan(capacity, 0) {
+	capacity:= s.parseFloat(s.getStringValue(data["capacity"]))
+	if s.isIntegerLessThan(capacity, 0) {
 		cells := []string{s.getCellPosition(TableType2, "capacity", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -314,7 +314,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 			Cells:     cells,
 		})
 	}
-	if !s.isInteger(capacity) {
+	if !s.isIntegerInteger(capacity) {
 		cells := []string{s.getCellPosition(TableType2, "capacity", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -325,8 +325,8 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 
 	// 3. 年耗煤量校验
 	// ≧0且≦1000000000
-	annualCoalConsumption, _ := s.parseFloat(s.getStringValue(data["annual_coal_consumption"]))
-	if s.isLessThan(annualCoalConsumption, 0) {
+	annualCoalConsumption:= s.parseFloat(s.getStringValue(data["annual_coal_consumption"]))
+	if s.isIntegerLessThan(annualCoalConsumption, 0) {
 		cells := []string{s.getCellPosition(TableType2, "annual_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
@@ -334,7 +334,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 			Cells:     cells,
 		})
 	}
-	if s.isGreaterThan(annualCoalConsumption, 1000000000) {
+	if s.isIntegerGreaterThan(annualCoalConsumption, 1000000000) {
 		cells := []string{s.getCellPosition(TableType2, "annual_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,

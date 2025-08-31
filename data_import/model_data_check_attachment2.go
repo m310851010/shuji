@@ -3,7 +3,6 @@ package data_import
 import (
 	"fmt"
 	"log"
-	"math/big"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -271,145 +270,145 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 	errors := []ValidationError{}
 
 	// 1. 分品种煤炭消费摸底部分校验
-	totalCoal, _ := s.parseFloat(s.getStringValue(data["total_coal"]))
-	rawCoal, _ := s.parseFloat(s.getStringValue(data["raw_coal"]))
-	washedCoal, _ := s.parseFloat(s.getStringValue(data["washed_coal"]))
-	otherCoal, _ := s.parseFloat(s.getStringValue(data["other_coal"]))
+	totalCoal := s.parseFloat(s.getStringValue(data["total_coal"]))
+	rawCoal := s.parseFloat(s.getStringValue(data["raw_coal"]))
+	washedCoal := s.parseFloat(s.getStringValue(data["washed_coal"]))
+	otherCoal := s.parseFloat(s.getStringValue(data["other_coal"]))
 
 	// ①≧0
-	if s.isLessThan(totalCoal, 0) {
+	if s.isIntegerLessThan(totalCoal, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能为负数", Cells: cells})
 	}
-	if s.isLessThan(rawCoal, 0) {
+	if s.isIntegerLessThan(rawCoal, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能为负数", Cells: cells})
 	}
-	if s.isLessThan(washedCoal, 0) {
+	if s.isIntegerLessThan(washedCoal, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能为负数", Cells: cells})
 	}
-	if s.isLessThan(otherCoal, 0) {
+	if s.isIntegerLessThan(otherCoal, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能为负数", Cells: cells})
 	}
 
 	// ②≦200000
-	if s.isGreaterThan(totalCoal, 200000) {
+	if s.isIntegerGreaterThan(totalCoal, 200000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能大于200000", Cells: cells})
 	}
-	if s.isGreaterThan(rawCoal, 200000) {
+	if s.isIntegerGreaterThan(rawCoal, 200000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能大于200000", Cells: cells})
 	}
-	if s.isGreaterThan(washedCoal, 200000) {
+	if s.isIntegerGreaterThan(washedCoal, 200000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能大于200000", Cells: cells})
 	}
-	if s.isGreaterThan(otherCoal, 200000) {
+	if s.isIntegerGreaterThan(otherCoal, 200000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能大于200000", Cells: cells})
 	}
 
 	// 2. 分用途煤炭消费摸底部分校验
-	powerGeneration, _ := s.parseFloat(s.getStringValue(data["power_generation"]))
-	heating, _ := s.parseFloat(s.getStringValue(data["heating"]))
-	coalWashing, _ := s.parseFloat(s.getStringValue(data["coal_washing"]))
-	coking, _ := s.parseFloat(s.getStringValue(data["coking"]))
-	oilRefining, _ := s.parseFloat(s.getStringValue(data["oil_refining"]))
-	gasProduction, _ := s.parseFloat(s.getStringValue(data["gas_production"]))
-	industry, _ := s.parseFloat(s.getStringValue(data["industry"]))
-	rawMaterials, _ := s.parseFloat(s.getStringValue(data["raw_materials"]))
-	otherUses, _ := s.parseFloat(s.getStringValue(data["other_uses"]))
+	powerGeneration := s.parseFloat(s.getStringValue(data["power_generation"]))
+	heating := s.parseFloat(s.getStringValue(data["heating"]))
+	coalWashing := s.parseFloat(s.getStringValue(data["coal_washing"]))
+	coking := s.parseFloat(s.getStringValue(data["coking"]))
+	oilRefining := s.parseFloat(s.getStringValue(data["oil_refining"]))
+	gasProduction := s.parseFloat(s.getStringValue(data["gas_production"]))
+	industry := s.parseFloat(s.getStringValue(data["industry"]))
+	rawMaterials := s.parseFloat(s.getStringValue(data["raw_materials"]))
+	otherUses := s.parseFloat(s.getStringValue(data["other_uses"]))
 
 	// ①≧0
-	if s.isLessThan(powerGeneration, 0) {
+	if s.isIntegerLessThan(powerGeneration, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能为负数", Cells: cells})
 	}
-	if s.isLessThan(heating, 0) {
+	if s.isIntegerLessThan(heating, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "heating", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能为负数", Cells: cells})
 	}
-	if s.isLessThan(coalWashing, 0) {
+	if s.isIntegerLessThan(coalWashing, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能为负数", Cells: cells})
 	}
-	if s.isLessThan(coking, 0) {
+	if s.isIntegerLessThan(coking, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coking", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能为负数", Cells: cells})
 	}
-	if s.isLessThan(oilRefining, 0) {
+	if s.isIntegerLessThan(oilRefining, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能为负数", Cells: cells})
 	}
-	if s.isLessThan(gasProduction, 0) {
+	if s.isIntegerLessThan(gasProduction, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能为负数", Cells: cells})
 	}
-	if s.isLessThan(industry, 0) {
+	if s.isIntegerLessThan(industry, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "industry", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能为负数", Cells: cells})
 	}
-	if s.isLessThan(rawMaterials, 0) {
+	if s.isIntegerLessThan(rawMaterials, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能为负数", Cells: cells})
 	}
-	if s.isLessThan(otherUses, 0) {
+	if s.isIntegerLessThan(otherUses, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能为负数", Cells: cells})
 	}
 
 	// ②≦100000
-	if s.isGreaterThan(powerGeneration, 100000) {
+	if s.isIntegerGreaterThan(powerGeneration, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能大于100000", Cells: cells})
 	}
-	if s.isGreaterThan(heating, 100000) {
+	if s.isIntegerGreaterThan(heating, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "heating", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能大于100000", Cells: cells})
 	}
-	if s.isGreaterThan(coalWashing, 100000) {
+	if s.isIntegerGreaterThan(coalWashing, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能大于100000", Cells: cells})
 	}
-	if s.isGreaterThan(coking, 100000) {
+	if s.isIntegerGreaterThan(coking, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coking", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能大于100000", Cells: cells})
 	}
-	if s.isGreaterThan(oilRefining, 100000) {
+	if s.isIntegerGreaterThan(oilRefining, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能大于100000", Cells: cells})
 	}
-	if s.isGreaterThan(gasProduction, 100000) {
+	if s.isIntegerGreaterThan(gasProduction, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能大于100000", Cells: cells})
 	}
-	if s.isGreaterThan(industry, 100000) {
+	if s.isIntegerGreaterThan(industry, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "industry", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能大于100000", Cells: cells})
 	}
-	if s.isGreaterThan(rawMaterials, 100000) {
+	if s.isIntegerGreaterThan(rawMaterials, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能大于100000", Cells: cells})
 	}
-	if s.isGreaterThan(otherUses, 100000) {
+	if s.isIntegerGreaterThan(otherUses, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能大于100000", Cells: cells})
 	}
 
 	// 3. 焦炭消费摸底部分校验
-	coke, _ := s.parseFloat(s.getStringValue(data["coke"]))
+	coke := s.parseFloat(s.getStringValue(data["coke"]))
 
 	// ①≧0
-	if s.isLessThan(coke, 0) {
+	if s.isIntegerLessThan(coke, 0) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coke", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能为负数", Cells: cells})
 	}
 
 	// ②≦100000
-	if s.isGreaterThan(coke, 100000) {
+	if s.isIntegerGreaterThan(coke, 100000) {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coke", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能大于100000", Cells: cells})
 	}
@@ -423,16 +422,15 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 
 	// 1. 分品种煤炭消费摸底部分
 	// ③煤合计=原煤+洗精煤+其他
-	totalCoal := s.parseBigFloat(s.getStringValue(data["total_coal"]))
-	rawCoal := s.parseBigFloat(s.getStringValue(data["raw_coal"]))
-	washedCoal := s.parseBigFloat(s.getStringValue(data["washed_coal"]))
-	otherCoal := s.parseBigFloat(s.getStringValue(data["other_coal"]))
+	totalCoal := s.parseFloat(s.getStringValue(data["total_coal"]))
+	rawCoal := s.parseFloat(s.getStringValue(data["raw_coal"]))
+	washedCoal := s.parseFloat(s.getStringValue(data["washed_coal"]))
+	otherCoal := s.parseFloat(s.getStringValue(data["other_coal"]))
 
-	// 使用定点数计算
-	expectedTotal := new(big.Float).Add(rawCoal, washedCoal)
-	expectedTotal.Add(expectedTotal, otherCoal)
+	// 使用精度安全的浮点运算
+	expectedTotal := s.sumFloat64(rawCoal, washedCoal, otherCoal)
 
-	if totalCoal.Cmp(expectedTotal) != 0 {
+	if !s.isIntegerEqual(totalCoal, expectedTotal) {
 		cells := []string{
 			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
 			s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum),
@@ -444,10 +442,10 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 
 	// 2. 分用途煤炭消费摸底部分
 	// ③工业≧工业（#用作原料、材料）
-	industry := s.parseBigFloat(s.getStringValue(data["industry"]))
-	rawMaterials := s.parseBigFloat(s.getStringValue(data["raw_materials"]))
+	industry := s.parseFloat(s.getStringValue(data["industry"]))
+	rawMaterials := s.parseFloat(s.getStringValue(data["raw_materials"]))
 
-	if industry.Cmp(rawMaterials) < 0 {
+	if s.isIntegerLessThan(industry, rawMaterials) {
 		cells := []string{
 			s.getCellPosition(TableTypeAttachment2, "industry", rowNum),
 			s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum),
@@ -458,29 +456,25 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 	// 3. 文件内整体校验
 	// ①分品种煤炭消费摸底与分用途煤炭消费摸底
 	// 煤合计≧能源加工转换+终端消费
-	powerGeneration := s.parseBigFloat(s.getStringValue(data["power_generation"]))
-	heating := s.parseBigFloat(s.getStringValue(data["heating"]))
-	coalWashing := s.parseBigFloat(s.getStringValue(data["coal_washing"]))
-	coking := s.parseBigFloat(s.getStringValue(data["coking"]))
-	oilRefining := s.parseBigFloat(s.getStringValue(data["oil_refining"]))
-	gasProduction := s.parseBigFloat(s.getStringValue(data["gas_production"]))
-	otherUses := s.parseBigFloat(s.getStringValue(data["other_uses"]))
+	powerGeneration := s.parseFloat(s.getStringValue(data["power_generation"]))
+	heating := s.parseFloat(s.getStringValue(data["heating"]))
+	coalWashing := s.parseFloat(s.getStringValue(data["coal_washing"]))
+	coking := s.parseFloat(s.getStringValue(data["coking"]))
+	oilRefining := s.parseFloat(s.getStringValue(data["oil_refining"]))
+	gasProduction := s.parseFloat(s.getStringValue(data["gas_production"]))
+	otherUses := s.parseFloat(s.getStringValue(data["other_uses"]))
 
 	// 能源加工转换 = 火力发电 + 供热 + 煤炭洗选 + 炼焦 + 炼油及煤制油 + 制气
-	energyConversion := new(big.Float).Add(powerGeneration, heating)
-	energyConversion.Add(energyConversion, coalWashing)
-	energyConversion.Add(energyConversion, coking)
-	energyConversion.Add(energyConversion, oilRefining)
-	energyConversion.Add(energyConversion, gasProduction)
+	energyConversion := s.sumFloat64(powerGeneration, heating, coalWashing, coking, oilRefining, gasProduction)
 
 	// 终端消费 = 工业 + 其他用途
-	terminalConsumption := new(big.Float).Add(industry, otherUses)
+	terminalConsumption := s.addFloat64(industry, otherUses)
 
 	// 计算能源加工转换+终端消费-工业（#用作原料、材料）
-	totalConsumption := new(big.Float).Add(energyConversion, terminalConsumption)
-	totalConsumption.Sub(totalConsumption, rawMaterials)
+	totalConsumption := s.addFloat64(energyConversion, terminalConsumption)
+	totalConsumption = s.subtractFloat64(totalConsumption, rawMaterials)
 
-	if totalCoal.Cmp(totalConsumption) < 0 {
+	if s.isIntegerLessThan(totalCoal, totalConsumption) {
 		cells := []string{
 			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
 			s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum),
@@ -504,12 +498,12 @@ func (s *DataImportService) validateAttachment2OverallRulesForRow(data map[strin
 	errors := []ValidationError{}
 
 	// 获取当前行的数值
-	totalCoal := s.parseBigFloat(s.getStringValue(data["total_coal"]))
-	coke := s.parseBigFloat(s.getStringValue(data["coke"]))
+	totalCoal := s.parseFloat(s.getStringValue(data["total_coal"]))
+	coke := s.parseFloat(s.getStringValue(data["coke"]))
 
 	// ②焦炭消费量与煤炭消费量的逻辑关系
 	// 焦炭消费量应小于等于煤炭消费总量（焦炭是煤炭的加工产品）
-	if coke.Cmp(totalCoal) > 0 {
+	if s.isIntegerGreaterThan(coke, totalCoal) {
 		cells := []string{
 			s.getCellPosition(TableTypeAttachment2, "coke", rowNum),
 			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
@@ -570,144 +564,144 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 		// 如果缓存中不存在，返回空缓存
 		cache = &Attachment2DatabaseCache{
 			CacheKey:     cacheKey,
-			TotalCoal:    new(big.Float),
-			RawCoal:      new(big.Float),
-			WashedCoal:   new(big.Float),
-			OtherCoal:    new(big.Float),
-			PowerGen:     new(big.Float),
-			Heating:      new(big.Float),
-			CoalWashing:  new(big.Float),
-			Coking:       new(big.Float),
-			OilRefining:  new(big.Float),
-			GasProd:      new(big.Float),
-			Industry:     new(big.Float),
-			RawMaterials: new(big.Float),
-			OtherUses:    new(big.Float),
-			Coke:         new(big.Float),
+			TotalCoal:    0.0,
+			RawCoal:      0.0,
+			WashedCoal:   0.0,
+			OtherCoal:    0.0,
+			PowerGen:     0.0,
+			Heating:      0.0,
+			CoalWashing:  0.0,
+			Coking:       0.0,
+			OilRefining:  0.0,
+			GasProd:      0.0,
+			Industry:     0.0,
+			RawMaterials: 0.0,
+			OtherUses:    0.0,
+			Coke:         0.0,
 		}
 	}
 
 	// 计算当前数据总和
-	currentTotalCoal := new(big.Float)
-	currentRawCoal := new(big.Float)
-	currentWashedCoal := new(big.Float)
-	currentOtherCoal := new(big.Float)
-	currentPowerGeneration := new(big.Float)
-	currentHeating := new(big.Float)
-	currentCoalWashing := new(big.Float)
-	currentCoking := new(big.Float)
-	currentOilRefining := new(big.Float)
-	currentGasProduction := new(big.Float)
-	currentIndustry := new(big.Float)
-	currentRawMaterials := new(big.Float)
-	currentOtherUses := new(big.Float)
-	currentCoke := new(big.Float)
+	currentTotalCoal := 0.0
+	currentRawCoal := 0.0
+	currentWashedCoal := 0.0
+	currentOtherCoal := 0.0
+	currentPowerGeneration := 0.0
+	currentHeating := 0.0
+	currentCoalWashing := 0.0
+	currentCoking := 0.0
+	currentOilRefining := 0.0
+	currentGasProduction := 0.0
+	currentIndustry := 0.0
+	currentRawMaterials := 0.0
+	currentOtherUses := 0.0
+	currentCoke := 0.0
 
 	for _, record := range mainData {
-		totalCoal := s.parseBigFloat(s.getStringValue(record["total_coal"]))
-		rawCoal := s.parseBigFloat(s.getStringValue(record["raw_coal"]))
-		washedCoal := s.parseBigFloat(s.getStringValue(record["washed_coal"]))
-		otherCoal := s.parseBigFloat(s.getStringValue(record["other_coal"]))
-		powerGeneration := s.parseBigFloat(s.getStringValue(record["power_generation"]))
-		heating := s.parseBigFloat(s.getStringValue(record["heating"]))
-		coalWashing := s.parseBigFloat(s.getStringValue(record["coal_washing"]))
-		coking := s.parseBigFloat(s.getStringValue(record["coking"]))
-		oilRefining := s.parseBigFloat(s.getStringValue(record["oil_refining"]))
-		gasProduction := s.parseBigFloat(s.getStringValue(record["gas_production"]))
-		industry := s.parseBigFloat(s.getStringValue(record["industry"]))
-		rawMaterials := s.parseBigFloat(s.getStringValue(record["raw_materials"]))
-		otherUses := s.parseBigFloat(s.getStringValue(record["other_uses"]))
-		coke := s.parseBigFloat(s.getStringValue(record["coke"]))
+		totalCoal := s.parseFloat(s.getStringValue(record["total_coal"]))
+		rawCoal := s.parseFloat(s.getStringValue(record["raw_coal"]))
+		washedCoal := s.parseFloat(s.getStringValue(record["washed_coal"]))
+		otherCoal := s.parseFloat(s.getStringValue(record["other_coal"]))
+		powerGeneration := s.parseFloat(s.getStringValue(record["power_generation"]))
+		heating := s.parseFloat(s.getStringValue(record["heating"]))
+		coalWashing := s.parseFloat(s.getStringValue(record["coal_washing"]))
+		coking := s.parseFloat(s.getStringValue(record["coking"]))
+		oilRefining := s.parseFloat(s.getStringValue(record["oil_refining"]))
+		gasProduction := s.parseFloat(s.getStringValue(record["gas_production"]))
+		industry := s.parseFloat(s.getStringValue(record["industry"]))
+		rawMaterials := s.parseFloat(s.getStringValue(record["raw_materials"]))
+		otherUses := s.parseFloat(s.getStringValue(record["other_uses"]))
+		coke := s.parseFloat(s.getStringValue(record["coke"]))
 
-		currentTotalCoal.Add(currentTotalCoal, totalCoal)
-		currentRawCoal.Add(currentRawCoal, rawCoal)
-		currentWashedCoal.Add(currentWashedCoal, washedCoal)
-		currentOtherCoal.Add(currentOtherCoal, otherCoal)
-		currentPowerGeneration.Add(currentPowerGeneration, powerGeneration)
-		currentHeating.Add(currentHeating, heating)
-		currentCoalWashing.Add(currentCoalWashing, coalWashing)
-		currentCoking.Add(currentCoking, coking)
-		currentOilRefining.Add(currentOilRefining, oilRefining)
-		currentGasProduction.Add(currentGasProduction, gasProduction)
-		currentIndustry.Add(currentIndustry, industry)
-		currentRawMaterials.Add(currentRawMaterials, rawMaterials)
-		currentOtherUses.Add(currentOtherUses, otherUses)
-		currentCoke.Add(currentCoke, coke)
+		currentTotalCoal = s.addFloat64(currentTotalCoal, totalCoal)
+		currentRawCoal = s.addFloat64(currentRawCoal, rawCoal)
+		currentWashedCoal = s.addFloat64(currentWashedCoal, washedCoal)
+		currentOtherCoal = s.addFloat64(currentOtherCoal, otherCoal)
+		currentPowerGeneration = s.addFloat64(currentPowerGeneration, powerGeneration)
+		currentHeating = s.addFloat64(currentHeating, heating)
+		currentCoalWashing = s.addFloat64(currentCoalWashing, coalWashing)
+		currentCoking = s.addFloat64(currentCoking, coking)
+		currentOilRefining = s.addFloat64(currentOilRefining, oilRefining)
+		currentGasProduction = s.addFloat64(currentGasProduction, gasProduction)
+		currentIndustry = s.addFloat64(currentIndustry, industry)
+		currentRawMaterials = s.addFloat64(currentRawMaterials, rawMaterials)
+		currentOtherUses = s.addFloat64(currentOtherUses, otherUses)
+		currentCoke = s.addFloat64(currentCoke, coke)
 	}
 
 	// 校验规则：同年份本单位所导入数值*120%应≥下级单位相加之和
-	threshold := big.NewFloat(1.2)
+	threshold := 1.2
 
 	// 校验各个字段（使用缓存数据）
 	// 计算 currentTotalCoal * threshold
-	currentTotalCoalThreshold := new(big.Float).Mul(currentTotalCoal, threshold)
+	currentTotalCoalThreshold := s.multiplyFloat64(currentTotalCoal, threshold)
 
-	if currentTotalCoalThreshold.Cmp(cache.TotalCoal) < 0 {
+	if s.isIntegerLessThan(currentTotalCoalThreshold, cache.TotalCoal) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤合计数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentRawCoalThreshold := new(big.Float).Mul(currentRawCoal, threshold)
-	if currentRawCoalThreshold.Cmp(cache.RawCoal) < 0 {
+	currentRawCoalThreshold := s.multiplyFloat64(currentRawCoal, threshold)
+	if s.isIntegerLessThan(currentRawCoalThreshold, cache.RawCoal) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "原煤数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentWashedCoalThreshold := new(big.Float).Mul(currentWashedCoal, threshold)
-	if currentWashedCoalThreshold.Cmp(cache.WashedCoal) < 0 {
+	currentWashedCoalThreshold := s.multiplyFloat64(currentWashedCoal, threshold)
+	if s.isIntegerLessThan(currentWashedCoalThreshold, cache.WashedCoal) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "洗精煤数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentOtherCoalThreshold := new(big.Float).Mul(currentOtherCoal, threshold)
-	if currentOtherCoalThreshold.Cmp(cache.OtherCoal) < 0 {
+	currentOtherCoalThreshold := s.multiplyFloat64(currentOtherCoal, threshold)
+	if s.isIntegerLessThan(currentOtherCoalThreshold, cache.OtherCoal) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentPowerGenerationThreshold := new(big.Float).Mul(currentPowerGeneration, threshold)
-	if currentPowerGenerationThreshold.Cmp(cache.PowerGen) < 0 {
+	currentPowerGenerationThreshold := s.multiplyFloat64(currentPowerGeneration, threshold)
+	if s.isIntegerLessThan(currentPowerGenerationThreshold, cache.PowerGen) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "火力发电数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentHeatingThreshold := new(big.Float).Mul(currentHeating, threshold)
-	if currentHeatingThreshold.Cmp(cache.Heating) < 0 {
+	currentHeatingThreshold := s.multiplyFloat64(currentHeating, threshold)
+	if s.isIntegerLessThan(currentHeatingThreshold, cache.Heating) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "供热数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentCoalWashingThreshold := new(big.Float).Mul(currentCoalWashing, threshold)
-	if currentCoalWashingThreshold.Cmp(cache.CoalWashing) < 0 {
+	currentCoalWashingThreshold := s.multiplyFloat64(currentCoalWashing, threshold)
+	if s.isIntegerLessThan(currentCoalWashingThreshold, cache.CoalWashing) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤炭洗选数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentCokingThreshold := new(big.Float).Mul(currentCoking, threshold)
-	if currentCokingThreshold.Cmp(cache.Coking) < 0 {
+	currentCokingThreshold := s.multiplyFloat64(currentCoking, threshold)
+	if s.isIntegerLessThan(currentCokingThreshold, cache.Coking) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼焦数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentOilRefiningThreshold := new(big.Float).Mul(currentOilRefining, threshold)
-	if currentOilRefiningThreshold.Cmp(cache.OilRefining) < 0 {
+	currentOilRefiningThreshold := s.multiplyFloat64(currentOilRefining, threshold)
+	if s.isIntegerLessThan(currentOilRefiningThreshold, cache.OilRefining) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼油及煤制油数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentGasProductionThreshold := new(big.Float).Mul(currentGasProduction, threshold)
-	if currentGasProductionThreshold.Cmp(cache.GasProd) < 0 {
+	currentGasProductionThreshold := s.multiplyFloat64(currentGasProduction, threshold)
+	if s.isIntegerLessThan(currentGasProductionThreshold, cache.GasProd) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "制气数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentIndustryThreshold := new(big.Float).Mul(currentIndustry, threshold)
-	if currentIndustryThreshold.Cmp(cache.Industry) < 0 {
+	currentIndustryThreshold := s.multiplyFloat64(currentIndustry, threshold)
+	if s.isIntegerLessThan(currentIndustryThreshold, cache.Industry) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentRawMaterialsThreshold := new(big.Float).Mul(currentRawMaterials, threshold)
-	if currentRawMaterialsThreshold.Cmp(cache.RawMaterials) < 0 {
+	currentRawMaterialsThreshold := s.multiplyFloat64(currentRawMaterials, threshold)
+	if s.isIntegerLessThan(currentRawMaterialsThreshold, cache.RawMaterials) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentOtherUsesThreshold := new(big.Float).Mul(currentOtherUses, threshold)
-	if currentOtherUsesThreshold.Cmp(cache.OtherUses) < 0 {
+	currentOtherUsesThreshold := s.multiplyFloat64(currentOtherUses, threshold)
+	if s.isIntegerLessThan(currentOtherUsesThreshold, cache.OtherUses) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他用途数值*120%应大于等于下级单位相加之和"})
 	}
 
-	currentCokeThreshold := new(big.Float).Mul(currentCoke, threshold)
-	if currentCokeThreshold.Cmp(cache.Coke) < 0 {
+	currentCokeThreshold := s.multiplyFloat64(currentCoke, threshold)
+	if s.isIntegerLessThan(currentCokeThreshold, cache.Coke) {
 		errors = append(errors, ValidationError{RowNumber: 0, Message: "焦炭数值*120%应大于等于下级单位相加之和"})
 	}
 

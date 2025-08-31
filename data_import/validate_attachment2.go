@@ -291,16 +291,76 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 func (s *DataImportService) validateAttachment2Data(mainData []map[string]interface{}) []string {
 	errors := []string{}
 
+	// 附件2必填字段
+	attachment2ReqiredFieldsOrder1 := []string{
+		"stat_date",
+		"province_name",
+		"city_name",
+	}
+
+	attachment2RequiredFields1 := map[string]string{
+		"stat_date":     "数据年份",
+		"province_name": "省（市、区）",
+		"city_name":     "地市（州）",
+	}
+
+	attachment2ReqiredFieldsOrder2 := []string{
+		"total_coal",
+		"raw_coal",
+		"washed_coal",
+		"other_coal",
+		"power_generation",
+		"heating",
+		"coal_washing",
+		"coking",
+		"oil_refining",
+		"gas_production",
+		"industry",
+		"raw_materials",
+		"other_uses",
+		"coke",
+	}
+
+	// 附件2必填字段
+	attachment2RequiredFields2 := map[string]string{
+		"total_coal":       "煤合计",
+		"raw_coal":         "原煤",
+		"washed_coal":      "洗精煤",
+		"other_coal":       "其他",
+		"power_generation": "火力发电",
+		"heating":          "供热",
+		"coal_washing":     "煤炭洗选",
+		"coking":           "炼焦",
+		"oil_refining":     "炼油及煤制油",
+		"gas_production":   "制气",
+		"industry":         "1.工业",
+		"raw_materials":    "1.工业（#用作原料、材料）",
+		"other_uses":       "其他用途",
+		"coke":             "焦炭",
+	}
+
+	areaResult := s.app.GetAreaConfig()
+	row := areaResult.Data.(map[string]interface{})
+	expectedCountry := s.getStringValue(row["country_name"])
+
 	// 在一个循环中完成所有验证
 	for _, data := range mainData {
 		// Excel中的实际行号：数据从第8行开始（表头第4行+3行说明+1行数据）
 		excelRowNum := s.getExcelRowNumber(data)
 
-		// 1. 检查必填字段
-		fieldErrors := s.validateRequiredFields(data, Attachment2RequiredFields, excelRowNum)
-		errors = append(errors, fieldErrors...)
+		//  检查必填字段
+		fieldErrors1 := s.validateRequiredFieldsOrdered(data, attachment2ReqiredFieldsOrder1, attachment2RequiredFields1, excelRowNum)
+		errors = append(errors, fieldErrors1...)
 
-		// 2. 检查省市县校验
+		if expectedCountry != "" {
+			errors = append(errors, s.validateRequiredField(data, "country_name", "县（区）", excelRowNum)...)
+		}
+
+		//  检查必填字段
+		fieldErrors2 := s.validateRequiredFieldsOrdered(data, attachment2ReqiredFieldsOrder2, attachment2RequiredFields2, excelRowNum)
+		errors = append(errors, fieldErrors2...)
+
+		// 检查省市县校验
 		regionErrors := s.validateRegionOnly(data, excelRowNum)
 		errors = append(errors, regionErrors...)
 

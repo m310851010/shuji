@@ -2,26 +2,25 @@ package data_import
 
 import (
 	"fmt"
-	"math/big"
 )
 
 // Attachment2DatabaseCache 附件2数据库缓存结构
 type Attachment2DatabaseCache struct {
 	CacheKey     string // 缓存键：province_city_country_statDate
-	TotalCoal    *big.Float
-	RawCoal      *big.Float
-	WashedCoal   *big.Float
-	OtherCoal    *big.Float
-	PowerGen     *big.Float
-	Heating      *big.Float
-	CoalWashing  *big.Float
-	Coking       *big.Float
-	OilRefining  *big.Float
-	GasProd      *big.Float
-	Industry     *big.Float
-	RawMaterials *big.Float
-	OtherUses    *big.Float
-	Coke         *big.Float
+	TotalCoal    float64
+	RawCoal      float64
+	WashedCoal   float64
+	OtherCoal    float64
+	PowerGen     float64
+	Heating      float64
+	CoalWashing  float64
+	Coking       float64
+	OilRefining  float64
+	GasProd      float64
+	Industry     float64
+	RawMaterials float64
+	OtherUses    float64
+	Coke         float64
 }
 
 // Attachment2CacheManager 附件2缓存管理器
@@ -113,54 +112,54 @@ func (m *Attachment2CacheManager) PreloadDatabaseCache() error {
 		cacheKey := m.GetDatabaseCacheKey(provinceName, cityName, countryName, statDate)
 
 		// 解密数值字段
-		totalCoal := m.service.parseBigFloat(m.service.decryptValue(record["total_coal"]))
-		rawCoal := m.service.parseBigFloat(m.service.decryptValue(record["raw_coal"]))
-		washedCoal := m.service.parseBigFloat(m.service.decryptValue(record["washed_coal"]))
-		otherCoal := m.service.parseBigFloat(m.service.decryptValue(record["other_coal"]))
-		powerGeneration := m.service.parseBigFloat(m.service.decryptValue(record["power_generation"]))
-		heating := m.service.parseBigFloat(m.service.decryptValue(record["heating"]))
-		coalWashing := m.service.parseBigFloat(m.service.decryptValue(record["coal_washing"]))
-		coking := m.service.parseBigFloat(m.service.decryptValue(record["coking"]))
-		oilRefining := m.service.parseBigFloat(m.service.decryptValue(record["oil_refining"]))
-		gasProduction := m.service.parseBigFloat(m.service.decryptValue(record["gas_production"]))
-		industry := m.service.parseBigFloat(m.service.decryptValue(record["industry"]))
-		rawMaterials := m.service.parseBigFloat(m.service.decryptValue(record["raw_materials"]))
-		otherUses := m.service.parseBigFloat(m.service.decryptValue(record["other_uses"]))
-		coke := m.service.parseBigFloat(m.service.decryptValue(record["coke"]))
+		totalCoal := m.service.parseFloat(m.service.decryptValue(record["total_coal"]))
+		rawCoal := m.service.parseFloat(m.service.decryptValue(record["raw_coal"]))
+		washedCoal := m.service.parseFloat(m.service.decryptValue(record["washed_coal"]))
+		otherCoal := m.service.parseFloat(m.service.decryptValue(record["other_coal"]))
+		powerGeneration := m.service.parseFloat(m.service.decryptValue(record["power_generation"]))
+		heating := m.service.parseFloat(m.service.decryptValue(record["heating"]))
+		coalWashing := m.service.parseFloat(m.service.decryptValue(record["coal_washing"]))
+		coking := m.service.parseFloat(m.service.decryptValue(record["coking"]))
+		oilRefining := m.service.parseFloat(m.service.decryptValue(record["oil_refining"]))
+		gasProduction := m.service.parseFloat(m.service.decryptValue(record["gas_production"]))
+		industry := m.service.parseFloat(m.service.decryptValue(record["industry"]))
+		rawMaterials := m.service.parseFloat(m.service.decryptValue(record["raw_materials"]))
+		otherUses := m.service.parseFloat(m.service.decryptValue(record["other_uses"]))
+		coke := m.service.parseFloat(m.service.decryptValue(record["coke"]))
 
 		// 累加到缓存中
 		if cache, exists := cacheMap[cacheKey]; exists {
-			cache.TotalCoal.Add(cache.TotalCoal, totalCoal)
-			cache.RawCoal.Add(cache.RawCoal, rawCoal)
-			cache.WashedCoal.Add(cache.WashedCoal, washedCoal)
-			cache.OtherCoal.Add(cache.OtherCoal, otherCoal)
-			cache.PowerGen.Add(cache.PowerGen, powerGeneration)
-			cache.Heating.Add(cache.Heating, heating)
-			cache.CoalWashing.Add(cache.CoalWashing, coalWashing)
-			cache.Coking.Add(cache.Coking, coking)
-			cache.OilRefining.Add(cache.OilRefining, oilRefining)
-			cache.GasProd.Add(cache.GasProd, gasProduction)
-			cache.Industry.Add(cache.Industry, industry)
-			cache.RawMaterials.Add(cache.RawMaterials, rawMaterials)
-			cache.OtherUses.Add(cache.OtherUses, otherUses)
-			cache.Coke.Add(cache.Coke, coke)
+			cache.TotalCoal = m.service.addFloat64(cache.TotalCoal, totalCoal)
+			cache.RawCoal = m.service.addFloat64(cache.RawCoal, rawCoal)
+			cache.WashedCoal = m.service.addFloat64(cache.WashedCoal, washedCoal)
+			cache.OtherCoal = m.service.addFloat64(cache.OtherCoal, otherCoal)
+			cache.PowerGen = m.service.addFloat64(cache.PowerGen, powerGeneration)
+			cache.Heating = m.service.addFloat64(cache.Heating, heating)
+			cache.CoalWashing = m.service.addFloat64(cache.CoalWashing, coalWashing)
+			cache.Coking = m.service.addFloat64(cache.Coking, coking)
+			cache.OilRefining = m.service.addFloat64(cache.OilRefining, oilRefining)
+			cache.GasProd = m.service.addFloat64(cache.GasProd, gasProduction)
+			cache.Industry = m.service.addFloat64(cache.Industry, industry)
+			cache.RawMaterials = m.service.addFloat64(cache.RawMaterials, rawMaterials)
+			cache.OtherUses = m.service.addFloat64(cache.OtherUses, otherUses)
+			cache.Coke = m.service.addFloat64(cache.Coke, coke)
 		} else {
 			cacheMap[cacheKey] = &Attachment2DatabaseCache{
 				CacheKey:     cacheKey,
-				TotalCoal:    new(big.Float).Copy(totalCoal),
-				RawCoal:      new(big.Float).Copy(rawCoal),
-				WashedCoal:   new(big.Float).Copy(washedCoal),
-				OtherCoal:    new(big.Float).Copy(otherCoal),
-				PowerGen:     new(big.Float).Copy(powerGeneration),
-				Heating:      new(big.Float).Copy(heating),
-				CoalWashing:  new(big.Float).Copy(coalWashing),
-				Coking:       new(big.Float).Copy(coking),
-				OilRefining:  new(big.Float).Copy(oilRefining),
-				GasProd:      new(big.Float).Copy(gasProduction),
-				Industry:     new(big.Float).Copy(industry),
-				RawMaterials: new(big.Float).Copy(rawMaterials),
-				OtherUses:    new(big.Float).Copy(otherUses),
-				Coke:         new(big.Float).Copy(coke),
+				TotalCoal:    totalCoal,
+				RawCoal:      rawCoal,
+				WashedCoal:   washedCoal,
+				OtherCoal:    otherCoal,
+				PowerGen:     powerGeneration,
+				Heating:      heating,
+				CoalWashing:  coalWashing,
+				Coking:       coking,
+				OilRefining:  oilRefining,
+				GasProd:      gasProduction,
+				Industry:     industry,
+				RawMaterials: rawMaterials,
+				OtherUses:    otherUses,
+				Coke:         coke,
 			}
 		}
 
@@ -187,57 +186,57 @@ func (m *Attachment2CacheManager) UpdateDatabaseCache(statDate, provinceName, ci
 	cacheKeys := m.getParentCacheKeys(provinceName, cityName, countryName, statDate)
 
 	// 解析当前记录的数值
-	totalCoal := m.service.parseBigFloat(m.service.getStringValue(record["total_coal"]))
-	rawCoal := m.service.parseBigFloat(m.service.getStringValue(record["raw_coal"]))
-	washedCoal := m.service.parseBigFloat(m.service.getStringValue(record["washed_coal"]))
-	otherCoal := m.service.parseBigFloat(m.service.getStringValue(record["other_coal"]))
-	powerGeneration := m.service.parseBigFloat(m.service.getStringValue(record["power_generation"]))
-	heating := m.service.parseBigFloat(m.service.getStringValue(record["heating"]))
-	coalWashing := m.service.parseBigFloat(m.service.getStringValue(record["coal_washing"]))
-	coking := m.service.parseBigFloat(m.service.getStringValue(record["coking"]))
-	oilRefining := m.service.parseBigFloat(m.service.getStringValue(record["oil_refining"]))
-	gasProduction := m.service.parseBigFloat(m.service.getStringValue(record["gas_production"]))
-	industry := m.service.parseBigFloat(m.service.getStringValue(record["industry"]))
-	rawMaterials := m.service.parseBigFloat(m.service.getStringValue(record["raw_materials"]))
-	otherUses := m.service.parseBigFloat(m.service.getStringValue(record["other_uses"]))
-	coke := m.service.parseBigFloat(m.service.getStringValue(record["coke"]))
+	totalCoal := m.service.parseFloat(m.service.getStringValue(record["total_coal"]))
+	rawCoal := m.service.parseFloat(m.service.getStringValue(record["raw_coal"]))
+	washedCoal := m.service.parseFloat(m.service.getStringValue(record["washed_coal"]))
+	otherCoal := m.service.parseFloat(m.service.getStringValue(record["other_coal"]))
+	powerGeneration := m.service.parseFloat(m.service.getStringValue(record["power_generation"]))
+	heating := m.service.parseFloat(m.service.getStringValue(record["heating"]))
+	coalWashing := m.service.parseFloat(m.service.getStringValue(record["coal_washing"]))
+	coking := m.service.parseFloat(m.service.getStringValue(record["coking"]))
+	oilRefining := m.service.parseFloat(m.service.getStringValue(record["oil_refining"]))
+	gasProduction := m.service.parseFloat(m.service.getStringValue(record["gas_production"]))
+	industry := m.service.parseFloat(m.service.getStringValue(record["industry"]))
+	rawMaterials := m.service.parseFloat(m.service.getStringValue(record["raw_materials"]))
+	otherUses := m.service.parseFloat(m.service.getStringValue(record["other_uses"]))
+	coke := m.service.parseFloat(m.service.getStringValue(record["coke"]))
 
 	// 更新所有相关缓存
 	for _, cacheKey := range cacheKeys {
 		if cache, exists := attachment2DatabaseCache[cacheKey]; exists {
-					// 累加到现有缓存
-		cache.TotalCoal.Add(cache.TotalCoal, totalCoal)
-		cache.RawCoal.Add(cache.RawCoal, rawCoal)
-		cache.WashedCoal.Add(cache.WashedCoal, washedCoal)
-		cache.OtherCoal.Add(cache.OtherCoal, otherCoal)
-		cache.PowerGen.Add(cache.PowerGen, powerGeneration)
-		cache.Heating.Add(cache.Heating, heating)
-		cache.CoalWashing.Add(cache.CoalWashing, coalWashing)
-		cache.Coking.Add(cache.Coking, coking)
-		cache.OilRefining.Add(cache.OilRefining, oilRefining)
-		cache.GasProd.Add(cache.GasProd, gasProduction)
-		cache.Industry.Add(cache.Industry, industry)
-		cache.RawMaterials.Add(cache.RawMaterials, rawMaterials)
-		cache.OtherUses.Add(cache.OtherUses, otherUses)
-		cache.Coke.Add(cache.Coke, coke)
+			// 累加到现有缓存
+			cache.TotalCoal = m.service.addFloat64(cache.TotalCoal, totalCoal)
+			cache.RawCoal = m.service.addFloat64(cache.RawCoal, rawCoal)
+			cache.WashedCoal = m.service.addFloat64(cache.WashedCoal, washedCoal)
+			cache.OtherCoal = m.service.addFloat64(cache.OtherCoal, otherCoal)
+			cache.PowerGen = m.service.addFloat64(cache.PowerGen, powerGeneration)
+			cache.Heating = m.service.addFloat64(cache.Heating, heating)
+			cache.CoalWashing = m.service.addFloat64(cache.CoalWashing, coalWashing)
+			cache.Coking = m.service.addFloat64(cache.Coking, coking)
+			cache.OilRefining = m.service.addFloat64(cache.OilRefining, oilRefining)
+			cache.GasProd = m.service.addFloat64(cache.GasProd, gasProduction)
+			cache.Industry = m.service.addFloat64(cache.Industry, industry)
+			cache.RawMaterials = m.service.addFloat64(cache.RawMaterials, rawMaterials)
+			cache.OtherUses = m.service.addFloat64(cache.OtherUses, otherUses)
+			cache.Coke = m.service.addFloat64(cache.Coke, coke)
 		} else {
 			// 创建新缓存
 			attachment2DatabaseCache[cacheKey] = &Attachment2DatabaseCache{
 				CacheKey:     cacheKey,
-				TotalCoal:    new(big.Float).Copy(totalCoal),
-				RawCoal:      new(big.Float).Copy(rawCoal),
-				WashedCoal:   new(big.Float).Copy(washedCoal),
-				OtherCoal:    new(big.Float).Copy(otherCoal),
-				PowerGen:     new(big.Float).Copy(powerGeneration),
-				Heating:      new(big.Float).Copy(heating),
-				CoalWashing:  new(big.Float).Copy(coalWashing),
-				Coking:       new(big.Float).Copy(coking),
-				OilRefining:  new(big.Float).Copy(oilRefining),
-				GasProd:      new(big.Float).Copy(gasProduction),
-				Industry:     new(big.Float).Copy(industry),
-				RawMaterials: new(big.Float).Copy(rawMaterials),
-				OtherUses:    new(big.Float).Copy(otherUses),
-				Coke:         new(big.Float).Copy(coke),
+				TotalCoal:    totalCoal,
+				RawCoal:      rawCoal,
+				WashedCoal:   washedCoal,
+				OtherCoal:    otherCoal,
+				PowerGen:     powerGeneration,
+				Heating:      heating,
+				CoalWashing:  coalWashing,
+				Coking:       coking,
+				OilRefining:  oilRefining,
+				GasProd:      gasProduction,
+				Industry:     industry,
+				RawMaterials: rawMaterials,
+				OtherUses:    otherUses,
+				Coke:         coke,
 			}
 		}
 	}
@@ -251,70 +250,70 @@ func (m *Attachment2CacheManager) UpdateDatabaseCacheForUpdate(statDate, provinc
 	cacheKeys := m.getParentCacheKeys(provinceName, cityName, countryName, statDate)
 
 	// 解析旧数据和新数据的数值
-	oldTotalCoal := m.service.parseBigFloat(m.service.getStringValue(oldRecord["total_coal"]))
-	oldRawCoal := m.service.parseBigFloat(m.service.getStringValue(oldRecord["raw_coal"]))
-	oldWashedCoal := m.service.parseBigFloat(m.service.getStringValue(oldRecord["washed_coal"]))
-	oldOtherCoal := m.service.parseBigFloat(m.service.getStringValue(oldRecord["other_coal"]))
-	oldPowerGeneration := m.service.parseBigFloat(m.service.getStringValue(oldRecord["power_generation"]))
-	oldHeating := m.service.parseBigFloat(m.service.getStringValue(oldRecord["heating"]))
-	oldCoalWashing := m.service.parseBigFloat(m.service.getStringValue(oldRecord["coal_washing"]))
-	oldCoking := m.service.parseBigFloat(m.service.getStringValue(oldRecord["coking"]))
-	oldOilRefining := m.service.parseBigFloat(m.service.getStringValue(oldRecord["oil_refining"]))
-	oldGasProduction := m.service.parseBigFloat(m.service.getStringValue(oldRecord["gas_production"]))
-	oldIndustry := m.service.parseBigFloat(m.service.getStringValue(oldRecord["industry"]))
-	oldRawMaterials := m.service.parseBigFloat(m.service.getStringValue(oldRecord["raw_materials"]))
-	oldOtherUses := m.service.parseBigFloat(m.service.getStringValue(oldRecord["other_uses"]))
-	oldCoke := m.service.parseBigFloat(m.service.getStringValue(oldRecord["coke"]))
+	oldTotalCoal := m.service.parseFloat(m.service.getStringValue(oldRecord["total_coal"]))
+	oldRawCoal := m.service.parseFloat(m.service.getStringValue(oldRecord["raw_coal"]))
+	oldWashedCoal := m.service.parseFloat(m.service.getStringValue(oldRecord["washed_coal"]))
+	oldOtherCoal := m.service.parseFloat(m.service.getStringValue(oldRecord["other_coal"]))
+	oldPowerGeneration := m.service.parseFloat(m.service.getStringValue(oldRecord["power_generation"]))
+	oldHeating := m.service.parseFloat(m.service.getStringValue(oldRecord["heating"]))
+	oldCoalWashing := m.service.parseFloat(m.service.getStringValue(oldRecord["coal_washing"]))
+	oldCoking := m.service.parseFloat(m.service.getStringValue(oldRecord["coking"]))
+	oldOilRefining := m.service.parseFloat(m.service.getStringValue(oldRecord["oil_refining"]))
+	oldGasProduction := m.service.parseFloat(m.service.getStringValue(oldRecord["gas_production"]))
+	oldIndustry := m.service.parseFloat(m.service.getStringValue(oldRecord["industry"]))
+	oldRawMaterials := m.service.parseFloat(m.service.getStringValue(oldRecord["raw_materials"]))
+	oldOtherUses := m.service.parseFloat(m.service.getStringValue(oldRecord["other_uses"]))
+	oldCoke := m.service.parseFloat(m.service.getStringValue(oldRecord["coke"]))
 
-	newTotalCoal := m.service.parseBigFloat(m.service.getStringValue(newRecord["total_coal"]))
-	newRawCoal := m.service.parseBigFloat(m.service.getStringValue(newRecord["raw_coal"]))
-	newWashedCoal := m.service.parseBigFloat(m.service.getStringValue(newRecord["washed_coal"]))
-	newOtherCoal := m.service.parseBigFloat(m.service.getStringValue(newRecord["other_coal"]))
-	newPowerGeneration := m.service.parseBigFloat(m.service.getStringValue(newRecord["power_generation"]))
-	newHeating := m.service.parseBigFloat(m.service.getStringValue(newRecord["heating"]))
-	newCoalWashing := m.service.parseBigFloat(m.service.getStringValue(newRecord["coal_washing"]))
-	newCoking := m.service.parseBigFloat(m.service.getStringValue(newRecord["coking"]))
-	newOilRefining := m.service.parseBigFloat(m.service.getStringValue(newRecord["oil_refining"]))
-	newGasProduction := m.service.parseBigFloat(m.service.getStringValue(newRecord["gas_production"]))
-	newIndustry := m.service.parseBigFloat(m.service.getStringValue(newRecord["industry"]))
-	newRawMaterials := m.service.parseBigFloat(m.service.getStringValue(newRecord["raw_materials"]))
-	newOtherUses := m.service.parseBigFloat(m.service.getStringValue(newRecord["other_uses"]))
-	newCoke := m.service.parseBigFloat(m.service.getStringValue(newRecord["coke"]))
+	newTotalCoal := m.service.parseFloat(m.service.getStringValue(newRecord["total_coal"]))
+	newRawCoal := m.service.parseFloat(m.service.getStringValue(newRecord["raw_coal"]))
+	newWashedCoal := m.service.parseFloat(m.service.getStringValue(newRecord["washed_coal"]))
+	newOtherCoal := m.service.parseFloat(m.service.getStringValue(newRecord["other_coal"]))
+	newPowerGeneration := m.service.parseFloat(m.service.getStringValue(newRecord["power_generation"]))
+	newHeating := m.service.parseFloat(m.service.getStringValue(newRecord["heating"]))
+	newCoalWashing := m.service.parseFloat(m.service.getStringValue(newRecord["coal_washing"]))
+	newCoking := m.service.parseFloat(m.service.getStringValue(newRecord["coking"]))
+	newOilRefining := m.service.parseFloat(m.service.getStringValue(newRecord["oil_refining"]))
+	newGasProduction := m.service.parseFloat(m.service.getStringValue(newRecord["gas_production"]))
+	newIndustry := m.service.parseFloat(m.service.getStringValue(newRecord["industry"]))
+	newRawMaterials := m.service.parseFloat(m.service.getStringValue(newRecord["raw_materials"]))
+	newOtherUses := m.service.parseFloat(m.service.getStringValue(newRecord["other_uses"]))
+	newCoke := m.service.parseFloat(m.service.getStringValue(newRecord["coke"]))
 
 	// 计算差值
-	deltaTotalCoal := new(big.Float).Sub(newTotalCoal, oldTotalCoal)
-	deltaRawCoal := new(big.Float).Sub(newRawCoal, oldRawCoal)
-	deltaWashedCoal := new(big.Float).Sub(newWashedCoal, oldWashedCoal)
-	deltaOtherCoal := new(big.Float).Sub(newOtherCoal, oldOtherCoal)
-	deltaPowerGeneration := new(big.Float).Sub(newPowerGeneration, oldPowerGeneration)
-	deltaHeating := new(big.Float).Sub(newHeating, oldHeating)
-	deltaCoalWashing := new(big.Float).Sub(newCoalWashing, oldCoalWashing)
-	deltaCoking := new(big.Float).Sub(newCoking, oldCoking)
-	deltaOilRefining := new(big.Float).Sub(newOilRefining, oldOilRefining)
-	deltaGasProduction := new(big.Float).Sub(newGasProduction, oldGasProduction)
-	deltaIndustry := new(big.Float).Sub(newIndustry, oldIndustry)
-	deltaRawMaterials := new(big.Float).Sub(newRawMaterials, oldRawMaterials)
-	deltaOtherUses := new(big.Float).Sub(newOtherUses, oldOtherUses)
-	deltaCoke := new(big.Float).Sub(newCoke, oldCoke)
+	deltaTotalCoal := m.service.subtractFloat64(newTotalCoal, oldTotalCoal)
+	deltaRawCoal := m.service.subtractFloat64(newRawCoal, oldRawCoal)
+	deltaWashedCoal := m.service.subtractFloat64(newWashedCoal, oldWashedCoal)
+	deltaOtherCoal := m.service.subtractFloat64(newOtherCoal, oldOtherCoal)
+	deltaPowerGeneration := m.service.subtractFloat64(newPowerGeneration, oldPowerGeneration)
+	deltaHeating := m.service.subtractFloat64(newHeating, oldHeating)
+	deltaCoalWashing := m.service.subtractFloat64(newCoalWashing, oldCoalWashing)
+	deltaCoking := m.service.subtractFloat64(newCoking, oldCoking)
+	deltaOilRefining := m.service.subtractFloat64(newOilRefining, oldOilRefining)
+	deltaGasProduction := m.service.subtractFloat64(newGasProduction, oldGasProduction)
+	deltaIndustry := m.service.subtractFloat64(newIndustry, oldIndustry)
+	deltaRawMaterials := m.service.subtractFloat64(newRawMaterials, oldRawMaterials)
+	deltaOtherUses := m.service.subtractFloat64(newOtherUses, oldOtherUses)
+	deltaCoke := m.service.subtractFloat64(newCoke, oldCoke)
 
 	// 更新所有相关缓存
 	for _, cacheKey := range cacheKeys {
 		if cache, exists := attachment2DatabaseCache[cacheKey]; exists {
-					// 累加差值到现有缓存
-		cache.TotalCoal.Add(cache.TotalCoal, deltaTotalCoal)
-		cache.RawCoal.Add(cache.RawCoal, deltaRawCoal)
-		cache.WashedCoal.Add(cache.WashedCoal, deltaWashedCoal)
-		cache.OtherCoal.Add(cache.OtherCoal, deltaOtherCoal)
-		cache.PowerGen.Add(cache.PowerGen, deltaPowerGeneration)
-		cache.Heating.Add(cache.Heating, deltaHeating)
-		cache.CoalWashing.Add(cache.CoalWashing, deltaCoalWashing)
-		cache.Coking.Add(cache.Coking, deltaCoking)
-		cache.OilRefining.Add(cache.OilRefining, deltaOilRefining)
-		cache.GasProd.Add(cache.GasProd, deltaGasProduction)
-		cache.Industry.Add(cache.Industry, deltaIndustry)
-		cache.RawMaterials.Add(cache.RawMaterials, deltaRawMaterials)
-		cache.OtherUses.Add(cache.OtherUses, deltaOtherUses)
-		cache.Coke.Add(cache.Coke, deltaCoke)
+			// 累加差值到现有缓存
+			cache.TotalCoal = m.service.addFloat64(cache.TotalCoal, deltaTotalCoal)
+			cache.RawCoal = m.service.addFloat64(cache.RawCoal, deltaRawCoal)
+			cache.WashedCoal = m.service.addFloat64(cache.WashedCoal, deltaWashedCoal)
+			cache.OtherCoal = m.service.addFloat64(cache.OtherCoal, deltaOtherCoal)
+			cache.PowerGen = m.service.addFloat64(cache.PowerGen, deltaPowerGeneration)
+			cache.Heating = m.service.addFloat64(cache.Heating, deltaHeating)
+			cache.CoalWashing = m.service.addFloat64(cache.CoalWashing, deltaCoalWashing)
+			cache.Coking = m.service.addFloat64(cache.Coking, deltaCoking)
+			cache.OilRefining = m.service.addFloat64(cache.OilRefining, deltaOilRefining)
+			cache.GasProd = m.service.addFloat64(cache.GasProd, deltaGasProduction)
+			cache.Industry = m.service.addFloat64(cache.Industry, deltaIndustry)
+			cache.RawMaterials = m.service.addFloat64(cache.RawMaterials, deltaRawMaterials)
+			cache.OtherUses = m.service.addFloat64(cache.OtherUses, deltaOtherUses)
+			cache.Coke = m.service.addFloat64(cache.Coke, deltaCoke)
 		}
 	}
 }

@@ -11,7 +11,10 @@
     </div>
 
     <div class="operation-area">
-      <a-button type="primary" @click="handleExportClick">导出汇总数据（.db）</a-button>
+      <div>
+        <div class="result-text">需要自动校验、人工校验都通过才能导出</div>
+        <a-button type="primary" style="margin: 10px auto 0" @click="handleExportClick">导出汇总数据（.db）</a-button>
+      </div>
     </div>
   </div>
 </template>
@@ -89,6 +92,19 @@
     }
   ];
   const handleExportClick = async () => {
+    let allPass = true;
+    for (const item of dataSource.value) {
+      if (item.is_confirm_no > 0 || item.is_checked_no !== item.is_confirm_no) {
+        allPass = false;
+        break;
+      }
+    }
+
+    if (!allPass) {
+      message.error('存在自动校验、人工校验未通过的数据，不能导出');
+      return;
+    }
+
     const result = await OpenSaveDialog(
       new main.FileDialogOptions({
         title: '导出汇总数据',

@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math"
-	"math/big"
 	"os"
 	"path/filepath"
 	"shuji/db"
@@ -124,29 +122,6 @@ func (s *DataImportService) cleanCellValue(value string) string {
 	value = strings.ReplaceAll(value, "\r", "")
 	value = strings.ReplaceAll(value, "\t", "")
 	return value
-}
-
-// parseNumericValue 解析数值
-func (s *DataImportService) parseNumericValue(value string) string {
-	value = s.cleanCellValue(value)
-	if value == "" {
-		return "0"
-	}
-
-	// 移除常见的非数字字符，保留数字、小数点和负号
-	var result strings.Builder
-	for _, char := range value {
-		if (char >= '0' && char <= '9') || char == '.' || char == '-' || char == ',' {
-			result.WriteRune(char)
-		}
-	}
-
-	cleaned := result.String()
-	if cleaned == "" || cleaned == "-" {
-		return "0"
-	}
-
-	return cleaned
 }
 
 // validateRequiredFieldsOrdered 批量校验必填字段（保证顺序）
@@ -382,28 +357,6 @@ var (
 		"equivalent_value":          "当量值",
 		"equivalent_cost":           "等价值",
 	}
-
-	// 附件2必填字段
-	Attachment2RequiredFields = map[string]string{
-		"stat_date":        "数据年份",
-		"province_name":    "省（市、区）",
-		"city_name":        "地市（州）",
-		"country_name":     "县（区）",
-		"total_coal":       "煤合计",
-		"raw_coal":         "原煤",
-		"washed_coal":      "洗精煤",
-		"other_coal":       "其他",
-		"power_generation": "火力发电",
-		"heating":          "供热",
-		"coal_washing":     "煤炭洗选",
-		"coking":           "炼焦",
-		"oil_refining":     "炼油及煤制油",
-		"gas_production":   "制气",
-		"industry":         "1.工业",
-		"raw_materials":    "1.工业（#用作原料、材料）",
-		"other_uses":       "其他用途",
-		"coke":             "焦炭",
-	}
 )
 
 // generateUUID 生成UUID
@@ -412,63 +365,113 @@ func (s *DataImportService) generateUUID() string {
 }
 
 // parseFloat 解析浮点数
-func (s *DataImportService) parseFloat(value string) (float64, error) {
-	// 移除逗号
-	value = strings.ReplaceAll(value, ",", "")
-	// 移除空格
-	value = strings.TrimSpace(value)
-
+func (s *DataImportService) parseFloat(value string) float64 {
 	if value == "" {
-		return 0, nil
+		return 0
 	}
 
-	return strconv.ParseFloat(value, 64)
-}
-
-// isInteger 判断浮点数是否为整数（考虑精度误差）
-func (s *DataImportService) isInteger(value float64) bool {
-	// 使用math包来处理浮点数精度问题
-	return math.Abs(value-math.Round(value)) < 1e-10
-}
-
-// isEqual 判断两个浮点数是否相等（考虑精度误差）
-func (s *DataImportService) isEqual(a, b float64) bool {
-	return math.Abs(a-b) < 1e-10
-}
-
-// isLessThan 判断a是否小于b（考虑精度误差）
-func (s *DataImportService) isLessThan(a, b float64) bool {
-	return a < b && !s.isEqual(a, b)
-}
-
-// isLessThanOrEqual 判断a是否小于等于b（考虑精度误差）
-func (s *DataImportService) isLessThanOrEqual(a, b float64) bool {
-	return a < b || s.isEqual(a, b)
-}
-
-// isGreaterThan 判断a是否大于b（考虑精度误差）
-func (s *DataImportService) isGreaterThan(a, b float64) bool {
-	return a > b && !s.isEqual(a, b)
-}
-
-// isGreaterThanOrEqual 判断a是否大于等于b（考虑精度误差）
-func (s *DataImportService) isGreaterThanOrEqual(a, b float64) bool {
-	return a > b || s.isEqual(a, b)
-}
-
-// parseBigFloat 解析字符串为 *big.Float，简化定点数处理
-func (s *DataImportService) parseBigFloat(value string) *big.Float {
-	// 移除逗号和空格
-	value = strings.ReplaceAll(value, ",", "")
-	value = strings.TrimSpace(value)
-
-	if value == "" {
-		return big.NewFloat(0)
+	result, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0
 	}
-
-	result := new(big.Float)
-	result.SetString(value)
 	return result
+}
+
+// isIntegerEqual 使用整数计算判断两个float64是否相等（乘以1000转换为整数计算）
+func (s *DataImportService) isIntegerEqual(a, b float64) bool {
+	// 将浮点数乘以1000转换为整数进行计算
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	return intA == intB
+}
+
+// isIntegerLessThan 使用整数计算判断a是否小于b（乘以1000转换为整数计算）
+func (s *DataImportService) isIntegerLessThan(a, b float64) bool {
+	// 将浮点数乘以1000转换为整数进行计算
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	return intA < intB
+}
+
+// isIntegerGreaterThan 使用整数计算判断a是否大于b（乘以1000转换为整数计算）
+func (s *DataImportService) isIntegerGreaterThan(a, b float64) bool {
+	// 将浮点数乘以1000转换为整数进行计算
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	return intA > intB
+}
+
+// isIntegerLessThanOrEqual 使用整数计算判断a是否小于等于b（乘以1000转换为整数计算）
+func (s *DataImportService) isIntegerLessThanOrEqual(a, b float64) bool {
+	// 将浮点数乘以1000转换为整数进行计算
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	return intA <= intB
+}
+
+// isIntegerGreaterThanOrEqual 使用整数计算判断a是否大于等于b（乘以1000转换为整数计算）
+func (s *DataImportService) isIntegerGreaterThanOrEqual(a, b float64) bool {
+	// 将浮点数乘以1000转换为整数进行计算
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	return intA >= intB
+}
+
+// isIntegerInteger 使用整数计算判断float64是否为整数（乘以1000转换为整数计算）
+func (s *DataImportService) isIntegerInteger(value float64) bool {
+	// 将浮点数乘以1000转换为整数进行计算
+	intValue := int64(value * 1000)
+	// 判断是否能被1000整除
+	return intValue%1000 == 0
+}
+
+// 精度安全的算术运算函数（基于整数计算）
+// addFloat64 精度安全的浮点数加法
+func (s *DataImportService) addFloat64(a, b float64) float64 {
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	result := intA + intB
+	return float64(result) / 1000
+}
+
+// subtractFloat64 精度安全的浮点数减法
+func (s *DataImportService) subtractFloat64(a, b float64) float64 {
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	result := intA - intB
+	return float64(result) / 1000
+}
+
+// multiplyFloat64 精度安全的浮点数乘法
+func (s *DataImportService) multiplyFloat64(a, b float64) float64 {
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	result := intA * intB
+	return float64(result) / 1000000 // 除以1000000是因为两个数都乘以了1000
+}
+
+// divideFloat64 精度安全的浮点数除法
+func (s *DataImportService) divideFloat64(a, b float64) float64 {
+	if b == 0 {
+		return 0 // 避免除零错误
+	}
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	result := intA / intB
+	return float64(result) // 不需要再除以1000，因为分子分母都乘以了1000
+}
+
+// sumFloat64 精度安全的浮点数求和（可变参数）
+func (s *DataImportService) sumFloat64(values ...float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+
+	var total int64
+	for _, value := range values {
+		total += int64(value * 1000)
+	}
+	return float64(total) / 1000
 }
 
 // GetCellValue 获取单元格值
