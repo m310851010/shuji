@@ -2,6 +2,7 @@ package data_import
 
 import (
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -83,17 +84,17 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 	var result db.QueryResult
 
 	// 添加异常处理，防止函数崩溃
-	// defer func() {
-	// 	if r := recover(); r != nil {
-	// 		log.Printf("ModelDataCheckAttachment2 发生异常: %v", r)
-	// 		// 设置错误结果
-	// 		result = db.QueryResult{
-	// 			Ok:      false,
-	// 			Message: fmt.Sprintf("函数执行异常: %v", r),
-	// 			Data:    nil,
-	// 		}
-	// 	}
-	// }()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("ModelDataCheckAttachment2 发生异常: %v", r)
+			// 设置错误结果
+			result = db.QueryResult{
+				Ok:      false,
+				Message: fmt.Sprintf("函数执行异常: %v", r),
+				Data:    nil,
+			}
+		}
+	}()
 
 	// 1. 读取缓存目录指定表格类型下的所有Excel文件
 
@@ -805,7 +806,7 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 // updateAttachment2DataByRegionAndYear 根据地区和时间更新附件2数据
 func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName string, record map[string]interface{}) (int64, error) {
 	// 先获取旧数据用于缓存更新
-	oldData, err := s.getAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName)
+	oldData, _ := s.getAttachment2DataByRegionAndYear(statDate, provinceName, cityName, countryName)
 
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptAttachment2NumericFields(record)
