@@ -249,17 +249,17 @@ func (s *DataImportService) checkRegionMatch(provinceName, cityName, countryName
 
 	// 1.检查省是否匹配, 失败,返回
 	if expectedProvince != "" && provinceName != expectedProvince {
-		errors = append(errors, fmt.Sprintf("第%d行：导入的数据单位与当前单位不符", excelRowNum))
+		errors = append(errors, fmt.Sprintf("第%d行：导入的数据对应的区域与当前配置的区域[省（市、区）]不符", excelRowNum))
 		return errors
 	}
 	// 2.检查市, city_name有值时,是否匹配, 无值时返回成功
 	if expectedCity != "" && cityName != expectedCity {
-		errors = append(errors, fmt.Sprintf("第%d行：导入的数据单位与当前单位不符", excelRowNum))
+		errors = append(errors, fmt.Sprintf("第%d行：导入的数据对应的区域与当前配置的区域[地市（州）]不符", excelRowNum))
 		return errors
 	}
 	// 3.检查县, country_name有值时,是否匹配, 无值时返回成功
 	if expectedCountry != "" && countryName != expectedCountry {
-		errors = append(errors, fmt.Sprintf("第%d行：导入的数据单位与当前单位不符", excelRowNum))
+		errors = append(errors, fmt.Sprintf("第%d行：导入的数据对应的区域与当前配置的区域[县（区）]不符", excelRowNum))
 		return errors
 	}
 
