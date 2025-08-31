@@ -339,13 +339,13 @@
       customRender: opt => {
         return (
           <div style="display: flex; justify-content: center;">
-            {opt.index === 0 ? (
-              <Button type="primary" size="small" onClick={() => modal.showModal(opt.record)}>
-                校核
-              </Button>
-            ) : (
+            {opt.record.is_confirm === '1' ? (
               <Button type="primary" size="small" class="ant-btn-loading">
                 已校核
+              </Button>
+            ) : (
+              <Button type="primary" size="small" onClick={() => modal.showModal(opt.record)}>
+                校核
               </Button>
             )}
           </div>
