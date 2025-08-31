@@ -167,7 +167,7 @@ func (s *DataImportService) modelDataCoverTable1WithRecover(filePaths []string) 
 			os.Remove(filePath)
 
 			if err != nil {
-				systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 解析失败: %v", file.Name(), err)})
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 解析失败: %v", file.Name(), err)})
 				failedFiles = append(failedFiles, filePath)
 				continue
 			}
