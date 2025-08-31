@@ -129,7 +129,8 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 		return result
 	}
 
-	var validationErrors []ValidationError = []ValidationError{} // 错误信息
+	var validationErrors []ValidationError = []ValidationError{} // 验证错误信息
+	var systemErrors []ValidationError = []ValidationError{}     // 系统错误信息
 	var importedFiles []string = []string{}                      // 导入的文件
 	var coverFiles []string = []string{}                         // 覆盖的文件
 	var failedFiles []string = []string{}                        // 失败的文件
@@ -145,7 +146,7 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 			// 解析Excel文件 (skipValidate=true)
 			f, err := excelize.OpenFile(filePath)
 			if err != nil {
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 读取失败: %v", file.Name(), err)})
+				systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 读取失败: %v", file.Name(), err)})
 				failedFiles = append(failedFiles, filePath)
 				continue
 			}
@@ -154,7 +155,7 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 			f.Close()
 
 			if err != nil {
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 解析失败: %v", file.Name(), err)})
+				systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 解析失败: %v", file.Name(), err)})
 				failedFiles = append(failedFiles, filePath)
 				continue
 			}
@@ -165,7 +166,7 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 				// 校验失败，在Excel文件中错误行最后添加错误信息
 				err = s.addValidationErrorsToExcelTable2(filePath, errors, mainData)
 				if err != nil {
-					validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
+					systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
 				}
 				failedFiles = append(failedFiles, filePath)
 				// 将验证错误转换为字符串用于显示
@@ -186,7 +187,7 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 			// 6. 如果没有导入过,把数据保存到相应的数据库表中
 			err = s.saveTable2Data(mainData)
 			if err != nil {
-				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 保存数据失败: %v", file.Name(), err)})
+				systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 保存数据失败: %v", file.Name(), err)})
 				failedFiles = append(failedFiles, filePath)
 			} else {
 				// 删除该Excel文件
@@ -208,7 +209,7 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 	if len(failedFiles) > 0 {
 		err = s.createValidationErrorZip(failedFiles, TableType2, TableName2)
 		if err != nil {
-			validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("创建错误报告失败: %v", err)})
+			systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("创建错误报告失败: %v", err)})
 		}
 
 		// 删除失败文件
@@ -219,7 +220,14 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 
 	// 8. 返回结果
 	message := fmt.Sprintf("处理完成。成功导入: %d 个文件，失败: %d 个文件", len(importedFiles), len(failedFiles))
-	if len(validationErrors) > 0 {
+	if len(systemErrors) > 0 {
+		// 将验证错误转换为字符串用于显示
+		var errorMessages []string
+		for _, err := range systemErrors {
+			errorMessages = append(errorMessages, err.Message)
+		}
+		message += "。错误信息如下：" + strings.Join(errorMessages, ";\n ")
+	} else if len(validationErrors) > 0 {
 		message += "。详细错误信息请查看生成的错误报告。"
 	}
 
@@ -227,8 +235,9 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 		Ok:      true,
 		Message: message,
 		Data: map[string]interface{}{
-			"cover_files":    coverFiles,           // 覆盖的文件
-			"hasFailedFiles": len(failedFiles) > 0, // 是否有失败的文件
+			"cover_files":     coverFiles,                // 覆盖的文件
+			"hasExportReport": len(validationErrors) > 0, // 是否有导出报告
+			"hasFailedFiles":  len(failedFiles) > 0,      // 是否有失败的文件
 		},
 	}
 	return result

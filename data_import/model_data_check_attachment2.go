@@ -212,16 +212,15 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 
 	// 8. 返回结果
 	message := fmt.Sprintf("处理完成。成功导入: %d 个文件，失败: %d 个文件", len(importedFiles), len(failedFiles))
-	if len(validationErrors) > 0 {
-		message += "。详细错误信息请查看生成的错误报告。"
-	}
 	if len(systemErrors) > 0 {
 		// 将验证错误转换为字符串用于显示
 		var errorMessages []string
 		for _, err := range systemErrors {
 			errorMessages = append(errorMessages, err.Message)
 		}
-		message += "。系统错误信息如下：" + strings.Join(errorMessages, ";\n ")
+		message += "。错误信息如下：" + strings.Join(errorMessages, ";\n ")
+	} else if len(validationErrors) > 0 {
+		message += "。详细错误信息请查看生成的错误报告。"
 	}
 
 	result = db.QueryResult{
@@ -229,7 +228,7 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 		Message: message,
 		Data: map[string]interface{}{
 			"cover_files":     coverFiles,                // 覆盖的文件
-			"hasExportReport": len(validationErrors) > 0, // 是否有有导出报告
+			"hasExportReport": len(validationErrors) > 0, // 是否有导出报告
 			"hasFailedFiles":  len(failedFiles) > 0,      // 是否有失败的文件
 		},
 	}

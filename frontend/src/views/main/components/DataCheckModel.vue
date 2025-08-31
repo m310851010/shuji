@@ -13,7 +13,9 @@
       <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">
         数据{{ model.passed ? '已' : '未' }}通过自动校验
       </div>
-      <div v-if="model.errorMessage">{{ model.errorMessage }}</div>
+      <div v-if="model.errorMessage">
+        <pre>{{ model.errorMessage }}</pre>
+      </div>
       <div>
         <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">下载模型报告</a-button>
       </div>
@@ -46,7 +48,7 @@
     const handleResult = (result: db.QueryResult) => {
       const data = result.data || {};
       model.value.canDownloadReport = data.hasExportReport;
-      model.value.passed = !data.hasExportReport;
+      model.value.passed = !data.hasFailedFiles;
       model.value.isChecking = false;
       if (model.value.canDownloadReport) {
         model.value.errorMessage = result.message;
