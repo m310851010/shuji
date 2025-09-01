@@ -35,11 +35,13 @@
     if (!item?.length) {
       return [{ tableTypeName, stat_date: '--', count: 0, is_checked_no: 0, is_checked_yes: 0, is_confirm_no: 0, is_confirm_yes: 0 }];
     }
-    return item.map(item => {
-      item.tableTypeName = tableTypeName;
-      item.stat_date = item.stat_date || '--';
-      return item;
-    });
+    return item
+      .map(item => {
+        item.tableTypeName = tableTypeName;
+        item.stat_date = item.stat_date || '--';
+        return item;
+      })
+      .sort((a, b) => a.stat_date.localeCompare(b.stat_date));
   }
 
   onMounted(async () => {
