@@ -62,7 +62,7 @@ func (s *DataImportService) QueryDataTable1() db.QueryResult {
 
 // 查询附表1数据，指定数据库文件路径
 func (s *DataImportService) QueryDataDetailTable1ByDBFile(obj_ids []string, dbFilePath string) db.QueryResult {
-	
+
 	if len(obj_ids) == 0 {
 		return db.QueryResult{
 			Ok:      false,
@@ -89,7 +89,6 @@ func (s *DataImportService) QueryDataDetailTable1ByDBFile(obj_ids []string, dbFi
 			}
 		}
 	}
-	
 
 	defer database.Close()
 
@@ -133,7 +132,7 @@ func (s *DataImportService) queryDataDetailTable1Forinner(obj_id string, databas
 		}
 	}
 
-	mainObjId := s.getStringValue(mainData["obj_id"])
+	mainObjId := obj_id
 
 	// 解密主表数值字段
 	decryptedMainData := map[string]interface{}{
@@ -175,7 +174,7 @@ func (s *DataImportService) queryDataDetailTable1Forinner(obj_id string, databas
 		ORDER BY create_time DESC
 	`
 
-	usageResult, err := database.QueryRow(usageQuery, mainObjId)
+	usageResult, err := database.Query(usageQuery, mainObjId)
 	if err != nil {
 		return db.QueryResult{
 			Ok:      false,
@@ -221,7 +220,7 @@ func (s *DataImportService) queryDataDetailTable1Forinner(obj_id string, databas
 		ORDER BY create_time DESC
 	`
 
-	equipResult, err := database.QueryRow(equipQuery, mainObjId)
+	equipResult, err := database.Query(equipQuery, mainObjId)
 	if err != nil {
 		return db.QueryResult{
 			Ok:      false,

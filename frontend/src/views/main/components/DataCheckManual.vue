@@ -255,13 +255,9 @@
         throw new Error(`未知的表格类型: ${tableType}`);
     }
 
-    if (result.message) {
-      message.success(result.message);
-    } else {
-      const count = objIds.length;
-      const action = count > 1 ? '批量确认' : '确认';
-      message.success(`已${action} ${count} 条${dataTypeName}`);
-    }
+    const count = objIds.length;
+    const action = count > 1 ? '批量确认' : '确认';
+    message.success(`已${action} ${count} 条${dataTypeName}`);
     return result;
   };
 
