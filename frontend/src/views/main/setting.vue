@@ -8,19 +8,55 @@
 </template>
 
 <script setup lang="tsx">
-  import { message } from 'ant-design-vue';
+  import { message, Form, Input } from 'ant-design-vue';
   import { openInfoModal, openModal } from '@/components/useModal';
-  import { SetUserPassword } from '@wailsjs/go';
+  import { GetAreaConfig, Login, SetUserPassword } from '@wailsjs/go';
+  import { reactive, ref } from 'vue';
+
+  interface FormState {
+    oldPassword: string;
+    newPassword: string;
+  }
+  const formState = reactive<FormState>({
+    oldPassword: '',
+    newPassword: ''
+  });
+
+  const formRef = ref<any>();
+
   const handleResetPassword = () => {
-    openModal({
+    const modalRef = openModal({
       title: '重置密码',
-      content: '确定要重置密码吗？',
-      onOk: async () => {
-        const ret = await SetUserPassword('111111');
-        if (ret.ok) {
+      content: () => (
+        <>
+          <Form model={formState} ref={formRef}>
+            <Form.Item label="旧密码" name="oldPassword" rules={[{ required: true, message: '请输入旧密码' }]}>
+              <Input.Password placeholder="请输入旧密码" v-model:value={formState.oldPassword} />
+            </Form.Item>
+            <Form.Item label="新密码" name="newPassword" rules={[{ required: true, message: '请输入新密码' }]}>
+              <Input.Password placeholder="请输入新密码" v-model:value={formState.newPassword} />
+            </Form.Item>
+          </Form>
+        </>
+      ),
+      onOk: async formData => {
+        formRef.value.validate().then(async () => {
+          const loginRet = await Login(formState.oldPassword);
+          if (!loginRet.ok) {
+            message.error('旧密码错误');
+            return;
+          }
+
+          const ret = await SetUserPassword(formState.newPassword);
+          if (!ret.ok) {
+            message.error(ret.message);
+            return;
+          }
+
+          modalRef.close();
           openInfoModal({
             title: '重置密码',
-            content: '密码已重置,默认密码为111111',
+            content: '密码重置成功',
             okText: '确定并退出登录',
             onOk: async () => {
               window.location.href = '#/login';
@@ -29,9 +65,8 @@
               window.location.href = '#/login';
             }
           });
-        } else {
-          message.error(ret.message);
-        }
+        });
+        return false;
       }
     });
   };

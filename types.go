@@ -124,3 +124,22 @@ type AppConfig struct {
 	CurrentCity     string `json:"current_city"`      // 当前城市
 	CurrentCountry  string `json:"current_country"`   // 当前县区
 }
+
+// AreaInfo 区域信息结构
+type AreaInfo struct {
+	Code string `json:"code"` // 区域代码
+	Name string `json:"name"` // 区域名称
+}
+
+// EnhancedAreaConfig 增强的区域配置结构
+type EnhancedAreaConfig struct {
+	ObjID            string     `json:"obj_id"`            // 主键
+	ProvinceName     string     `json:"province_name"`     // 省级名称
+	CityName         string     `json:"city_name"`         // 市级名称
+	CountryName      string     `json:"country_name"`      // 县级名称
+	ProvinceCode     string     `json:"province_code"`     // 省级代码
+	CityCode         string     `json:"city_code"`         // 市级代码
+	CountryCode      string     `json:"country_code"`      // 县级代码
+	DataLevel        int        `json:"data_level"`        // 数据级别：1-省级，2-市级，3-县级
+	SubordinateAreas []AreaInfo `json:"subordinate_areas"` // 下级区域列表
+}

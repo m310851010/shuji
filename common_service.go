@@ -212,6 +212,7 @@ func (a *App) saveAreaConfigWithRecover(config AreaConfig) db.QueryResult {
 }
 
 var areaConfigData map[string]interface{}
+var enhancedAreaConfigData *EnhancedAreaConfig
 
 // 获取区域表(area_config)第一条数据
 func (a *App) GetAreaConfig() db.QueryResult {
@@ -245,21 +246,186 @@ func (a *App) getAreaConfigWithRecover() db.QueryResult {
 	return db.QueryResult{Ok: true, Message: "未找到区域信息，请先设置区域信息"}
 }
 
+// GetEnhancedAreaConfig 获取增强的区域配置信息
+func (a *App) GetEnhancedAreaConfig() db.QueryResult {
+	// 使用包装函数来处理异常
+	return a.getEnhancedAreaConfigWithRecover()
+}
+
+// getEnhancedAreaConfigWithRecover 带异常处理的获取增强区域配置函数
+func (a *App) getEnhancedAreaConfigWithRecover() db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("GetEnhancedAreaConfig 发生异常: %v", r)
+		}
+	}()
+
+	// 如果缓存中存在，直接返回
+	if enhancedAreaConfigData != nil {
+		return db.QueryResult{Ok: true, Data: enhancedAreaConfigData, Message: "获取成功"}
+	}
+
+	// 从数据库获取基础区域配置
+	result, err := a.db.QueryRow("SELECT obj_id, province_name, city_name, country_name FROM area_config LIMIT 1")
+	if err != nil {
+		return db.QueryResult{Ok: false, Message: "获取区域信息失败: " + err.Error()}
+	}
+
+	if result.Data == nil {
+		return db.QueryResult{Ok: false, Message: "未找到区域信息，请先设置区域信息"}
+	}
+
+	// 解析基础数据
+	areaData, ok := result.Data.(map[string]interface{})
+	if !ok {
+		return db.QueryResult{Ok: false, Message: "数据格式错误"}
+	}
+
+	// 构建增强区域配置
+	enhancedConfig := &EnhancedAreaConfig{
+		ObjID:        getStringValue(areaData["obj_id"]),
+		ProvinceName: getStringValue(areaData["province_name"]),
+		CityName:     getStringValue(areaData["city_name"]),
+		CountryName:  getStringValue(areaData["country_name"]),
+	}
+
+	// 获取中国区域信息
+	chinaAreaArray, err := a.GetChinaAreaMap()
+	if err != nil {
+		return db.QueryResult{Ok: false, Message: "获取中国区域信息失败: " + err.Error()}
+	}
+
+	// 查找区域代码和下级区域
+	err = a.findAreaCodesAndSubordinates(enhancedConfig, chinaAreaArray)
+	if err != nil {
+		return db.QueryResult{Ok: false, Message: "查找区域代码失败: " + err.Error()}
+	}
+
+	// 缓存结果
+	enhancedAreaConfigData = enhancedConfig
+
+	return db.QueryResult{Ok: true, Data: enhancedConfig, Message: "获取成功"}
+}
+
+// findAreaCodesAndSubordinates 查找区域代码和下级区域
+func (a *App) findAreaCodesAndSubordinates(config *EnhancedAreaConfig, chinaAreaArray []interface{}) error {
+	// China.json是一个数组，直接使用
+	provinces := chinaAreaArray
+
+	// 查找匹配的省份
+	for _, provinceInterface := range provinces {
+		province, ok := provinceInterface.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		provinceName := getStringValue(province["name"])
+		if provinceName == config.ProvinceName {
+			config.ProvinceCode = getStringValue(province["code"])
+			config.DataLevel = 1 // 省级
+
+			// 如果设置了市级，查找市级信息
+			if config.CityName != "" {
+				cities, ok := province["children"].([]interface{})
+				if ok {
+					for _, cityInterface := range cities {
+						city, ok := cityInterface.(map[string]interface{})
+						if !ok {
+							continue
+						}
+
+						cityName := getStringValue(city["name"])
+						if cityName == config.CityName {
+							config.CityCode = getStringValue(city["code"])
+							config.DataLevel = 2 // 市级
+
+							// 如果设置了县级，查找县级信息
+							if config.CountryName != "" {
+								countries, ok := city["children"].([]interface{})
+								if ok {
+									for _, countryInterface := range countries {
+										country, ok := countryInterface.(map[string]interface{})
+										if !ok {
+											continue
+										}
+
+										countryName := getStringValue(country["name"])
+										if countryName == config.CountryName {
+											config.CountryCode = getStringValue(country["code"])
+											config.DataLevel = 3 // 县级
+											return nil
+										}
+									}
+								}
+							} else {
+								// 市级用户，获取下级县区列表
+								countries, ok := city["children"].([]interface{})
+								if ok {
+									config.SubordinateAreas = make([]AreaInfo, 0, len(countries))
+									for _, countryInterface := range countries {
+										country, ok := countryInterface.(map[string]interface{})
+										if !ok {
+											continue
+										}
+										config.SubordinateAreas = append(config.SubordinateAreas, AreaInfo{
+											Code: getStringValue(country["code"]),
+											Name: getStringValue(country["name"]),
+										})
+									}
+								}
+							}
+							return nil
+						}
+					}
+				}
+			} else {
+				// 省级用户，获取下级市区列表
+				cities, ok := province["children"].([]interface{})
+				if ok {
+					config.SubordinateAreas = make([]AreaInfo, 0, len(cities))
+					for _, cityInterface := range cities {
+						city, ok := cityInterface.(map[string]interface{})
+						if !ok {
+							continue
+						}
+						config.SubordinateAreas = append(config.SubordinateAreas, AreaInfo{
+							Code: getStringValue(city["code"]),
+							Name: getStringValue(city["name"]),
+						})
+					}
+				}
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("未找到匹配的区域信息")
+}
+
+// getStringValue 安全获取字符串值
+func getStringValue(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", value)
+}
+
 // 获取中国区域信息
-func (a *App) GetChinaAreaMap() (map[string]interface{}, error) {
+func (a *App) GetChinaAreaMap() ([]interface{}, error) {
 	areaData, err := a.ReadFile(CHINA_AREA_FILE_PATH, true)
 	if err != nil {
 		return nil, err
 	}
 
-	// 把json转换为map
-	var areaMap map[string]interface{}
-	err = json.Unmarshal(areaData, &areaMap)
+	// 把json转换为数组
+	var areaArray []interface{}
+	err = json.Unmarshal(areaData, &areaArray)
 	if err != nil {
 		return nil, err
 	}
 
-	return areaMap, nil
+	return areaArray, nil
 }
 
 func (a *App) GetChinaAreaStr() db.QueryResult {

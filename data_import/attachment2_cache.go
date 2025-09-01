@@ -4,23 +4,44 @@ import (
 	"fmt"
 )
 
-// Attachment2DatabaseCache 附件2数据库缓存结构
-type Attachment2DatabaseCache struct {
-	CacheKey     string // 缓存键：province_city_country_statDate
-	TotalCoal    float64
-	RawCoal      float64
-	WashedCoal   float64
-	OtherCoal    float64
-	PowerGen     float64
-	Heating      float64
-	CoalWashing  float64
-	Coking       float64
-	OilRefining  float64
-	GasProd      float64
-	Industry     float64
-	RawMaterials float64
-	OtherUses    float64
-	Coke         float64
+// YearlyAggregatedData 年份累计数据缓存结构
+type YearlyAggregatedData struct {
+	StatDate     string  // 年份
+	TotalCoal    float64 // 煤合计累计
+	RawCoal      float64 // 原煤累计
+	WashedCoal   float64 // 洗精煤累计
+	OtherCoal    float64 // 其他累计
+	PowerGen     float64 // 火力发电累计
+	Heating      float64 // 供热累计
+	CoalWashing  float64 // 煤炭洗选累计
+	Coking       float64 // 炼焦累计
+	OilRefining  float64 // 炼油及煤制油累计
+	GasProd      float64 // 制气累计
+	Industry     float64 // 工业累计
+	RawMaterials float64 // 工业（#用作原料、材料）累计
+	OtherUses    float64 // 其他用途累计
+	Coke         float64 // 焦炭累计
+}
+
+// CityData 当前市的数据缓存结构
+type CityData struct {
+	ProvinceName string  // 省份名称
+	CityName     string  // 市名称
+	StatDate     string  // 年份
+	TotalCoal    float64 // 煤合计
+	RawCoal      float64 // 原煤
+	WashedCoal   float64 // 洗精煤
+	OtherCoal    float64 // 其他
+	PowerGen     float64 // 火力发电
+	Heating      float64 // 供热
+	CoalWashing  float64 // 煤炭洗选
+	Coking       float64 // 炼焦
+	OilRefining  float64 // 炼油及煤制油
+	GasProd      float64 // 制气
+	Industry     float64 // 工业
+	RawMaterials float64 // 工业（#用作原料、材料）
+	OtherUses    float64 // 其他用途
+	Coke         float64 // 焦炭
 }
 
 // Attachment2CacheManager 附件2缓存管理器
@@ -30,9 +51,11 @@ type Attachment2CacheManager struct {
 
 // 全局缓存变量
 var (
-	attachment2DatabaseCache    map[string]*Attachment2DatabaseCache
-	attachment2DataExistsCache  map[string]bool
-	attachment2CacheInitialized bool
+	// 优化缓存
+	yearlyAggregatedCache     map[string]*YearlyAggregatedData // 年份累计数据缓存 key: statDate (下辖县区数据累加)
+	cityDataCache             map[string]*CityData             // 当前市数据缓存 key: province_city_statDate (本市数据)
+	importedDataCache         map[string]bool                  // 已导入数据缓存 key: province_city_country_statDate
+	optimizedCacheInitialized bool                             // 优化缓存是否已初始化
 )
 
 // NewAttachment2CacheManager 创建附件2缓存管理器
@@ -42,37 +65,106 @@ func NewAttachment2CacheManager(service *DataImportService) *Attachment2CacheMan
 	}
 }
 
-// InitDatabaseCache 初始化附件2数据库缓存
-func (m *Attachment2CacheManager) InitDatabaseCache() {
-	if attachment2DatabaseCache == nil {
-		attachment2DatabaseCache = make(map[string]*Attachment2DatabaseCache)
+// InitOptimizedCache 初始化优化缓存（只初始化一次）
+func (m *Attachment2CacheManager) InitOptimizedCache() {
+	if !optimizedCacheInitialized {
+		yearlyAggregatedCache = make(map[string]*YearlyAggregatedData)
+		cityDataCache = make(map[string]*CityData)
+		importedDataCache = make(map[string]bool)
+		optimizedCacheInitialized = true
 	}
 }
 
-// InitDataExistsCache 初始化附件2数据存在性缓存
-func (m *Attachment2CacheManager) InitDataExistsCache() {
-	if attachment2DataExistsCache == nil {
-		attachment2DataExistsCache = make(map[string]bool)
+// GetYearlyAggregatedData 获取年份累计数据
+func (m *Attachment2CacheManager) GetYearlyAggregatedData(statDate string) (*YearlyAggregatedData, bool) {
+	data, exists := yearlyAggregatedCache[statDate]
+	return data, exists
+}
+
+// SetYearlyAggregatedData 设置年份累计数据
+func (m *Attachment2CacheManager) SetYearlyAggregatedData(statDate string, data *YearlyAggregatedData) {
+	m.InitOptimizedCache()
+	yearlyAggregatedCache[statDate] = data
+}
+
+// GetCityData 获取当前市数据
+func (m *Attachment2CacheManager) GetCityData(provinceName, cityName, statDate string) (*CityData, bool) {
+	key := fmt.Sprintf("%s|%s|%s", provinceName, cityName, statDate)
+	data, exists := cityDataCache[key]
+	return data, exists
+}
+
+// SetCityData 设置当前市数据
+func (m *Attachment2CacheManager) SetCityData(provinceName, cityName, statDate string, data *CityData) {
+	key := fmt.Sprintf("%s|%s|%s", provinceName, cityName, statDate)
+	cityDataCache[key] = data
+}
+
+// IsDataImported 检查数据是否已导入
+func (m *Attachment2CacheManager) IsDataImported(statDate, provinceName, cityName, countryName string) bool {
+	key := fmt.Sprintf("%s|%s|%s|%s", provinceName, cityName, countryName, statDate)
+	return importedDataCache[key]
+}
+
+// MarkDataAsImported 标记数据为已导入
+func (m *Attachment2CacheManager) MarkDataAsImported(statDate, provinceName, cityName, countryName string) {
+	key := fmt.Sprintf("%s|%s|%s|%s", provinceName, cityName, countryName, statDate)
+	importedDataCache[key] = true
+}
+
+// RemoveDataFromImported 从已导入缓存中移除数据
+func (m *Attachment2CacheManager) RemoveDataFromImported(statDate, provinceName, cityName, countryName string) {
+	m.InitOptimizedCache()
+	key := fmt.Sprintf("%s|%s|%s|%s", provinceName, cityName, countryName, statDate)
+	delete(importedDataCache, key)
+}
+
+// UpdateYearlyAggregatedData 更新年份累计数据（累加）
+func (m *Attachment2CacheManager) UpdateYearlyAggregatedData(statDate string, data *YearlyAggregatedData) {
+	existing, exists := yearlyAggregatedCache[statDate]
+	if !exists {
+		// 如果不存在，直接设置
+		yearlyAggregatedCache[statDate] = data
+		return
 	}
+
+	// 累加数据
+	existing.TotalCoal = m.service.addFloat64(existing.TotalCoal, data.TotalCoal)
+	existing.RawCoal = m.service.addFloat64(existing.RawCoal, data.RawCoal)
+	existing.WashedCoal = m.service.addFloat64(existing.WashedCoal, data.WashedCoal)
+	existing.OtherCoal = m.service.addFloat64(existing.OtherCoal, data.OtherCoal)
+	existing.PowerGen = m.service.addFloat64(existing.PowerGen, data.PowerGen)
+	existing.Heating = m.service.addFloat64(existing.Heating, data.Heating)
+	existing.CoalWashing = m.service.addFloat64(existing.CoalWashing, data.CoalWashing)
+	existing.Coking = m.service.addFloat64(existing.Coking, data.Coking)
+	existing.OilRefining = m.service.addFloat64(existing.OilRefining, data.OilRefining)
+	existing.GasProd = m.service.addFloat64(existing.GasProd, data.GasProd)
+	existing.Industry = m.service.addFloat64(existing.Industry, data.Industry)
+	existing.RawMaterials = m.service.addFloat64(existing.RawMaterials, data.RawMaterials)
+	existing.OtherUses = m.service.addFloat64(existing.OtherUses, data.OtherUses)
+	existing.Coke = m.service.addFloat64(existing.Coke, data.Coke)
 }
 
-// GetDatabaseCacheKey 生成数据库缓存键
-func (m *Attachment2CacheManager) GetDatabaseCacheKey(provinceName, cityName, countryName, statDate string) string {
-	return fmt.Sprintf("%s_%s_%s_%s", provinceName, cityName, countryName, statDate)
+// IsDataExistsInOptimizedCache 检查数据是否存在于优化缓存中
+func (m *Attachment2CacheManager) IsDataExistsInOptimizedCache(statDate, provinceName, cityName, countryName string) bool {
+	m.InitOptimizedCache()
+
+	// 使用已导入数据缓存检查
+	return m.IsDataImported(statDate, provinceName, cityName, countryName)
 }
 
-// GetDataExistsCacheKey 生成数据存在性缓存键
-func (m *Attachment2CacheManager) GetDataExistsCacheKey(statDate, provinceName, cityName, countryName string) string {
-	return fmt.Sprintf("exists_%s_%s_%s_%s", statDate, provinceName, cityName, countryName)
+// ClearOptimizedCache 清除优化缓存
+func (m *Attachment2CacheManager) ClearOptimizedCache() {
+	yearlyAggregatedCache = nil
+	cityDataCache = nil
+	importedDataCache = nil
+	optimizedCacheInitialized = false
 }
 
-// PreloadDatabaseCache 预加载附件2数据库缓存（一次性加载所有相关数据）
-func (m *Attachment2CacheManager) PreloadDatabaseCache() error {
-	if attachment2CacheInitialized {
-		return nil // 缓存已初始化，无需重复加载
-	}
-
-	m.InitDatabaseCache()
+// PreloadOptimizedCache 预加载优化缓存（从数据库加载所有相关数据到新结构）
+func (m *Attachment2CacheManager) PreloadOptimizedCache() error {
+	// 初始化缓存
+	m.InitOptimizedCache()
 
 	// 从数据库加载所有附件2数据
 	query := `
@@ -81,35 +173,28 @@ func (m *Attachment2CacheManager) PreloadDatabaseCache() error {
 			total_coal, raw_coal, washed_coal, other_coal,
 			power_generation, heating, coal_washing, coking, oil_refining, gas_production,
 			industry, raw_materials, other_uses, coke
-		FROM coal_consumption_report 
-		WHERE is_confirm = 1 AND is_check = 1
+		FROM coal_consumption_report
 	`
 
 	result, err := m.service.app.GetDB().Query(query)
 	if err != nil || result.Data == nil {
-		// 如果没有数据，标记为已初始化并返回
-		attachment2CacheInitialized = true
-		return nil
+		return nil // 如果没有数据，直接返回
 	}
 
 	data, ok := result.Data.([]map[string]interface{})
 	if !ok || len(data) == 0 {
-		// 如果没有数据，标记为已初始化并返回
-		attachment2CacheInitialized = true
-		return nil
+		return nil // 如果没有数据，直接返回
 	}
 
-	// 按地区和时间分组数据
-	cacheMap := make(map[string]*Attachment2DatabaseCache)
+	// 按年份和区域分组数据
+	yearlyDataMap := make(map[string]*YearlyAggregatedData)
+	cityDataMap := make(map[string]*CityData)
 
 	for _, record := range data {
 		statDate := m.service.getStringValue(record["stat_date"])
 		provinceName := m.service.getStringValue(record["province_name"])
 		cityName := m.service.getStringValue(record["city_name"])
 		countryName := m.service.getStringValue(record["country_name"])
-
-		// 生成缓存键
-		cacheKey := m.GetDatabaseCacheKey(provinceName, cityName, countryName, statDate)
 
 		// 解密数值字段
 		totalCoal := m.service.parseFloat(m.service.decryptValue(record["total_coal"]))
@@ -127,247 +212,97 @@ func (m *Attachment2CacheManager) PreloadDatabaseCache() error {
 		otherUses := m.service.parseFloat(m.service.decryptValue(record["other_uses"]))
 		coke := m.service.parseFloat(m.service.decryptValue(record["coke"]))
 
-		// 累加到缓存中
-		if cache, exists := cacheMap[cacheKey]; exists {
-			cache.TotalCoal = m.service.addFloat64(cache.TotalCoal, totalCoal)
-			cache.RawCoal = m.service.addFloat64(cache.RawCoal, rawCoal)
-			cache.WashedCoal = m.service.addFloat64(cache.WashedCoal, washedCoal)
-			cache.OtherCoal = m.service.addFloat64(cache.OtherCoal, otherCoal)
-			cache.PowerGen = m.service.addFloat64(cache.PowerGen, powerGeneration)
-			cache.Heating = m.service.addFloat64(cache.Heating, heating)
-			cache.CoalWashing = m.service.addFloat64(cache.CoalWashing, coalWashing)
-			cache.Coking = m.service.addFloat64(cache.Coking, coking)
-			cache.OilRefining = m.service.addFloat64(cache.OilRefining, oilRefining)
-			cache.GasProd = m.service.addFloat64(cache.GasProd, gasProduction)
-			cache.Industry = m.service.addFloat64(cache.Industry, industry)
-			cache.RawMaterials = m.service.addFloat64(cache.RawMaterials, rawMaterials)
-			cache.OtherUses = m.service.addFloat64(cache.OtherUses, otherUses)
-			cache.Coke = m.service.addFloat64(cache.Coke, coke)
-		} else {
-			cacheMap[cacheKey] = &Attachment2DatabaseCache{
-				CacheKey:     cacheKey,
-				TotalCoal:    totalCoal,
-				RawCoal:      rawCoal,
-				WashedCoal:   washedCoal,
-				OtherCoal:    otherCoal,
-				PowerGen:     powerGeneration,
-				Heating:      heating,
-				CoalWashing:  coalWashing,
-				Coking:       coking,
-				OilRefining:  oilRefining,
-				GasProd:      gasProduction,
-				Industry:     industry,
-				RawMaterials: rawMaterials,
-				OtherUses:    otherUses,
-				Coke:         coke,
+		// 1. 累加到年份累计数据（下辖县区数据累加，即countryName不为空的数据）
+		if countryName != "" {
+			if yearlyData, exists := yearlyDataMap[statDate]; exists {
+				yearlyData.TotalCoal = m.service.addFloat64(yearlyData.TotalCoal, totalCoal)
+				yearlyData.RawCoal = m.service.addFloat64(yearlyData.RawCoal, rawCoal)
+				yearlyData.WashedCoal = m.service.addFloat64(yearlyData.WashedCoal, washedCoal)
+				yearlyData.OtherCoal = m.service.addFloat64(yearlyData.OtherCoal, otherCoal)
+				yearlyData.PowerGen = m.service.addFloat64(yearlyData.PowerGen, powerGeneration)
+				yearlyData.Heating = m.service.addFloat64(yearlyData.Heating, heating)
+				yearlyData.CoalWashing = m.service.addFloat64(yearlyData.CoalWashing, coalWashing)
+				yearlyData.Coking = m.service.addFloat64(yearlyData.Coking, coking)
+				yearlyData.OilRefining = m.service.addFloat64(yearlyData.OilRefining, oilRefining)
+				yearlyData.GasProd = m.service.addFloat64(yearlyData.GasProd, gasProduction)
+				yearlyData.Industry = m.service.addFloat64(yearlyData.Industry, industry)
+				yearlyData.RawMaterials = m.service.addFloat64(yearlyData.RawMaterials, rawMaterials)
+				yearlyData.OtherUses = m.service.addFloat64(yearlyData.OtherUses, otherUses)
+				yearlyData.Coke = m.service.addFloat64(yearlyData.Coke, coke)
+			} else {
+				yearlyDataMap[statDate] = &YearlyAggregatedData{
+					StatDate:     statDate,
+					TotalCoal:    totalCoal,
+					RawCoal:      rawCoal,
+					WashedCoal:   washedCoal,
+					OtherCoal:    otherCoal,
+					PowerGen:     powerGeneration,
+					Heating:      heating,
+					CoalWashing:  coalWashing,
+					Coking:       coking,
+					OilRefining:  oilRefining,
+					GasProd:      gasProduction,
+					Industry:     industry,
+					RawMaterials: rawMaterials,
+					OtherUses:    otherUses,
+					Coke:         coke,
+				}
 			}
 		}
 
-		// 同时更新数据存在性缓存
-		existsCacheKey := m.GetDataExistsCacheKey(statDate, provinceName, cityName, countryName)
-		attachment2DataExistsCache[existsCacheKey] = true
+		// 2. 累加到市数据（本市数据，即countryName为空且cityName不为空的数据）
+		if countryName == "" && cityName != "" {
+			cityKey := fmt.Sprintf("%s|%s|%s", provinceName, cityName, statDate)
+			if cityData, exists := cityDataMap[cityKey]; exists {
+				cityData.TotalCoal = m.service.addFloat64(cityData.TotalCoal, totalCoal)
+				cityData.RawCoal = m.service.addFloat64(cityData.RawCoal, rawCoal)
+				cityData.WashedCoal = m.service.addFloat64(cityData.WashedCoal, washedCoal)
+				cityData.OtherCoal = m.service.addFloat64(cityData.OtherCoal, otherCoal)
+				cityData.PowerGen = m.service.addFloat64(cityData.PowerGen, powerGeneration)
+				cityData.Heating = m.service.addFloat64(cityData.Heating, heating)
+				cityData.CoalWashing = m.service.addFloat64(cityData.CoalWashing, coalWashing)
+				cityData.Coking = m.service.addFloat64(cityData.Coking, coking)
+				cityData.OilRefining = m.service.addFloat64(cityData.OilRefining, oilRefining)
+				cityData.GasProd = m.service.addFloat64(cityData.GasProd, gasProduction)
+				cityData.Industry = m.service.addFloat64(cityData.Industry, industry)
+				cityData.RawMaterials = m.service.addFloat64(cityData.RawMaterials, rawMaterials)
+				cityData.OtherUses = m.service.addFloat64(cityData.OtherUses, otherUses)
+				cityData.Coke = m.service.addFloat64(cityData.Coke, coke)
+			} else {
+				cityDataMap[cityKey] = &CityData{
+					ProvinceName: provinceName,
+					CityName:     cityName,
+					StatDate:     statDate,
+					TotalCoal:    totalCoal,
+					RawCoal:      rawCoal,
+					WashedCoal:   washedCoal,
+					OtherCoal:    otherCoal,
+					PowerGen:     powerGeneration,
+					Heating:      heating,
+					CoalWashing:  coalWashing,
+					Coking:       coking,
+					OilRefining:  oilRefining,
+					GasProd:      gasProduction,
+					Industry:     industry,
+					RawMaterials: rawMaterials,
+					OtherUses:    otherUses,
+					Coke:         coke,
+				}
+			}
+		}
+
+		// 3. 标记数据为已导入
+		m.MarkDataAsImported(statDate, provinceName, cityName, countryName)
 	}
 
-	// 将缓存数据存储到全局缓存中
-	for cacheKey, cache := range cacheMap {
-		attachment2DatabaseCache[cacheKey] = cache
+	// 将数据设置到全局缓存中
+	for statDate, yearlyData := range yearlyDataMap {
+		yearlyAggregatedCache[statDate] = yearlyData
 	}
 
-	// 标记缓存已初始化
-	attachment2CacheInitialized = true
+	for cityKey, cityData := range cityDataMap {
+		cityDataCache[cityKey] = cityData
+	}
+
 	return nil
-}
-
-// UpdateDatabaseCache 更新附件2数据库缓存
-func (m *Attachment2CacheManager) UpdateDatabaseCache(statDate, provinceName, cityName, countryName string, record map[string]interface{}) {
-	m.InitDatabaseCache()
-
-	// 获取当前记录的所有上级区域缓存键
-	cacheKeys := m.getParentCacheKeys(provinceName, cityName, countryName, statDate)
-
-	// 解析当前记录的数值
-	totalCoal := m.service.parseFloat(m.service.getStringValue(record["total_coal"]))
-	rawCoal := m.service.parseFloat(m.service.getStringValue(record["raw_coal"]))
-	washedCoal := m.service.parseFloat(m.service.getStringValue(record["washed_coal"]))
-	otherCoal := m.service.parseFloat(m.service.getStringValue(record["other_coal"]))
-	powerGeneration := m.service.parseFloat(m.service.getStringValue(record["power_generation"]))
-	heating := m.service.parseFloat(m.service.getStringValue(record["heating"]))
-	coalWashing := m.service.parseFloat(m.service.getStringValue(record["coal_washing"]))
-	coking := m.service.parseFloat(m.service.getStringValue(record["coking"]))
-	oilRefining := m.service.parseFloat(m.service.getStringValue(record["oil_refining"]))
-	gasProduction := m.service.parseFloat(m.service.getStringValue(record["gas_production"]))
-	industry := m.service.parseFloat(m.service.getStringValue(record["industry"]))
-	rawMaterials := m.service.parseFloat(m.service.getStringValue(record["raw_materials"]))
-	otherUses := m.service.parseFloat(m.service.getStringValue(record["other_uses"]))
-	coke := m.service.parseFloat(m.service.getStringValue(record["coke"]))
-
-	// 更新所有相关缓存
-	for _, cacheKey := range cacheKeys {
-		if cache, exists := attachment2DatabaseCache[cacheKey]; exists {
-			// 累加到现有缓存
-			cache.TotalCoal = m.service.addFloat64(cache.TotalCoal, totalCoal)
-			cache.RawCoal = m.service.addFloat64(cache.RawCoal, rawCoal)
-			cache.WashedCoal = m.service.addFloat64(cache.WashedCoal, washedCoal)
-			cache.OtherCoal = m.service.addFloat64(cache.OtherCoal, otherCoal)
-			cache.PowerGen = m.service.addFloat64(cache.PowerGen, powerGeneration)
-			cache.Heating = m.service.addFloat64(cache.Heating, heating)
-			cache.CoalWashing = m.service.addFloat64(cache.CoalWashing, coalWashing)
-			cache.Coking = m.service.addFloat64(cache.Coking, coking)
-			cache.OilRefining = m.service.addFloat64(cache.OilRefining, oilRefining)
-			cache.GasProd = m.service.addFloat64(cache.GasProd, gasProduction)
-			cache.Industry = m.service.addFloat64(cache.Industry, industry)
-			cache.RawMaterials = m.service.addFloat64(cache.RawMaterials, rawMaterials)
-			cache.OtherUses = m.service.addFloat64(cache.OtherUses, otherUses)
-			cache.Coke = m.service.addFloat64(cache.Coke, coke)
-		} else {
-			// 创建新缓存
-			attachment2DatabaseCache[cacheKey] = &Attachment2DatabaseCache{
-				CacheKey:     cacheKey,
-				TotalCoal:    totalCoal,
-				RawCoal:      rawCoal,
-				WashedCoal:   washedCoal,
-				OtherCoal:    otherCoal,
-				PowerGen:     powerGeneration,
-				Heating:      heating,
-				CoalWashing:  coalWashing,
-				Coking:       coking,
-				OilRefining:  oilRefining,
-				GasProd:      gasProduction,
-				Industry:     industry,
-				RawMaterials: rawMaterials,
-				OtherUses:    otherUses,
-				Coke:         coke,
-			}
-		}
-	}
-}
-
-// UpdateDatabaseCacheForUpdate 更新附件2数据库缓存（用于UPDATE操作）
-func (m *Attachment2CacheManager) UpdateDatabaseCacheForUpdate(statDate, provinceName, cityName, countryName string, oldRecord, newRecord map[string]interface{}) {
-	m.InitDatabaseCache()
-
-	// 获取当前记录的所有上级区域缓存键
-	cacheKeys := m.getParentCacheKeys(provinceName, cityName, countryName, statDate)
-
-	// 解析旧数据和新数据的数值
-	oldTotalCoal := m.service.parseFloat(m.service.getStringValue(oldRecord["total_coal"]))
-	oldRawCoal := m.service.parseFloat(m.service.getStringValue(oldRecord["raw_coal"]))
-	oldWashedCoal := m.service.parseFloat(m.service.getStringValue(oldRecord["washed_coal"]))
-	oldOtherCoal := m.service.parseFloat(m.service.getStringValue(oldRecord["other_coal"]))
-	oldPowerGeneration := m.service.parseFloat(m.service.getStringValue(oldRecord["power_generation"]))
-	oldHeating := m.service.parseFloat(m.service.getStringValue(oldRecord["heating"]))
-	oldCoalWashing := m.service.parseFloat(m.service.getStringValue(oldRecord["coal_washing"]))
-	oldCoking := m.service.parseFloat(m.service.getStringValue(oldRecord["coking"]))
-	oldOilRefining := m.service.parseFloat(m.service.getStringValue(oldRecord["oil_refining"]))
-	oldGasProduction := m.service.parseFloat(m.service.getStringValue(oldRecord["gas_production"]))
-	oldIndustry := m.service.parseFloat(m.service.getStringValue(oldRecord["industry"]))
-	oldRawMaterials := m.service.parseFloat(m.service.getStringValue(oldRecord["raw_materials"]))
-	oldOtherUses := m.service.parseFloat(m.service.getStringValue(oldRecord["other_uses"]))
-	oldCoke := m.service.parseFloat(m.service.getStringValue(oldRecord["coke"]))
-
-	newTotalCoal := m.service.parseFloat(m.service.getStringValue(newRecord["total_coal"]))
-	newRawCoal := m.service.parseFloat(m.service.getStringValue(newRecord["raw_coal"]))
-	newWashedCoal := m.service.parseFloat(m.service.getStringValue(newRecord["washed_coal"]))
-	newOtherCoal := m.service.parseFloat(m.service.getStringValue(newRecord["other_coal"]))
-	newPowerGeneration := m.service.parseFloat(m.service.getStringValue(newRecord["power_generation"]))
-	newHeating := m.service.parseFloat(m.service.getStringValue(newRecord["heating"]))
-	newCoalWashing := m.service.parseFloat(m.service.getStringValue(newRecord["coal_washing"]))
-	newCoking := m.service.parseFloat(m.service.getStringValue(newRecord["coking"]))
-	newOilRefining := m.service.parseFloat(m.service.getStringValue(newRecord["oil_refining"]))
-	newGasProduction := m.service.parseFloat(m.service.getStringValue(newRecord["gas_production"]))
-	newIndustry := m.service.parseFloat(m.service.getStringValue(newRecord["industry"]))
-	newRawMaterials := m.service.parseFloat(m.service.getStringValue(newRecord["raw_materials"]))
-	newOtherUses := m.service.parseFloat(m.service.getStringValue(newRecord["other_uses"]))
-	newCoke := m.service.parseFloat(m.service.getStringValue(newRecord["coke"]))
-
-	// 计算差值
-	deltaTotalCoal := m.service.subtractFloat64(newTotalCoal, oldTotalCoal)
-	deltaRawCoal := m.service.subtractFloat64(newRawCoal, oldRawCoal)
-	deltaWashedCoal := m.service.subtractFloat64(newWashedCoal, oldWashedCoal)
-	deltaOtherCoal := m.service.subtractFloat64(newOtherCoal, oldOtherCoal)
-	deltaPowerGeneration := m.service.subtractFloat64(newPowerGeneration, oldPowerGeneration)
-	deltaHeating := m.service.subtractFloat64(newHeating, oldHeating)
-	deltaCoalWashing := m.service.subtractFloat64(newCoalWashing, oldCoalWashing)
-	deltaCoking := m.service.subtractFloat64(newCoking, oldCoking)
-	deltaOilRefining := m.service.subtractFloat64(newOilRefining, oldOilRefining)
-	deltaGasProduction := m.service.subtractFloat64(newGasProduction, oldGasProduction)
-	deltaIndustry := m.service.subtractFloat64(newIndustry, oldIndustry)
-	deltaRawMaterials := m.service.subtractFloat64(newRawMaterials, oldRawMaterials)
-	deltaOtherUses := m.service.subtractFloat64(newOtherUses, oldOtherUses)
-	deltaCoke := m.service.subtractFloat64(newCoke, oldCoke)
-
-	// 更新所有相关缓存
-	for _, cacheKey := range cacheKeys {
-		if cache, exists := attachment2DatabaseCache[cacheKey]; exists {
-			// 累加差值到现有缓存
-			cache.TotalCoal = m.service.addFloat64(cache.TotalCoal, deltaTotalCoal)
-			cache.RawCoal = m.service.addFloat64(cache.RawCoal, deltaRawCoal)
-			cache.WashedCoal = m.service.addFloat64(cache.WashedCoal, deltaWashedCoal)
-			cache.OtherCoal = m.service.addFloat64(cache.OtherCoal, deltaOtherCoal)
-			cache.PowerGen = m.service.addFloat64(cache.PowerGen, deltaPowerGeneration)
-			cache.Heating = m.service.addFloat64(cache.Heating, deltaHeating)
-			cache.CoalWashing = m.service.addFloat64(cache.CoalWashing, deltaCoalWashing)
-			cache.Coking = m.service.addFloat64(cache.Coking, deltaCoking)
-			cache.OilRefining = m.service.addFloat64(cache.OilRefining, deltaOilRefining)
-			cache.GasProd = m.service.addFloat64(cache.GasProd, deltaGasProduction)
-			cache.Industry = m.service.addFloat64(cache.Industry, deltaIndustry)
-			cache.RawMaterials = m.service.addFloat64(cache.RawMaterials, deltaRawMaterials)
-			cache.OtherUses = m.service.addFloat64(cache.OtherUses, deltaOtherUses)
-			cache.Coke = m.service.addFloat64(cache.Coke, deltaCoke)
-		}
-	}
-}
-
-// getParentCacheKeys 获取所有上级区域的缓存键
-func (m *Attachment2CacheManager) getParentCacheKeys(provinceName, cityName, countryName, statDate string) []string {
-	var cacheKeys []string
-
-	// 如果有县，需要更新省、市、县的缓存
-	if countryName != "" {
-		// 省级缓存
-		cacheKeys = append(cacheKeys, m.GetDatabaseCacheKey(provinceName, "", "", statDate))
-		// 市级缓存
-		cacheKeys = append(cacheKeys, m.GetDatabaseCacheKey(provinceName, cityName, "", statDate))
-		// 县级缓存
-		cacheKeys = append(cacheKeys, m.GetDatabaseCacheKey(provinceName, cityName, countryName, statDate))
-	} else if cityName != "" {
-		// 如果有市无县，需要更新省、市的缓存
-		// 省级缓存
-		cacheKeys = append(cacheKeys, m.GetDatabaseCacheKey(provinceName, "", "", statDate))
-		// 市级缓存
-		cacheKeys = append(cacheKeys, m.GetDatabaseCacheKey(provinceName, cityName, "", statDate))
-	} else if provinceName != "" {
-		// 如果只有省，只需要更新省级缓存
-		cacheKeys = append(cacheKeys, m.GetDatabaseCacheKey(provinceName, "", "", statDate))
-	}
-
-	return cacheKeys
-}
-
-// IsDataExistsInCache 检查附件2数据是否存在于缓存中
-func (m *Attachment2CacheManager) IsDataExistsInCache(statDate, provinceName, cityName, countryName string) bool {
-	m.InitDataExistsCache()
-	cacheKey := m.GetDataExistsCacheKey(statDate, provinceName, cityName, countryName)
-	exists, found := attachment2DataExistsCache[cacheKey]
-	return found && exists
-}
-
-// CacheDataExists 缓存附件2数据存在性
-func (m *Attachment2CacheManager) CacheDataExists(statDate, provinceName, cityName, countryName string, exists bool) {
-	m.InitDataExistsCache()
-	cacheKey := m.GetDataExistsCacheKey(statDate, provinceName, cityName, countryName)
-	attachment2DataExistsCache[cacheKey] = exists
-}
-
-// GetDatabaseCache 获取数据库缓存
-func (m *Attachment2CacheManager) GetDatabaseCache(cacheKey string) (*Attachment2DatabaseCache, bool) {
-	cache, exists := attachment2DatabaseCache[cacheKey]
-	return cache, exists
-}
-
-// ClearCache 清除附件2数据库缓存
-func (m *Attachment2CacheManager) ClearCache() {
-	attachment2DatabaseCache = nil
-	attachment2DataExistsCache = nil
-	attachment2CacheInitialized = false
 }

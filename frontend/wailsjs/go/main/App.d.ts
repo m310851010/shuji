@@ -40,7 +40,7 @@ export function GetAreaConfig():Promise<db.QueryResult>;
 
 export function GetCachePath(arg1:string):Promise<string>;
 
-export function GetChinaAreaMap():Promise<Record<string, any>>;
+export function GetChinaAreaMap():Promise<Array<any>>;
 
 export function GetChinaAreaStr():Promise<db.QueryResult>;
 
@@ -51,6 +51,8 @@ export function GetCurrentOSUser():Promise<string>;
 export function GetDB():Promise<db.Database>;
 
 export function GetDBPassword():Promise<string>;
+
+export function GetEnhancedAreaConfig():Promise<db.QueryResult>;
 
 export function GetEnterpriseInfoByCreditCode(arg1:string):Promise<db.QueryResult>;
 

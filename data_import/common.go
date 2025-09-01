@@ -76,6 +76,7 @@ const (
 type App interface {
 	GetDB() *db.Database
 	GetAreaConfig() db.QueryResult
+	GetEnhancedAreaConfig() db.QueryResult
 	InsertImportRecord(fileName, fileType, importState, describe string)
 	IsEnterpriseListExist() (bool, error)
 	GetEnterpriseInfoByCreditCode(creditCode string) db.QueryResult

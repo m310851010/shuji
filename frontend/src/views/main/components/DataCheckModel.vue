@@ -14,7 +14,7 @@
         数据{{ model.passed ? '已' : '未' }}通过自动校验
       </div>
       <div v-if="model.errorMessage">
-        <pre>{{ model.errorMessage }}</pre>
+        <pre style="white-space: break-spaces; line-height: 25px">{{ model.errorMessage }}</pre>
       </div>
       <div>
         <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">下载模型报告</a-button>

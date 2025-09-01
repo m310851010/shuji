@@ -98,6 +98,10 @@ export function GetDBPassword() {
   return window['go']['main']['App']['GetDBPassword']();
 }
 
+export function GetEnhancedAreaConfig() {
+  return window['go']['main']['App']['GetEnhancedAreaConfig']();
+}
+
 export function GetEnterpriseInfoByCreditCode(arg1) {
   return window['go']['main']['App']['GetEnterpriseInfoByCreditCode'](arg1);
 }
