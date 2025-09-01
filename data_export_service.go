@@ -125,16 +125,15 @@ func (a *App) QueryExportData() db.QueryResult {
 
 	equipCount := int(equipCountResult.Data.(map[string]interface{})["count"].(int64))
 
-	// 6. 查询表2记录数，用credit_code,stat_date,is_confirm分组
+	// 6. 查询表2记录数，用stat_date,is_confirm分组
 	table2Query := fmt.Sprintf(`
 		SELECT 
-			credit_code,
 			stat_date,
 			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
 			COUNT(1) as total_count
 		FROM critical_coal_equipment_consumption 
-		GROUP BY credit_code, stat_date
-		ORDER BY stat_date, credit_code
+		GROUP BY stat_date
+		ORDER BY stat_date
 	`, ENCRYPTED_ONE)
 	table2Result, err := a.db.Query(table2Query)
 	if err != nil {
