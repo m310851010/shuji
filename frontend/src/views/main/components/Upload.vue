@@ -196,7 +196,7 @@
       const file = files[i];
       if (file.type === '' && file.size % 4096 === 0) {
         allFiles.push({ file, valid: true });
-        return;
+        continue;
       }
 
       if (isFunction) {

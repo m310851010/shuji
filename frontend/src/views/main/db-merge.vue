@@ -266,8 +266,11 @@
       if (validFiles.length !== value.length) {
         message.warn('请选择正确的DB文件, 文件名规则为: export_20250826150000_xichengqu.db');
         selectedFiles.value = validFiles;
+        return;
       }
-    } else if (value.length > 4) {
+    }
+
+    if (value.length > 4) {
       message.warn('最多选择4个文件');
       selectedFiles.value = value.slice(0, 4);
     } else {

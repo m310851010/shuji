@@ -200,8 +200,7 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 		// 删除所有数据库文件
 		a.Removefile(dbTempPath)
 		for i := range sourceDbPaths {
-			removeResult := a.Removefile(sourceDbPaths[i])
-			fmt.Printf("删除源临时文件 %s: %v\n", sourceDbPaths[i], removeResult)
+			a.Removefile(sourceDbPaths[i])
 		}
 		return result
 	}
@@ -221,8 +220,7 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 			// 事务回滚时删除所有临时文件（因为事务失败，没有成功导入数据）
 			a.Removefile(dbTempPath)
 			for i := range sourceDbPaths {
-				removeResult := a.Removefile(sourceDbPaths[i])
-				fmt.Printf("事务回滚删除源临时文件 %s: %v\n", sourceDbPaths[i], removeResult)
+				a.Removefile(sourceDbPaths[i])
 			}
 		}
 	}()
@@ -281,8 +279,7 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 		// 事务提交失败时删除所有临时文件
 		a.Removefile(dbTempPath)
 		for i := range sourceDbPaths {
-			removeResult := a.Removefile(sourceDbPaths[i])
-			fmt.Printf("事务提交失败删除源临时文件 %s: %v\n", sourceDbPaths[i], removeResult)
+			a.Removefile(sourceDbPaths[i])
 		}
 		return result
 	}
@@ -297,8 +294,7 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 
 	// 删除源临时数据库文件
 	for i := range sourceDbPaths {
-		removeResult := a.Removefile(sourceDbPaths[i])
-		fmt.Printf("删除源临时文件 %s: %v\n", sourceDbPaths[i], removeResult)
+		a.Removefile(sourceDbPaths[i])
 	}
 
 	// 只有在完全没有成功导入数据时才删除目标数据库临时文件
@@ -426,9 +422,7 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 					objId := fmt.Sprintf("%v", row["obj_id"])
 
 					// 检查是否与目标数据冲突
-					if targetRow, exists := targetDataMap[key]; exists {
-						// 发现冲突
-						fmt.Printf("发现冲突 - key: %s, 目标: %v, 源: %v\n", key, targetRow["unit_name"], row["unit_name"])
+					if _, exists := targetDataMap[key]; exists {
 
 						// 添加到冲突映射
 						conflictMap[key] = append(conflictMap[key], ConflictSourceInfo{
@@ -438,8 +432,6 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 							ObjIds:    []string{objId},
 						})
 					} else {
-						// 没有冲突，添加到待插入列表
-						fmt.Printf("无冲突数据 - key: %s, 数据: %v\n", key, row["unit_name"])
 						nonConflictData = append(nonConflictData, row)
 					}
 				}
@@ -524,20 +516,13 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 
 				fmt.Printf("处理源文件 %s，共 %d 条记录\n", sourceFileName, len(data))
 
-				// 收集当前文件的obj_ids
-				var fileObjIds []string
-
 				// 遍历源数据，检查冲突
 				for _, row := range data {
 					key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
 					objId := fmt.Sprintf("%v", row["obj_id"])
-					fileObjIds = append(fileObjIds, objId)
 
 					// 检查是否与目标数据冲突
-					if targetRow, exists := targetDataMap[key]; exists {
-						// 发现冲突
-						fmt.Printf("发现冲突 - key: %s, 目标: %v, 源: %v\n", key, targetRow["unit_name"], row["unit_name"])
-
+					if _, exists := targetDataMap[key]; exists {
 						// 添加到冲突映射
 						conflictMap[key] = append(conflictMap[key], ConflictSourceInfo{
 							FilePath:  filePath,
@@ -546,8 +531,6 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 							ObjIds:    []string{objId},
 						})
 					} else {
-						// 没有冲突，添加到待插入列表
-						fmt.Printf("无冲突数据 - key: %s, 数据: %v\n", key, row["unit_name"])
 						nonConflictData = append(nonConflictData, row)
 					}
 				}

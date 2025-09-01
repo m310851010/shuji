@@ -53,8 +53,8 @@
           />
 
           <div class="support-info">
-            <div>技术支持</div>
-            <div>XXX-XXX-XXX</div>
+            <!--            <div>技术支持</div>
+            <div>XXX-XXX-XXX</div>-->
             <!-- <div>北京数极智能科技有限公司</div> -->
           </div>
         </div>

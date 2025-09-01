@@ -308,19 +308,14 @@ func (a *App) queryTable2ProcessWithRecover() db.QueryResult {
 		Data: make([]map[string]interface{}, 0),
 	}
 
-	// 1. 查询重点装置清单表作为基准
+	// 1. 查询重点耗煤装置（设备）煤炭消耗信息表作为基准
 	equipmentQuery := `
-		SELECT 
-			unit_name,
-			credit_code,
-			equip_type,
-			equip_no
-		FROM key_equipment_list 
-		ORDER BY unit_name, equip_type, equip_no
+		SELECT DISTINCT unit_name, credit_code FROM critical_coal_equipment_consumption
+		ORDER BY unit_name, credit_code
 	`
 	equipmentResult, err := a.db.Query(equipmentQuery)
 	if err != nil {
-		result.Message = "查询重点装置清单失败: " + err.Error()
+		result.Message = "查询重点耗煤装置清单失败: " + err.Error()
 		return result
 	}
 
@@ -372,7 +367,7 @@ func (a *App) queryTable2ProcessWithRecover() db.QueryResult {
 		}
 	}
 
-	// 4. 处理重点装置清单数据，构建最终结果
+	// 4. 处理重点耗煤装置数据，构建最终结果
 	equipmentList := make([]map[string]interface{}, 0)
 	if data, ok := equipmentResult.Data.([]map[string]interface{}); ok {
 		for _, row := range data {
@@ -386,22 +381,10 @@ func (a *App) queryTable2ProcessWithRecover() db.QueryResult {
 				creditCode = code
 			}
 
-			equipType := ""
-			if equipTypeVal, ok := row["equip_type"].(string); ok {
-				equipType = equipTypeVal
-			}
-
-			equipNo := ""
-			if equipNoVal, ok := row["equip_no"].(string); ok {
-				equipNo = equipNoVal
-			}
-
 			// 创建装置记录状态
 			equipmentStatus := map[string]interface{}{
 				"unit_name":   unitName,
 				"credit_code": creditCode,
-				"equip_type":  equipType,
-				"equip_no":    equipNo,
 			}
 
 			// 检查该装置在附表2中是否有记录
@@ -1136,9 +1119,9 @@ func (a *App) exportTable2ProgressToExcelWithRecover(filePath string) db.QueryRe
 		row := rowIndex + 2 // 从第2行开始写入数据
 
 		// 企业名称
-		if areaName, ok := item["area_name"].(string); ok {
+		if unitName, ok := item["unit_name"].(string); ok {
 			cellName, _ := excelize.CoordinatesToCellName(1, row)
-			f.SetCellValue("Sheet1", cellName, areaName)
+			f.SetCellValue("Sheet1", cellName, unitName)
 		}
 
 		// 年份数据
