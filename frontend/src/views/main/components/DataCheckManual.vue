@@ -272,7 +272,7 @@
     }
 
     let rowKeys = selectedRowKeys.value;
-    if (props.tableType === 'attachment2' || props.tableType === 'table3') {
+    if (props.tableType === 'attachment2' || props.tableType === 'table2') {
       rowKeys = selectedRows.value.map(item => item.data.map((item: any) => item.obj_id)).flat();
     }
 

@@ -125,15 +125,16 @@ func (a *App) QueryExportData() db.QueryResult {
 
 	equipCount := int(equipCountResult.Data.(map[string]interface{})["count"].(int64))
 
-	// 6. 查询表2记录数，用stat_date,is_confirm分组
+	// 6. 查询表2记录数，用credit_code,stat_date,is_confirm分组
 	table2Query := fmt.Sprintf(`
 		SELECT 
+			credit_code,
 			stat_date,
 			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
 			COUNT(1) as total_count
 		FROM critical_coal_equipment_consumption 
-		GROUP BY stat_date
-		ORDER BY stat_date
+		GROUP BY credit_code, stat_date
+		ORDER BY stat_date, credit_code
 	`, ENCRYPTED_ONE)
 	table2Result, err := a.db.Query(table2Query)
 	if err != nil {
@@ -142,7 +143,7 @@ func (a *App) QueryExportData() db.QueryResult {
 		return result
 	}
 
-	// 7. 处理表2数据，按年份分组
+	// 7. 处理表2数据，按年份分组（现在按credit_code+stat_date分组，但最终仍按年份汇总）
 	equipList := make([]ExportDataItem, 0)
 	equipYearMap := make(map[string]*ExportDataItem)
 
@@ -168,6 +169,7 @@ func (a *App) QueryExportData() db.QueryResult {
 
 				isConfirmNo := totalCount - isConfirmYes
 
+				// 按年份汇总数据
 				if item, exists := equipYearMap[statDate]; exists {
 					item.IsConfirmYes += isConfirmYes
 					item.IsConfirmNo += isConfirmNo

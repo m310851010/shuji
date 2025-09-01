@@ -1,15 +1,55 @@
 <template>
-  <a-space direction="vertical" size="large">
-    <a-table
-      v-for="(table, index) in tables"
-      :key="index"
-      :dataSource="table.dataSource"
-      :columns="table.columns"
-      bordered
-      :pagination="false"
-      :scroll="{ x: 'max-content' }"
-    />
-  </a-space>
+  <div class="table-section" v-for="(table, index) in tables" :key="index">
+    <div class="info-grid" v-if="table.dataSource && table.dataSource.length > 0">
+      <div class="info-item">
+        <span class="info-label">单位名称</span>
+        <span class="info-value">{{ table.dataSource[0]?.unit_name || '-' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">统一社会信用代码</span>
+        <span class="info-value">{{ table.dataSource[0]?.credit_code || '-' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">数据年份</span>
+        <span class="info-value">{{ table.dataSource[0]?.stat_date || '-' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">省份</span>
+        <span class="info-value">{{ table.dataSource[0]?.province_name || '-' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">地市</span>
+        <span class="info-value">{{ table.dataSource[0]?.city_name || '-' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">县/区</span>
+        <span class="info-value">{{ table.dataSource[0]?.country_name || '-' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">行业门类</span>
+        <span class="info-value">{{ table.dataSource[0]?.trade_a || '-' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">行业大类</span>
+        <span class="info-value">{{ table.dataSource[0]?.trade_b || '-' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">行业中类</span>
+        <span class="info-value">{{ table.dataSource[0]?.trade_c || '-' }}</span>
+      </div>
+    </div>
+    <div class="table-wrapper">
+      <a-table
+        :dataSource="table.dataSource"
+        :columns="table.columns"
+        bordered
+        size="small"
+        :pagination="false"
+        class="custom-table"
+        :scroll="{ x: 'max-content' }"
+      />
+    </div>
+  </div>
 </template>
 
 <script setup lang="tsx">
@@ -82,70 +122,17 @@
             key: 'row_no',
             align: 'center'
           },
+          
           {
-            title: '单位名称',
-            dataIndex: 'unit_name',
-            key: 'unit_name',
-            align: 'center'
-          },
-          {
-            title: '统一社会信用代码',
-            dataIndex: 'credit_code',
-            key: 'credit_code',
-            align: 'center'
-          },
-          {
-            title: '数据年份',
-            dataIndex: 'stat_date',
-            key: 'stat_date',
-            align: 'center'
-          },
-          {
-            title: '省份',
-            dataIndex: 'province_name',
-            key: 'province_name',
-            align: 'center'
-          },
-          {
-            title: '地市',
-            dataIndex: 'city_name',
-            key: 'city_name',
-            align: 'center'
-          },
-          {
-            title: '县/区',
-            dataIndex: 'country_name',
-            key: 'country_name',
-            align: 'center'
-          },
-          {
-            title: '行业门类',
-            dataIndex: 'trade_a',
-            key: 'trade_a',
-            align: 'center'
-          },
-          {
-            title: '行业大类',
-            dataIndex: 'trade_b',
-            key: 'trade_b',
-            align: 'center'
-          },
-          {
-            title: '行业中类',
-            dataIndex: 'trade_c',
-            key: 'trade_c',
-            align: 'center'
-          },
-          {
-            title: '煤炭编号',
-            dataIndex: 'coal_no',
-            key: 'coal_no',
-            align: 'center'
-          },
-          {
-            title: '煤炭类型',
+            title: '类型',
             dataIndex: 'coal_type',
             key: 'coal_type',
+            align: 'center'
+          },
+          {
+            title: '编号',
+            dataIndex: 'coal_no',
+            key: 'coal_no',
             align: 'center'
           },
           {
