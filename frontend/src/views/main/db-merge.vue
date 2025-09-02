@@ -107,7 +107,8 @@
     OpenSaveDialog,
     Copyfile,
     Movefile,
-    Removefile
+    Removefile,
+    GetEnhancedAreaConfig
   } from '@wailsjs/go';
   import { openModal } from '@/components/useModal';
   import { TableType, TableTypeName } from '../constant';
@@ -171,11 +172,9 @@
         // 检查是否有选中的数据
         const hasSelectedData =
           Object.keys(allSelectedConflicts).length > 0 && Object.values(allSelectedConflicts).some(conflicts => conflicts.length > 0);
-        console.log('hasSelectedData==', hasSelectedData);
 
         if (hasSelectedData) {
           const result = await MergeConflictData(modal.targetDbPath, allSelectedConflicts);
-          console.log('MergeConflictData==', result);
         }
 
         await saveMergeDB(modal.targetDbPath);
@@ -240,11 +239,16 @@
         }
 
         message.success('合并成功');
+        const areaResult = await GetEnhancedAreaConfig();
+        const areaConfig = areaResult.data;
+        const areaCode = areaConfig.province_code || areaConfig.city_code;
+        const areaName = areaConfig.province_name || areaConfig.city_name;
+
         //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
         const res2 = await OpenSaveDialog(
           new main.FileDialogOptions({
             title: '保存合并后的DB文件',
-            defaultFilename: `export_合并_${dayjs().format('YYYYMMDDHHmmss')}.db`
+            defaultFilename: `export_合并_${dayjs().format('YYYYMMDDHHmmss')}${areaCode}_${areaName}.db`
           })
         );
 
@@ -259,12 +263,12 @@
 
   const handleUpdateModelValue = (value: EnhancedFile[]) => {
     if (value.length) {
-      // 根据正则过滤掉非法文件, 文件名规则为: export_20250826150000_xichengqu.db
+      // 根据正则过滤掉非法文件, 文件名规则为: export_20250826150000_西城区.db
 
-      const regex = /^export_\d{14}_[a-zA-Z0-9]+\.db$/;
+      const regex = /^export_\d{14}_[\u4e00-\u9fa5]{2,}\.db$/;
       const validFiles = value.filter(item => regex.test(item.name));
       if (validFiles.length !== value.length) {
-        message.warn('请选择正确的DB文件, 文件名规则为: export_20250826150000_xichengqu.db');
+        message.warn('请选择正确的DB文件, 文件名规则为: export_20250826150000_西城区.db');
         selectedFiles.value = validFiles;
         return;
       }

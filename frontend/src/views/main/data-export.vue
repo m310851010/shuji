@@ -22,7 +22,7 @@
 <script setup lang="tsx">
   import { message, TableColumnType } from 'ant-design-vue';
   import { useTableHeight } from '@/hook';
-  import { ExportDBData, OpenSaveDialog, QueryExportData } from '@wailsjs/go';
+  import { ExportDBData, OpenSaveDialog, QueryExportData, GetEnhancedAreaConfig } from '@wailsjs/go';
   import { main } from '@wailsjs/models';
   import dayjs from 'dayjs';
   import { TableType, TableTypeName } from '@/views/constant';
@@ -107,10 +107,15 @@
       return;
     }
 
+    const areaResult = await GetEnhancedAreaConfig();
+    const areaConfig = areaResult.data;
+    const areaCode = areaConfig.province_code || areaConfig.city_code;
+    const areaName = areaConfig.province_name || areaConfig.city_name;
+    
     const result = await OpenSaveDialog(
       new main.FileDialogOptions({
         title: '导出汇总数据',
-        defaultFilename: `export_导出汇总数据_${dayjs().format('YYYYMMDD')}.db`
+        defaultFilename: `export_${dayjs().format('YYYYMMDD')}${areaCode}_${areaName}.db`
       })
     );
 
