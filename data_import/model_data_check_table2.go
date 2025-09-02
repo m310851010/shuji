@@ -395,7 +395,7 @@ func (s *DataImportService) isTable2FileImported(mainData []map[string]interface
 func (s *DataImportService) saveTable2Data(mainData []map[string]interface{}) error {
 	for _, record := range mainData {
 		record["obj_id"] = s.generateUUID()
-		record["create_time"] = time.Now().Format("2006-01-02 15:04:05")
+		record["create_time"] = time.Now().UnixMilli()
 
 		// 对数值字段进行SM4加密
 		encryptedValues := s.encryptTable2NumericFields(record)

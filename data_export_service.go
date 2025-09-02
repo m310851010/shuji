@@ -130,7 +130,7 @@ func (a *App) QueryExportData() db.QueryResult {
 					stat_date, credit_code,
 					SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as confirm_yes,
 					COUNT(1) as _count
-				FROM enterprise_coal_consumption_main 
+				FROM critical_coal_equipment_consumption 
 				GROUP BY stat_date, credit_code
 		) t  group by stat_date
 	`, ENCRYPTED_ONE)
@@ -147,6 +147,7 @@ func (a *App) QueryExportData() db.QueryResult {
 	if table2Result.Ok && table2Result.Data != nil {
 		if data, ok := table2Result.Data.([]map[string]interface{}); ok {
 			for _, row := range data {
+				fmt.Println("row", row)
 				statDate := ""
 				if date, ok := row["stat_date"].(string); ok {
 					statDate = date
@@ -163,7 +164,7 @@ func (a *App) QueryExportData() db.QueryResult {
 					StatDate:     statDate,
 					IsConfirmYes: isConfirmYes,
 					IsConfirmNo:  totalCount - isConfirmYes,
-					Count:        table1Count,
+					Count:        equipCount,
 					IsCheckedYes: totalCount,
 					IsCheckedNo:  0,
 				}
@@ -184,7 +185,7 @@ func (a *App) QueryExportData() db.QueryResult {
 		}
 	}
 
-	targetLocation, dataLevel, _, err := a.getCurrentUserLocationData()
+	targetLocation, dataLevel, _, _ := a.getCurrentUserLocationData()
 	// 获取该市下的所有县区
 	countyList := make([]string, 0)
 	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {

@@ -264,7 +264,7 @@
     if (value.length) {
       // 根据正则过滤掉非法文件, 文件名规则为: export_20250826152020150000_西城区.db
 
-      const regex = /^export_\d{16,18}_[\u4e00-\u9fa5]{2,}\.db$/;
+      const regex = /^export_\d{18,20}_[\u4e00-\u9fa5]{2,}\.db$/;
       const validFiles = value.filter(item => regex.test(item.name));
       if (validFiles.length !== value.length) {
         message.warn('请选择正确的DB文件, 文件名规则示例: export_20250826152020150000_西城区.db');

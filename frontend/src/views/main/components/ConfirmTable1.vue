@@ -14,6 +14,7 @@
 
 <script setup lang="tsx">
   import { newColumns } from '@/util';
+  import dayjs from 'dayjs';
 
   /**
    * 组件属性定义
@@ -42,27 +43,7 @@
    */
   const formatDateTime = (timeStr: string) => {
     if (!timeStr) return '';
-
-    // 如果包含T，说明是ISO格式，需要格式化
-    if (timeStr.includes('T')) {
-      try {
-        const date = new Date(timeStr);
-        // 格式化为中文日期格式：YYYY年MM月DD日 HH:mm:ss
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hour = String(date.getHours()).padStart(2, '0');
-        const minute = String(date.getMinutes()).padStart(2, '0');
-        const second = String(date.getSeconds()).padStart(2, '0');
-
-        return `${year}年${month}月${day}日 ${hour}:${minute}:${second}`;
-      } catch (error) {
-        console.warn('时间格式化失败:', timeStr, error);
-        return timeStr;
-      }
-    }
-
-    return timeStr;
+    return dayjs(timeStr).format('YYYY-MM-DD HH:mm:ss');
   };
 
   /**

@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"time"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -13,8 +12,6 @@ import (
 var assets embed.FS
 
 func main() {
-    var cstZone = time.FixedZone("CST", 8*3600) // 东八
-	time.Local = cstZone
 	// Create an instance of the app structure
 	app := CreateApp(assets)
 

@@ -59,6 +59,7 @@
     ConfirmDataTable2,
     ConfirmDataTable3
   } from '@wailsjs/go';
+  import dayjs from 'dayjs';
 
   const tableBoxRef = ref(null);
   const tableScroll = useTableHeight(tableBoxRef);
@@ -285,23 +286,7 @@
   const formatDateTime = (timeStr: string) => {
     if (!timeStr) return '';
 
-    if (timeStr.includes('T')) {
-      try {
-        const date = new Date(timeStr);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hour = String(date.getHours()).padStart(2, '0');
-        const minute = String(date.getMinutes()).padStart(2, '0');
-        const second = String(date.getSeconds()).padStart(2, '0');
-        return `${year}年${month}月${day}日 ${hour}:${minute}:${second}`;
-      } catch (error) {
-        console.warn('时间格式化失败:', timeStr, error);
-        return timeStr;
-      }
-    }
-
-    return timeStr;
+    return dayjs(timeStr).format('YYYY-MM-DD HH:mm:ss');
   };
 
   const columns: TableColumnType[] = newColumns(

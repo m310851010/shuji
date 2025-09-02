@@ -1073,7 +1073,7 @@ func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]in
 func (s *DataImportService) insertAttachment2Data(record map[string]interface{}) error {
 
 	record["obj_id"] = s.generateUUID()
-	record["create_time"] = time.Now().Format("2006-01-02 15:04:05")
+	record["create_time"] = time.Now().UnixMilli()
 
 	// 对数值字段进行SM4加密
 	encryptedValues := s.encryptAttachment2NumericFields(record)

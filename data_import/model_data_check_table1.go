@@ -424,7 +424,7 @@ func (s *DataImportService) saveTable1Data(mainData, usageData, equipData []map[
 	}
 
 	objID := s.generateUUID()
-	createTime := time.Now().Format("2006-01-02 15:04:05")
+	createTime := time.Now().UnixMilli()
 	// 保存主表数据
 	mainRecord := mainData[0]
 	mainRecord["obj_id"] = objID
