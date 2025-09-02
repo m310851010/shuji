@@ -217,13 +217,13 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 	dataRowIndex := 0
 	for i := startRow + 2; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) < 2 {
-			continue
-		}
 
 		// 检查是否到达下一个表格
 		if len(row) > 0 && strings.Contains(row[0], "重点耗煤装置（设备)情况") {
 			break
+		}
+		if len(row) < 2 {
+			continue
 		}
 
 		// 构建数据行

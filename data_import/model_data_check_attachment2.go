@@ -567,15 +567,22 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 		return errors
 	}
 
+	city_name := s.getStringValue(areaData["city_name"])
+	country_name := s.getStringValue(areaData["country_name"])
+	DataLevel:=1;
+	if city_name == "" {
+		DataLevel = 1
+	} else if country_name == "" {
+		DataLevel = 2
+	} else {
+		DataLevel = 3
+	}
 	areaConfig := &EnhancedAreaConfig{
 		ObjID:        s.getStringValue(areaData["obj_id"]),
 		ProvinceName: s.getStringValue(areaData["province_name"]),
-		CityName:     s.getStringValue(areaData["city_name"]),
-		CountryName:  s.getStringValue(areaData["country_name"]),
-		ProvinceCode: s.getStringValue(areaData["province_code"]),
-		CityCode:     s.getStringValue(areaData["city_code"]),
-		CountryCode:  s.getStringValue(areaData["country_code"]),
-		DataLevel:    int(s.parseFloat(s.getStringValue(areaData["data_level"]))),
+		CityName:     city_name,
+		CountryName:  country_name,
+		DataLevel:   DataLevel,
 	}
 
 	// 县级用户不需要校验
@@ -758,16 +765,23 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 		if areaResult.Ok && areaResult.Data != nil {
 			// 从map[string]interface{}构建EnhancedAreaConfig
 			if areaData, ok := areaResult.Data.(map[string]interface{}); ok {
-				areaConfig := &EnhancedAreaConfig{
-					ObjID:        s.getStringValue(areaData["obj_id"]),
-					ProvinceName: s.getStringValue(areaData["province_name"]),
-					CityName:     s.getStringValue(areaData["city_name"]),
-					CountryName:  s.getStringValue(areaData["country_name"]),
-					ProvinceCode: s.getStringValue(areaData["province_code"]),
-					CityCode:     s.getStringValue(areaData["city_code"]),
-					CountryCode:  s.getStringValue(areaData["country_code"]),
-					DataLevel:    int(s.parseFloat(s.getStringValue(areaData["data_level"]))),
-				}
+				city_name := s.getStringValue(areaData["city_name"])
+                	country_name := s.getStringValue(areaData["country_name"])
+                	DataLevel:=1;
+                	if city_name == "" {
+                		DataLevel = 1
+                	} else if country_name == "" {
+                		DataLevel = 2
+                	} else {
+                		DataLevel = 3
+                	}
+                	areaConfig := &EnhancedAreaConfig{
+                		ObjID:        s.getStringValue(areaData["obj_id"]),
+                		ProvinceName: s.getStringValue(areaData["province_name"]),
+                		CityName:     city_name,
+                		CountryName:  country_name,
+                		DataLevel:   DataLevel,
+                	}
 				s.UpdateOptimizedCacheAfterUpload(areaConfig, statDate, mainData)
 			}
 		}
@@ -1030,16 +1044,23 @@ func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]in
 		if areaResult.Ok && areaResult.Data != nil {
 			// 从map[string]interface{}构建EnhancedAreaConfig
 			if areaData, ok := areaResult.Data.(map[string]interface{}); ok {
-				areaConfig := &EnhancedAreaConfig{
-					ObjID:        s.getStringValue(areaData["obj_id"]),
-					ProvinceName: s.getStringValue(areaData["province_name"]),
-					CityName:     s.getStringValue(areaData["city_name"]),
-					CountryName:  s.getStringValue(areaData["country_name"]),
-					ProvinceCode: s.getStringValue(areaData["province_code"]),
-					CityCode:     s.getStringValue(areaData["city_code"]),
-					CountryCode:  s.getStringValue(areaData["country_code"]),
-					DataLevel:    int(s.parseFloat(s.getStringValue(areaData["data_level"]))),
-				}
+				city_name := s.getStringValue(areaData["city_name"])
+                	country_name := s.getStringValue(areaData["country_name"])
+                	DataLevel:=1;
+                	if city_name == "" {
+                		DataLevel = 1
+                	} else if country_name == "" {
+                		DataLevel = 2
+                	} else {
+                		DataLevel = 3
+                	}
+                	areaConfig := &EnhancedAreaConfig{
+                		ObjID:        s.getStringValue(areaData["obj_id"]),
+                		ProvinceName: s.getStringValue(areaData["province_name"]),
+                		CityName:     city_name,
+                		CountryName:  country_name,
+                		DataLevel:   DataLevel,
+                	}
 				s.UpdateOptimizedCacheAfterUpload(areaConfig, statDate, mainData)
 			}
 		}
