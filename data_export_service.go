@@ -51,11 +51,11 @@ func (a *App) QueryExportData() db.QueryResult {
 
 	// 2. 查询表1记录数，用stat_date,is_confirm分组
 	table1Query := fmt.Sprintf(`
-		SELECT 
+		SELECT
 			stat_date,
 			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
 			COUNT(1) as total_count
-		FROM enterprise_coal_consumption_main 
+		FROM enterprise_coal_consumption_main
 		GROUP BY stat_date
 		ORDER BY stat_date
 	`, ENCRYPTED_ONE)
@@ -68,7 +68,6 @@ func (a *App) QueryExportData() db.QueryResult {
 
 	// 3. 处理表1数据，按年份分组
 	table1List := make([]ExportDataItem, 0)
-	yearMap := make(map[string]*ExportDataItem)
 
 	if table1Result.Ok && table1Result.Data != nil {
 		if data, ok := table1Result.Data.([]map[string]interface{}); ok {
@@ -83,40 +82,36 @@ func (a *App) QueryExportData() db.QueryResult {
 					totalCount = int(count)
 				}
 
-				isConfirmYes := 0
-				// is_confirm_yes可能为空, 需要判断是否为空
-				if row["is_confirm_yes"] == nil {
-					isConfirmYes = 0
-				} else {
-					isConfirmYes = int(row["is_confirm_yes"].(int64))
+				isConfirmYes := int(row["is_confirm_yes"].(int64))
+
+				item := &ExportDataItem{
+					StatDate:     statDate,
+					IsConfirmYes: isConfirmYes,
+					IsConfirmNo:  totalCount - isConfirmYes,
+					Count:        table1Count,
+					IsCheckedYes: totalCount,
+					IsCheckedNo:  0,
 				}
 
-				isConfirmNo := totalCount - isConfirmYes
+				table1List = append(table1List, *item)
+			}
 
-				if item, exists := yearMap[statDate]; exists {
-					item.IsConfirmYes += isConfirmYes
-					item.IsConfirmNo += isConfirmNo
-				} else {
-					yearMap[statDate] = &ExportDataItem{
-						StatDate:     statDate,
-						IsConfirmYes: isConfirmYes,
-						IsConfirmNo:  isConfirmNo,
-					}
+			if len(table1List) == 0 {
+				item := &ExportDataItem{
+					StatDate:     "--",
+					IsConfirmYes: 0,
+					IsConfirmNo:  0,
+					IsCheckedYes: 0,
+					IsCheckedNo:  0,
+					Count:        table1Count,
 				}
+				table1List = append(table1List, *item)
 			}
 		}
 	}
 
-	// 4. 把table1Count合并到table1List的count字段
-	for _, item := range yearMap {
-		item.Count = table1Count
-		item.IsCheckedYes = item.IsConfirmYes + item.IsConfirmNo
-		item.IsCheckedNo = 0
-		table1List = append(table1List, *item)
-	}
-
 	// 5. 查询设备清单记录数
-	equipCountResult, err := a.db.Count("key_equipment_list", "")
+	equipCountResult, err := a.db.QueryRow("SELECT COUNT(distinct credit_code) as count FROM key_equipment_list ")
 	if err != nil {
 		result.Ok = false
 		result.Message = "查询设备清单记录数失败: " + err.Error()
@@ -127,13 +122,17 @@ func (a *App) QueryExportData() db.QueryResult {
 
 	// 6. 查询表2记录数，用stat_date,is_confirm分组
 	table2Query := fmt.Sprintf(`
-		SELECT 
-			stat_date,
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
-			COUNT(1) as total_count
-		FROM critical_coal_equipment_consumption 
-		GROUP BY stat_date
-		ORDER BY stat_date
+		SELECT
+		stat_date, SUM(CASE WHEN confirm_yes = _count and _count > 0 THEN 1 ELSE 0 END)  is_confirm_yes,
+		COUNT(1) as total_count
+		from 
+		( SELECT 
+					stat_date, credit_code,
+					SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as confirm_yes,
+					COUNT(1) as _count
+				FROM enterprise_coal_consumption_main 
+				GROUP BY stat_date, credit_code
+		) t  group by stat_date
 	`, ENCRYPTED_ONE)
 	table2Result, err := a.db.Query(table2Query)
 	if err != nil {
@@ -144,7 +143,6 @@ func (a *App) QueryExportData() db.QueryResult {
 
 	// 7. 处理表2数据，按年份分组（现在按credit_code+stat_date分组，但最终仍按年份汇总）
 	equipList := make([]ExportDataItem, 0)
-	equipYearMap := make(map[string]*ExportDataItem)
 
 	if table2Result.Ok && table2Result.Data != nil {
 		if data, ok := table2Result.Data.([]map[string]interface{}); ok {
@@ -159,40 +157,54 @@ func (a *App) QueryExportData() db.QueryResult {
 					totalCount = int(count)
 				}
 
-				isConfirmYes := 0
-				if row["is_confirm_yes"] == nil {
-					isConfirmYes = 0
-				} else {
-					isConfirmYes = int(row["is_confirm_yes"].(int64))
+				isConfirmYes := int(row["is_confirm_yes"].(int64))
+
+				item := &ExportDataItem{
+					StatDate:     statDate,
+					IsConfirmYes: isConfirmYes,
+					IsConfirmNo:  totalCount - isConfirmYes,
+					Count:        table1Count,
+					IsCheckedYes: totalCount,
+					IsCheckedNo:  0,
 				}
+				equipList = append(equipList, *item)
+			}
 
-				isConfirmNo := totalCount - isConfirmYes
+			if len(equipList) == 0 {
+				item := &ExportDataItem{
+					StatDate:     "--",
+					IsConfirmYes: 0,
+					IsConfirmNo:  0,
+					IsCheckedYes: 0,
+					IsCheckedNo:  0,
+					Count:        equipCount,
+				}
+				equipList = append(equipList, *item)
+			}
+		}
+	}
 
-				// 按年份汇总数据
-				if item, exists := equipYearMap[statDate]; exists {
-					item.IsConfirmYes += isConfirmYes
-					item.IsConfirmNo += isConfirmNo
-				} else {
-					equipYearMap[statDate] = &ExportDataItem{
-						StatDate:     statDate,
-						IsConfirmYes: isConfirmYes,
-						IsConfirmNo:  isConfirmNo,
+	targetLocation, dataLevel, _, err := a.getCurrentUserLocationData()
+	// 获取该市下的所有县区
+	countyList := make([]string, 0)
+	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+		if children, exists := targetLocationMap["children"]; exists && children != nil {
+			if childrenList, ok := children.([]interface{}); ok {
+				for _, county := range childrenList {
+					if countyMap, ok := county.(map[string]interface{}); ok {
+						if name, exists := countyMap["name"]; exists && name != nil {
+							countyList = append(countyList, fmt.Sprintf("%v", name))
+						}
 					}
 				}
 			}
 		}
 	}
 
-	// 8. 把equipCount合并到equipList的count字段
-	for _, item := range equipYearMap {
-		item.Count = equipCount
-		item.IsCheckedYes = item.IsConfirmYes + item.IsConfirmNo
-		item.IsCheckedNo = 0
-		equipList = append(equipList, *item)
-	}
+	countyCount := len(countyList) + 1
 
 	// 9. 处理附表3数据，根据用户级别分省级和市级
-	table3List, err := a.processTable3Data()
+	table3List, err := a.processTable3Data(countyCount, dataLevel)
 	if err != nil {
 		result.Ok = false
 		result.Message = "处理附表3数据失败: " + err.Error()
@@ -200,7 +212,7 @@ func (a *App) QueryExportData() db.QueryResult {
 	}
 
 	// 10. 处理附件2数据，根据用户级别分省级和市级
-	attachment2List, err := a.processAttachment2Data()
+	attachment2List, err := a.processAttachment2Data(countyCount, dataLevel)
 	if err != nil {
 		result.Ok = false
 		result.Message = "处理附件2数据失败: " + err.Error()
@@ -437,618 +449,78 @@ func (a *App) getCurrentUserLocationData() (interface{}, int, string, error) {
 	return targetLocation, dataLevel, areaName, nil
 }
 
-// processTable3Data 处理附表3数据，根据用户级别分省级和市级
-func (a *App) processTable3Data() ([]ExportDataItem, error) {
-	targetLocation, dataLevel, _, err := a.getCurrentUserLocationData()
-	if err != nil {
-		return nil, fmt.Errorf("获取当前用户区域数据失败: %v", err)
-	}
-
-	if targetLocation == nil {
-		return nil, fmt.Errorf("未找到对应的区域信息")
-	}
-
-	if dataLevel == 1 {
-		// 省级：没数据时总数为0，有数据时总数为0但导入进度为1
-		return a.processTable3ProvinceLevel()
-	} else if dataLevel == 2 {
-		// 市级：总数为下辖县区数量，统计有数据的县区数量
-		return a.processTable3CityLevel(targetLocation)
-	} else {
-		// 县级：直接查询所有数据
-		return a.processTable3CountyLevel()
-	}
-}
-
-// processTable3ProvinceLevel 处理附表3省级数据
-func (a *App) processTable3ProvinceLevel() ([]ExportDataItem, error) {
-	// 查询附表3是否有数据
-	table3Query := fmt.Sprintf(`
-		SELECT 
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
-			COUNT(1) as total_count
-		FROM fixed_assets_investment_project
-	`, ENCRYPTED_ONE)
-
-	table3Result, err := a.db.Query(table3Query)
-	if err != nil {
-		return nil, fmt.Errorf("查询附表3数据失败: %v", err)
-	}
-
-	table3 := ExportDataItem{}
-	if table3Result.Ok && table3Result.Data != nil {
-		if data, ok := table3Result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-			row := data[0]
-			totalCount := 0
-			if count, ok := row["total_count"].(int64); ok {
-				totalCount = int(count)
-			}
-
-			isConfirmYes := 0
-			if row["is_confirm_yes"] == nil {
-				isConfirmYes = 0
-			} else {
-				isConfirmYes = int(row["is_confirm_yes"].(int64))
-			}
-
-			// 省级逻辑：没数据时总数为0，有数据时总数为0但导入进度为1
-			table3.Count = 0 // 总数始终为0
-			if totalCount > 0 {
-				// 有数据时，导入进度为1，自动校验为1
-				table3.IsConfirmYes = 1
-				table3.IsConfirmNo = 0
-				// 人工校验：全部数据is_confirm为已校核则为1，否则为0
-				if isConfirmYes == totalCount {
-					table3.IsCheckedYes = 1
-					table3.IsCheckedNo = 0
-				} else {
-					table3.IsCheckedYes = 0
-					table3.IsCheckedNo = 1
-				}
-			} else {
-				// 没数据时，所有数量都是0
-				table3.IsConfirmYes = 0
-				table3.IsConfirmNo = 0
-				table3.IsCheckedYes = 0
-				table3.IsCheckedNo = 0
-			}
-		}
-	}
-
-	return []ExportDataItem{table3}, nil
-}
-
-// processTable3CityLevel 处理附表3市级数据
-func (a *App) processTable3CityLevel(targetLocation interface{}) ([]ExportDataItem, error) {
-	// 获取该市下的所有县区
-	countyList := make([]string, 0)
-	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
-		if children, exists := targetLocationMap["children"]; exists && children != nil {
-			if childrenList, ok := children.([]interface{}); ok {
-				for _, county := range childrenList {
-					if countyMap, ok := county.(map[string]interface{}); ok {
-						if name, exists := countyMap["name"]; exists && name != nil {
-							countyList = append(countyList, fmt.Sprintf("%v", name))
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// 批量查询县区校核状态
-	checkedCounties, isConfirmCounties, err := a.batchCheckTable3CountiesChecked(countyList)
-	if err != nil {
-		return nil, fmt.Errorf("批量查询县区校核状态失败: %v", err)
-	}
-
-	// 统计已确认的县区数量和已校核的县区数量
-	confirmedCount := 0
-	checkedCount := 0
-
-	for _, countyName := range countyList {
-		// 模型校验：有数据就表示模型验证通过
-		if checkedCounties[countyName] {
-			checkedCount++
-		}
-
-		// 人工确认：全部数据已确认
-		if isConfirmCounties[countyName] {
-			confirmedCount++
-		}
-	}
-
-	// 市级逻辑：总数为下辖县区数量
-	totalCount := len(countyList)
-
-	table3 := ExportDataItem{
-		Count:        totalCount,
-		IsConfirmYes: confirmedCount, // 已确认数量是已确认的下辖县区数量
-		IsConfirmNo:  totalCount - confirmedCount,
-		IsCheckedYes: checkedCount, // 人工校验数量是已校核的下辖县区数量
-		IsCheckedNo:  totalCount - checkedCount,
-	}
-
-	return []ExportDataItem{table3}, nil
-}
-
-// processTable3CountyLevel 处理附表3县级数据
-func (a *App) processTable3CountyLevel() ([]ExportDataItem, error) {
-	// 县级直接查询所有数据
-	table3Query := fmt.Sprintf(`
-		SELECT 
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
-			COUNT(1) as total_count
-		FROM fixed_assets_investment_project
-	`, ENCRYPTED_ONE)
-
-	table3Result, err := a.db.Query(table3Query)
-	if err != nil {
-		return nil, fmt.Errorf("查询附表3数据失败: %v", err)
-	}
-
-	table3 := ExportDataItem{}
-	if table3Result.Ok && table3Result.Data != nil {
-		if data, ok := table3Result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-			row := data[0]
-			totalCount := 0
-			if count, ok := row["total_count"].(int64); ok {
-				totalCount = int(count)
-			}
-
-			isConfirmYes := 0
-			if row["is_confirm_yes"] == nil {
-				isConfirmYes = 0
-			} else {
-				isConfirmYes = int(row["is_confirm_yes"].(int64))
-			}
-
-			isConfirmNo := totalCount - isConfirmYes
-
-			table3.IsConfirmYes = isConfirmYes
-			table3.IsConfirmNo = isConfirmNo
-			table3.Count = totalCount
-			table3.IsCheckedYes = isConfirmYes + isConfirmNo
-			table3.IsCheckedNo = 0
-		}
-	}
-
-	return []ExportDataItem{table3}, nil
-}
-
-// batchCheckTable3CountiesChecked 批量检查附表3县区是否已校核
-func (a *App) batchCheckTable3CountiesChecked(countyList []string) (map[string]bool, map[string]bool, error) {
-
+// processTable3Data 处理附表3数据
+func (a *App) processTable3Data(countyCount int, dataLevel int) ([]ExportDataItem, error) {
 	// 批量查询所有县区的校核状态
 	query := fmt.Sprintf(`
 		SELECT 
 			examination_authority,
 			COUNT(1) as total_count,
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as confirmed_count
+			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes
 		FROM fixed_assets_investment_project 
 		GROUP BY examination_authority
 	`, ENCRYPTED_ONE)
 
 	result, err := a.db.Query(query)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	checkedCounties := make(map[string]bool)
-	isConfirmCounties := make(map[string]bool)
+	Table3Count := countyCount
+	if dataLevel == 3 {
+		Table3Count = 0
+	}
+	table3List := make([]ExportDataItem, 0)
 
-	// 初始化所有县区为未校核
-	for _, countyName := range countyList {
-		checkedCounties[countyName] = false
-		isConfirmCounties[countyName] = false
+	item := &ExportDataItem{
+		StatDate:     "--",
+		IsConfirmYes: 0,
+		IsConfirmNo:  0,
+		Count:        Table3Count,
+		IsCheckedYes: 0,
+		IsCheckedNo:  0,
 	}
 
 	if result.Ok && result.Data != nil {
 		if data, ok := result.Data.([]map[string]interface{}); ok {
 			for _, row := range data {
-				examinationAuthority := ""
-				if authority, ok := row["examination_authority"].(string); ok {
-					examinationAuthority = authority
+				totalCount := 0
+				if count, ok := row["total_count"].(int64); ok {
+					totalCount = int(count)
 				}
 
-				totalCount := int(row["total_count"].(int64))
-				confirmedCount := 0
-				if row["confirmed_count"] != nil {
-					confirmedCount = int(row["confirmed_count"].(int64))
-				}
-
-				// 提取区域名称
-				areaName := a.extractAreaFromAuthority(examinationAuthority)
-				if areaName != "" {
-					// 如果总数大于0且全部已确认，则认为已校核
-					isConfirmCounties[areaName] = totalCount > 0 && confirmedCount == totalCount
-					checkedCounties[areaName] = totalCount > 0
+				isConfirmYes := int(row["is_confirm_yes"].(int64))
+				if isConfirmYes == totalCount && totalCount > 0 {
+					item.IsConfirmYes++
 				}
 			}
+
+			item.IsCheckedYes = len(data)
+			item.IsConfirmNo = item.IsCheckedYes - item.IsConfirmYes
 		}
 	}
 
-	return checkedCounties, isConfirmCounties, nil
+	table3List = append(table3List, *item)
+	return table3List, nil
 }
 
 // processAttachment2Data 处理附件2数据，根据用户级别分省级和市级
-func (a *App) processAttachment2Data() ([]ExportDataItem, error) {
-	targetLocation, dataLevel, _, err := a.getCurrentUserLocationData()
-	if err != nil {
-		return nil, fmt.Errorf("获取当前用户区域数据失败: %v", err)
-	}
-
-	if targetLocation == nil {
-		return nil, fmt.Errorf("未找到对应的区域信息")
-	}
-
-	if dataLevel == 1 {
-		// 省级：没数据时总数为1，有数据时总数为1
-		return a.processAttachment2ProvinceLevel()
-	} else if dataLevel == 2 {
-		// 市级：总数为下辖县区数量+1，统计有数据的县区和市
-		return a.processAttachment2CityLevel(targetLocation)
-	} else {
-		// 县级：直接查询所有数据
-		return a.processAttachment2CountyLevel()
-	}
-}
-
-// processAttachment2ProvinceLevel 处理附件2省级数据
-func (a *App) processAttachment2ProvinceLevel() ([]ExportDataItem, error) {
-	// 查询附件2数据，按年份分组
-	attachment2Query := fmt.Sprintf(`
-		SELECT 
-			stat_date,
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
-			COUNT(1) as total_count
-		FROM coal_consumption_report
-		GROUP BY stat_date
-		ORDER BY stat_date
-	`, ENCRYPTED_ONE)
-
-	attachment2Result, err := a.db.Query(attachment2Query)
-	if err != nil {
-		return nil, fmt.Errorf("查询附件2数据失败: %v", err)
-	}
-
-	attachment2List := make([]ExportDataItem, 0)
-	attachment2YearMap := make(map[string]*ExportDataItem)
-
-	if attachment2Result.Ok && attachment2Result.Data != nil {
-		if data, ok := attachment2Result.Data.([]map[string]interface{}); ok {
-			for _, row := range data {
-				statDate := ""
-				if date, ok := row["stat_date"].(string); ok {
-					statDate = date
-				}
-
-				totalCount := 0
-				if count, ok := row["total_count"].(int64); ok {
-					totalCount = int(count)
-				}
-
-				isConfirmYes := 0
-				if row["is_confirm_yes"] == nil {
-					isConfirmYes = 0
-				} else {
-					isConfirmYes = int(row["is_confirm_yes"].(int64))
-				}
-
-				// 省级逻辑：没数据时总数为1，有数据时总数为1
-				attachment2 := ExportDataItem{
-					StatDate: statDate,
-					Count:    1, // 总数始终为1
-				}
-
-				if totalCount > 0 {
-					// 有数据时，导入进度为1，自动校验为1
-					attachment2.IsConfirmYes = 1
-					attachment2.IsConfirmNo = 0
-					// 人工校验：全部数据is_confirm为已校核则为1，否则为0
-					if isConfirmYes == totalCount {
-						attachment2.IsCheckedYes = 1
-						attachment2.IsCheckedNo = 0
-					} else {
-						attachment2.IsCheckedYes = 0
-						attachment2.IsCheckedNo = 1
-					}
-				} else {
-					// 没数据时，导入进度为0，自动校验为0，人工校验为0
-					attachment2.IsConfirmYes = 0
-					attachment2.IsConfirmNo = 1
-					attachment2.IsCheckedYes = 0
-					attachment2.IsCheckedNo = 1
-				}
-
-				attachment2YearMap[statDate] = &attachment2
-			}
-		}
-	}
-
-	// 转换为列表
-	for _, item := range attachment2YearMap {
-		attachment2List = append(attachment2List, *item)
-	}
-
-	return attachment2List, nil
-}
-
-// processAttachment2CountyLevel 处理附件2县级数据
-func (a *App) processAttachment2CountyLevel() ([]ExportDataItem, error) {
-	// 县级直接查询所有数据，按年份分组
-	attachment2Query := fmt.Sprintf(`
-		SELECT 
-			stat_date,
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes,
-			COUNT(1) as total_count
-		FROM coal_consumption_report
-		GROUP BY stat_date
-		ORDER BY stat_date
-	`, ENCRYPTED_ONE)
-
-	attachment2Result, err := a.db.Query(attachment2Query)
-	if err != nil {
-		return nil, fmt.Errorf("查询附件2数据失败: %v", err)
-	}
-
-	attachment2List := make([]ExportDataItem, 0)
-	attachment2YearMap := make(map[string]*ExportDataItem)
-
-	if attachment2Result.Ok && attachment2Result.Data != nil {
-		if data, ok := attachment2Result.Data.([]map[string]interface{}); ok {
-			for _, row := range data {
-				statDate := ""
-				if date, ok := row["stat_date"].(string); ok {
-					statDate = date
-				}
-
-				// 如果stat_date为空，跳过这条记录
-				if statDate == "" {
-					continue
-				}
-
-				totalCount := 0
-				if count, ok := row["total_count"].(int64); ok {
-					totalCount = int(count)
-				}
-
-				isConfirmYes := 0
-				if row["is_confirm_yes"] == nil {
-					isConfirmYes = 0
-				} else {
-					isConfirmYes = int(row["is_confirm_yes"].(int64))
-				}
-
-				// 县级逻辑：Count=1, 只有当表中的数据is_confirm全部为ENCRYPTED_ONE时, IsConfirmYes计为1, IsConfirmNo:0,否则IsConfirmYes计为0,IsConfirmNo:0
-				attachment2 := ExportDataItem{
-					StatDate: statDate,
-					Count:    1, // 总数始终为1
-				}
-
-				if totalCount > 0 {
-					// 表中有数据,IsCheckedYes=1,IsCheckedNo=0 (有数据就表示已校核)
-					attachment2.IsCheckedYes = 1
-					attachment2.IsCheckedNo = 0
-
-					// 只有当表中的数据is_confirm全部为ENCRYPTED_ONE时, IsConfirmYes计为1, IsConfirmNo:0,否则IsConfirmYes计为0,IsConfirmNo:0
-					if isConfirmYes == totalCount {
-						attachment2.IsConfirmYes = 1
-						attachment2.IsConfirmNo = 0
-					} else {
-						attachment2.IsConfirmYes = 0
-						attachment2.IsConfirmNo = 0
-					}
-				} else {
-					// 表中没有数据
-					attachment2.IsCheckedYes = 0
-					attachment2.IsCheckedNo = 1
-					attachment2.IsConfirmYes = 0
-					attachment2.IsConfirmNo = 0
-				}
-
-				attachment2YearMap[statDate] = &attachment2
-			}
-		}
-	}
-
-	// 如果没有查询到任何数据，也要创建一个默认记录
-	if len(attachment2YearMap) == 0 {
-		// 创建一个默认的年份记录（比如当前年份）
-		defaultYear := time.Now().Format("2006")
-		defaultItem := ExportDataItem{
-			StatDate:     defaultYear,
-			Count:        1, // 县级总数始终为1
-			IsConfirmYes: 0,
-			IsConfirmNo:  0,
-			IsCheckedYes: 0,
-			IsCheckedNo:  1, // 没有数据时，未检查为1
-		}
-		attachment2List = append(attachment2List, defaultItem)
-	} else {
-		// 转换为列表
-		for _, item := range attachment2YearMap {
-			attachment2List = append(attachment2List, *item)
-		}
-	}
-
-	return attachment2List, nil
-}
-
-// processAttachment2CityLevel 处理附件2市级数据
-func (a *App) processAttachment2CityLevel(targetLocation interface{}) ([]ExportDataItem, error) {
-	// 获取该市下的所有县区
-	countyList := make([]string, 0)
-	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
-		if children, exists := targetLocationMap["children"]; exists && children != nil {
-			if childrenList, ok := children.([]interface{}); ok {
-				for _, county := range childrenList {
-					if countyMap, ok := county.(map[string]interface{}); ok {
-						if name, exists := countyMap["name"]; exists && name != nil {
-							countyList = append(countyList, fmt.Sprintf("%v", name))
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// 获取当前市名称
-
-	// 批量查询县区校核状态（参考附表3的逻辑）
-	checkedCounties, isConfirmCounties, err := a.batchCheckAttachment2CountiesChecked(countyList)
-	if err != nil {
-		return nil, fmt.Errorf("批量查询县区校核状态失败: %v", err)
-	}
-
-	// 统计已确认的县区数量和已校核的县区数量
-	confirmedCount := 0
-	checkedCount := 0
-	for _, countyName := range countyList {
-		if checkedCounties[countyName] {
-			checkedCount++ // 已校核的县区数量
-		}
-		if isConfirmCounties[countyName] {
-			confirmedCount++
-		}
-		// 如果该县区不是全部数据已确认，则计为0（不增加confirmedCount）
-	}
-
-	// 市级逻辑：总数为下辖县区数量+1(本市)
-	totalCount := len(countyList) + 1
-
-	// 查询本市的数据确认状态
-	cityConfirmedCount, err := a.queryCityAttachment2ConfirmedCount()
-	if err != nil {
-		return nil, fmt.Errorf("查询本市确认状态失败: %v", err)
-	}
-
-	attachment2 := ExportDataItem{
-		Count:        totalCount,
-		IsConfirmYes: confirmedCount + cityConfirmedCount, // 已确认数量 = 所有已确认县区的数量(0或1) + 所有已人工确认县区的数量(0或1) + 本市是否已确认(0或1)
-		IsConfirmNo:  totalCount - (confirmedCount + cityConfirmedCount),
-		IsCheckedYes: checkedCount, // 人工校验数量是已校核的下辖县区数量
-		IsCheckedNo:  totalCount - checkedCount,
-	}
-
-	return []ExportDataItem{attachment2}, nil
-}
-
-// queryAndParseAttachment2Data 查询并解析附件2数据（参考附表3的逻辑）
-func (a *App) queryAndParseAttachment2Data() (map[string]bool, error) {
-	// 查询附件2数据，按country_name分组
-	attachment2Query := `
-		SELECT 
-			country_name,
-			COUNT(1) as record_count
-		FROM coal_consumption_report 
-		WHERE country_name IS NOT NULL AND country_name != ''
-		GROUP BY country_name
-	`
-	attachment2Result, err := a.db.Query(attachment2Query)
-	if err != nil {
-		return nil, err
-	}
-
-	importedCounties := make(map[string]bool)
-
-	if attachment2Result.Ok && attachment2Result.Data != nil {
-		if data, ok := attachment2Result.Data.([]map[string]interface{}); ok {
-			for _, row := range data {
-				countryName := ""
-				if name, ok := row["country_name"].(string); ok {
-					countryName = name
-				}
-
-				recordCount := 0
-				if count, ok := row["record_count"].(int64); ok {
-					recordCount = int(count)
-				}
-
-				// 如果有记录，则认为该县区已导入数据
-				if recordCount > 0 {
-					importedCounties[countryName] = true
-				}
-			}
-		}
-	}
-
-	return importedCounties, nil
-}
-
-// batchCheckAttachment2CountiesChecked 批量检查附件2县区是否已校核（模型校验：有数据就表示模型验证通过）
-func (a *App) batchCheckAttachment2CountiesChecked(countyList []string) (map[string]bool, map[string]bool, error) {
-	if len(countyList) == 0 {
-		return make(map[string]bool), make(map[string]bool), nil
-	}
+func (a *App) processAttachment2Data(countyCount int, dataLevel int) ([]ExportDataItem, error) {
 
 	// 批量查询所有县区的数据状态
 	query := fmt.Sprintf(`
 		SELECT 
-			country_name,
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as checked_count,
+			stat_date, SUM(CASE WHEN confirm_yes = _count and _count > 0 THEN 1 ELSE 0 END)  is_confirm_yes,
 			COUNT(1) as total_count
-		FROM coal_consumption_report 
-		GROUP BY country_name
-	`, ENCRYPTED_ONE)
-
-	result, err := a.db.Query(query)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	checkedCounties := make(map[string]bool)
-	isConfirmCounties := make(map[string]bool)
-
-	// 初始化所有县区为未校核
-	for _, countyName := range countyList {
-		checkedCounties[countyName] = false
-		isConfirmCounties[countyName] = false
-	}
-
-	if result.Ok && result.Data != nil {
-		if data, ok := result.Data.([]map[string]interface{}); ok {
-			for _, row := range data {
-				countryName := ""
-				if name, ok := row["country_name"].(string); ok {
-					countryName = name
-				}
-
-				totalCount := int(row["total_count"].(int64))
-				checkedCount := 0
-				if row["checked_count"] != nil {
-					checkedCount = int(row["checked_count"].(int64))
-				}
-				fmt.Println("countryName==", countryName, "totalCount==", totalCount, "checkedCount==", checkedCount)
-				// 只更新countyList中存在的县区
-				if _, exists := checkedCounties[countryName]; exists {
-					// 模型校验：有数据就表示模型验证通过
-					checkedCounties[countryName] = totalCount > 0
-				}
-				if _, exists := isConfirmCounties[countryName]; exists {
-					isConfirmCounties[countryName] = totalCount > 0 && checkedCount == totalCount
-				}
-			}
-		}
-	}
-
-	return checkedCounties, isConfirmCounties, nil
-}
-
-// batchCheckAttachment2CountiesConfirmed 批量检查附件2县区是否已人工确认
-func (a *App) batchCheckAttachment2CountiesConfirmed(countyList []string) (map[string]bool, error) {
-	if len(countyList) == 0 {
-		return make(map[string]bool), nil
-	}
-
-	// 批量查询所有县区的人工确认状态
-	query := fmt.Sprintf(`
-		SELECT 
-			country_name,
-			COUNT(1) as total_count,
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as confirmed_count
-		FROM coal_consumption_report 
-		GROUP BY country_name
+			FROM 
+			( SELECT 
+						country_name, stat_date,
+						SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as confirm_yes,
+						COUNT(1) as _count
+					FROM coal_consumption_report 
+					GROUP BY country_name, stat_date
+			
+			) t  GROUP BY stat_date
 	`, ENCRYPTED_ONE)
 
 	result, err := a.db.Query(query)
@@ -1056,77 +528,52 @@ func (a *App) batchCheckAttachment2CountiesConfirmed(countyList []string) (map[s
 		return nil, err
 	}
 
-	confirmedCounties := make(map[string]bool)
-
-	// 初始化所有县区为未确认
-	for _, countyName := range countyList {
-		confirmedCounties[countyName] = false
+	// 市级逻辑：总数为下辖县区数量+1(本市)
+	Attachment2Count := countyCount
+	if dataLevel == 3 {
+		Attachment2Count = 1
 	}
+	attachment2List := make([]ExportDataItem, 0)
 
 	if result.Ok && result.Data != nil {
 		if data, ok := result.Data.([]map[string]interface{}); ok {
 			for _, row := range data {
-				countryName := ""
-				if name, ok := row["country_name"].(string); ok {
-					countryName = name
+				statDate := ""
+				if date, ok := row["stat_date"].(string); ok {
+					statDate = date
 				}
 
-				totalCount := int(row["total_count"].(int64))
-				confirmedCount := 0
-				if row["confirmed_count"] != nil {
-					confirmedCount = int(row["confirmed_count"].(int64))
+				totalCount := 0
+				if count, ok := row["total_count"].(int64); ok {
+					totalCount = int(count)
 				}
 
-				// 只更新countyList中存在的县区
-				if _, exists := confirmedCounties[countryName]; exists {
-					// 人工确认：全部数据已确认
-					confirmedCounties[countryName] = totalCount > 0 && confirmedCount == totalCount
+				isConfirmYes := int(row["is_confirm_yes"].(int64))
+
+				item := &ExportDataItem{
+					StatDate:     statDate,
+					IsConfirmYes: isConfirmYes,
+					IsConfirmNo:  totalCount - isConfirmYes,
+					Count:        Attachment2Count,
+					IsCheckedYes: totalCount,
+					IsCheckedNo:  0,
 				}
+				attachment2List = append(attachment2List, *item)
+			}
+
+			if len(data) == 0 {
+				item := &ExportDataItem{
+					StatDate:     "--",
+					IsConfirmYes: 0,
+					IsConfirmNo:  0,
+					IsCheckedYes: 0,
+					IsCheckedNo:  0,
+					Count:        Attachment2Count,
+				}
+				attachment2List = append(attachment2List, *item)
 			}
 		}
 	}
 
-	return confirmedCounties, nil
-}
-
-// queryCityAttachment2ConfirmedCount 查询本市附件2数据的确认状态
-func (a *App) queryCityAttachment2ConfirmedCount() (int, error) {
-	// 查询本市的数据确认状态（city_name不为空，country_name为空）
-	query := fmt.Sprintf(`
-		SELECT 
-			COUNT(1) as total_count,
-			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as confirmed_count
-		FROM coal_consumption_report 
-		WHERE city_name IS NOT NULL AND city_name != '' 
-		AND (country_name IS NULL OR country_name = '')
-	`, ENCRYPTED_ONE)
-
-	result, err := a.db.Query(query)
-	if err != nil {
-		return 0, err
-	}
-
-	if result.Ok && result.Data != nil {
-		if data, ok := result.Data.([]map[string]interface{}); ok && len(data) > 0 {
-			row := data[0]
-			totalCount := 0
-			if count, ok := row["total_count"].(int64); ok {
-				totalCount = int(count)
-			}
-
-			confirmedCount := 0
-			if row["confirmed_count"] != nil {
-				if count, ok := row["confirmed_count"].(int64); ok {
-					confirmedCount = int(count)
-				}
-			}
-
-			// 如果有数据且全部已确认，返回1，否则返回0
-			if totalCount > 0 && confirmedCount == totalCount {
-				return 1, nil
-			}
-		}
-	}
-
-	return 0, nil
+	return attachment2List, nil
 }

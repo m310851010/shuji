@@ -7,6 +7,7 @@
       :columns="table.columns"
       bordered
       :pagination="false"
+      :scroll="{ x: 'max-content' }"
     />
   </a-space>
 </template>

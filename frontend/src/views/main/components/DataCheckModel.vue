@@ -13,7 +13,7 @@
       <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">
         数据{{ model.passed ? '已' : '未' }}通过自动校验
       </div>
-      <div v-if="model.errorMessage">
+      <div v-if="model.errorMessage" style="max-height: 255px; overflow: auto">
         <pre style="white-space: break-spaces; line-height: 25px">{{ model.errorMessage }}</pre>
       </div>
       <div>

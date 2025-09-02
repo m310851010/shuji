@@ -232,6 +232,60 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 	return errors
 }
 
+
+// validateEquipmentAndCreditCode 企业名称和统一社会信用代码校验（从表1、表2提取的通用逻辑）
+func (s *DataImportService) validateEquipmentAndCreditCode(data map[string]interface{}, unitRowNum, regionRowNum int) []string {
+
+	errors := []string{}
+	unitName, _ := data["unit_name"].(string)
+	creditCode, _ := data["credit_code"].(string)
+
+	provinceName := s.getStringValue(data["province_name"])
+	cityName := s.getStringValue(data["city_name"])
+	countryName := s.getStringValue(data["country_name"])
+
+	if unitName != "" && creditCode != "" {
+
+		// 第一步: 调用s.app.IsEquipmentListExist(), 检查企业清单是否存在, 不存在直接校验通过
+		hasEquipmentList, err := s.app.IsEquipmentListExist()
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("第%d行：企业清单检查失败", unitRowNum))
+			return errors
+		}
+
+		if hasEquipmentList {
+			// 第二步: 如果企业清单存在, 调用s.app.GetEquipmentNameByCreditCode,检查统一信用代码是否有对应的企业名称, 未查询到企业名称校验失败
+			result := s.app.GetEquipmentByCreditCode(creditCode)
+			if !result.Ok || result.Data == nil {
+				errors = append(errors, fmt.Sprintf("第%d行：%s企业，统一信用代码%s未在清单表里", unitRowNum, unitName, creditCode))
+				return errors
+			}
+
+			if provinceName != "" && cityName != "" && countryName != "" {
+				equipmentInfo := result.Data.(map[string]interface{})
+				dbUnitName := equipmentInfo["unit_name"].(string)
+				dbProvinceName := equipmentInfo["province_name"].(string)
+				dbCityName := equipmentInfo["city_name"].(string)
+				dbCountryName := equipmentInfo["country_name"].(string)
+
+				// 如果查询到企业名了，比较企业名称是否相同
+				if dbUnitName != unitName {
+					errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和导入的企业名称不对应", unitRowNum, creditCode))
+					return errors
+				}
+
+				// 如果查询到企业名了，比较省市县是否相同
+				errors = s.checkRegionMatch(provinceName, cityName, countryName, dbProvinceName, dbCityName, dbCountryName, regionRowNum)
+			}
+
+		} else if provinceName != "" && cityName != "" && countryName != "" {
+			errors = s.validateRegionOnly(data, regionRowNum)
+		}
+	}
+
+	return errors
+}
+
 // checkRegionMatch 检查省市县是否匹配的公共函数
 func (s *DataImportService) checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry string, excelRowNum int) []string {
 	errors := []string{}

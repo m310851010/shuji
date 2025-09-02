@@ -260,7 +260,7 @@ export const TableAttachment2Columns = [
         align: 'center'
       },
       {
-        title: '其他煤炭',
+        title: '其他',
         dataIndex: 'other_coal',
         key: 'other_coal',
         width: 100,

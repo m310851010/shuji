@@ -287,10 +287,9 @@ func (s *DataImportService) validateTable2DataWithEnterpriseCheck(unitInfo map[s
 	errors = append(errors, regionFieldErrors...)
 
 	// 企业名称和统一信用代码校验
-	enterpriseErrors := s.validateEnterpriseAndCreditCode(unitInfo, 3, 4)
+	enterpriseErrors := s.validateEquipmentAndCreditCode(unitInfo, 3, 4)
 	errors = append(errors, enterpriseErrors...)
 
-	fmt.Println("主数据==", mainData)
 	// 在一个循环中完成所有验证
 	for _, data := range mainData {
 		excelRowNum := s.getExcelRowNumber(data)

@@ -70,13 +70,13 @@
       key: 'tableTypeName',
       align: 'center'
     },
-    {
+    /*{
       title: '导入进度',
       align: 'center',
       customRender: ({ record }) => {
         return `${record.is_checked_yes}/${record.count}`;
       }
-    },
+    },*/
     {
       title: '自动校验',
       ellipsis: true,
@@ -111,11 +111,11 @@
     const areaConfig = areaResult.data;
     const areaCode = areaConfig.country_code || areaConfig.city_code;
     const areaName = areaConfig.country_name || areaConfig.city_name;
-    
+
     const result = await OpenSaveDialog(
       new main.FileDialogOptions({
         title: '导出汇总数据',
-        defaultFilename: `export_${dayjs().format('YYYYMMDD')}${areaCode}_${areaName}.db`
+        defaultFilename: `export_${dayjs().format('YYYYMMDDHHmmss')}${areaCode}_${areaName}.db`
       })
     );
 

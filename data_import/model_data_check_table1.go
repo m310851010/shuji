@@ -322,7 +322,7 @@ func (s *DataImportService) modelDataCheckTable1WithRecover() db.QueryResult {
 		for _, err := range systemErrors {
 			errorMessages = append(errorMessages, err.Message)
 		}
-		message += "。错误信息如下：" + strings.Join(errorMessages, ";\n ")
+		message += "。错误信息如下：\n\n" + strings.Join(errorMessages, ";\n\n")
 	} else if len(validationErrors) > 0 {
 		message += "。详细错误信息请查看生成的错误报告。"
 	}

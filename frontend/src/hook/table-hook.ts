@@ -1,13 +1,15 @@
 import { onMounted } from 'vue';
 import { fromEvent, Subscription } from 'rxjs';
 
-export function useTableHeight(tableBoxRef: Ref<any>, offset = 40) {
-  const tableScroll = ref<{ y: number }>();
+export function useTableHeight(tableBoxRef: Ref<any>, scrollOptions?: { x?: any; y?: any; offset?: number }): Ref<any> {
+  const tableScroll = ref<{ y?: any; x?: any }>();
   let resize$: Subscription;
+  scrollOptions ??= {};
+  const offset = scrollOptions.offset ?? 40;
   onMounted(() => {
-    tableScroll.value = { y: tableBoxRef.value.clientHeight - offset };
+    tableScroll.value = { ...scrollOptions, y: tableBoxRef.value.clientHeight - offset };
     resize$ = fromEvent(window, 'resize').subscribe(() => {
-      tableScroll.value = { y: tableBoxRef.value.clientHeight - offset };
+      tableScroll.value = { ...scrollOptions, y: tableBoxRef.value.clientHeight - offset };
     });
   });
 

@@ -28,9 +28,8 @@
 </template>
 
 <script setup lang="tsx">
-  import { message, TableColumnType, Tag, Spin } from 'ant-design-vue';
-  import { useTableHeight } from '@/hook';
-  import { TableType } from '@/views/constant';
+  import { message, Tag } from 'ant-design-vue';
+  import { TableType, TableTypeName } from '@/views/constant';
   import {
     OpenSaveDialog,
     QueryTable1Process,
@@ -59,6 +58,7 @@
 
   const columns = ref<any>([]);
   const titleList = ref<TitleItem[]>([]);
+  const tableScroll = ref<any>({});
 
   function getUnit(): string {
     return { [TableType.table1]: '家企业', [TableType.table2]: '家企业', [TableType.table3]: '张表', [TableType.attachment2]: '张表' }[
@@ -142,6 +142,7 @@
       dataSource.value = data.list || [];
       if (data.area_level === 3) {
         titleList.value = [{ label: '共', total: data.list.length, unit: `条数据` }];
+        tableScroll.value = { x: 4000 };
         columns.value = Table3Columns;
         return;
       }
@@ -164,15 +165,13 @@
       await handleTable(QueryTableAttachment2Process(), (data: ProcessData) => {
         if (data.area_level === 3) {
           titleList.value = [{ label: '共', total: data.list.length, unit: `条数据` }];
+          tableScroll.value = { x: 2000 };
           return TableAttachment2Columns;
         }
         return newColumns({ area_name: getAreaName(data.area_level!) });
       });
     }
   });
-
-  const tableBoxRef = ref(null);
-  const tableScroll = useTableHeight(tableBoxRef);
 
   const dataSource = ref<any>([]);
 
@@ -197,7 +196,7 @@
       const ret = await OpenSaveDialog(
         new main.FileDialogOptions({
           title: '选择导出文件路径',
-          defaultFilename: `导出进度${dayjs().format('YYYY-MM-DD HH-mm')}.xlsx`
+          defaultFilename: `导入进度${dayjs().format(`YYYYMMDDHHmmss_${TableTypeName[props.tableType as TableType]}`)}.xlsx`
         })
       );
       if (ret.canceled) {

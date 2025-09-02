@@ -213,7 +213,6 @@
           districtName,
           selectedFiles.value.map(value => value.fullPath)
         );
-        console.log('MergeDatabase==', res);
         if (!res.ok) {
           message.error(res.message);
           return;
@@ -263,12 +262,12 @@
 
   const handleUpdateModelValue = (value: EnhancedFile[]) => {
     if (value.length) {
-      // 根据正则过滤掉非法文件, 文件名规则为: export_20250826150000_西城区.db
+      // 根据正则过滤掉非法文件, 文件名规则为: export_20250826152020150000_西城区.db
 
-      const regex = /^export_\d{12,14}_[\u4e00-\u9fa5]{2,}\.db$/;
+      const regex = /^export_\d{16,18}_[\u4e00-\u9fa5]{2,}\.db$/;
       const validFiles = value.filter(item => regex.test(item.name));
       if (validFiles.length !== value.length) {
-        message.warn('请选择正确的DB文件, 文件名规则示例: export_20250826150000_西城区.db');
+        message.warn('请选择正确的DB文件, 文件名规则示例: export_20250826152020150000_西城区.db');
         selectedFiles.value = validFiles;
         return;
       }

@@ -311,7 +311,7 @@ func (a *App) queryTable2ProcessWithRecover() db.QueryResult {
 	// 1. 查询重点耗煤装置（设备）煤炭消耗信息表作为基准
 	equipmentQuery := `
 		SELECT unit_name, credit_code FROM key_equipment_list
-		ORDER BY unit_name, credit_code
+		GROUP BY unit_name, credit_code
 	`
 	equipmentResult, err := a.db.Query(equipmentQuery)
 	if err != nil {
