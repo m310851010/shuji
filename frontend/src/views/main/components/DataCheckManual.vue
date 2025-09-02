@@ -321,7 +321,7 @@
           ? {
               project_name: '项目名称',
               project_code: '项目代码',
-              actual_time: '年份'
+              actual_time: '实际投产时间'
             }
           : props.tableType === 'attachment2'
             ? {
