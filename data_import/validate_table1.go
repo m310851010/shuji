@@ -301,7 +301,7 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 	}
 
 	// 解析数据行（跳过表头下的第一行提示行）
-	for i := startRow + 2; i < len(rows); i++ {
+	for i := startRow + 3; i < len(rows); i++ {
 		row := rows[i]
 		if len(row) < 2 {
 			continue

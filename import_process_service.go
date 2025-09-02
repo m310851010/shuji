@@ -310,7 +310,7 @@ func (a *App) queryTable2ProcessWithRecover() db.QueryResult {
 
 	// 1. 查询重点耗煤装置（设备）煤炭消耗信息表作为基准
 	equipmentQuery := `
-		SELECT DISTINCT unit_name, credit_code FROM critical_coal_equipment_consumption
+		SELECT unit_name, credit_code FROM key_equipment_list
 		ORDER BY unit_name, credit_code
 	`
 	equipmentResult, err := a.db.Query(equipmentQuery)
@@ -330,7 +330,7 @@ func (a *App) queryTable2ProcessWithRecover() db.QueryResult {
 			credit_code,
 			stat_date,
 			COUNT(1) as record_count
-		FROM critical_coal_equipment_consumption 
+		FROM critical_coal_equipment_consumption
 		GROUP BY credit_code, stat_date
 		ORDER BY credit_code, stat_date
 	`

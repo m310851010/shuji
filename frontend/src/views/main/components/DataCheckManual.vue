@@ -4,7 +4,7 @@
       <a-button type="primary" @click="handleBatchConfirm">批量确认</a-button>
     </a-flex>
     <div class="flex-main relative" ref="tableBoxRef">
-      <div class="abs">
+      <div class="abs" style="overflow: auto">
         <a-table
           :dataSource="dataSource"
           :row-selection="rowSelection"

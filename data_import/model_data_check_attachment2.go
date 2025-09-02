@@ -456,6 +456,7 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 			s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum),
 			s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum),
 		}
+
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应等于原煤+洗精煤+其他", Cells: cells})
 	}
 
@@ -553,19 +554,19 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 		return errors
 	}
 
-	// 获取当前用户的增强区域配置
-	areaResult := s.app.GetEnhancedAreaConfig()
+	// 获取当前用户的区域配置
+	areaResult := s.app.GetAreaConfig()
 	if !areaResult.Ok || areaResult.Data == nil {
 		return errors
 	}
 
-	// 由于EnhancedAreaConfig在main包中，我们需要通过map来获取数据
+	// 从map[string]interface{}构建EnhancedAreaConfig
 	areaData, ok := areaResult.Data.(map[string]interface{})
-	if !ok || areaData == nil {
+	if !ok {
+		fmt.Printf("无法获取区域配置数据，Data类型: %T\n", areaResult.Data)
 		return errors
 	}
 
-	// 构建EnhancedAreaConfig
 	areaConfig := &EnhancedAreaConfig{
 		ObjID:        s.getStringValue(areaData["obj_id"]),
 		ProvinceName: s.getStringValue(areaData["province_name"]),
@@ -653,74 +654,73 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 	// 校验各个字段（使用下辖区县累加数据）
 	// 计算 currentTotalCoal * threshold
 	currentTotalCoalThreshold := s.multiplyFloat64(currentTotalCoal, threshold)
-
 	if s.isIntegerLessThan(currentTotalCoalThreshold, subordinateData.TotalCoal) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤合计数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "total_coal", 1)}, Message: "煤合计数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentRawCoalThreshold := s.multiplyFloat64(currentRawCoal, threshold)
 	if s.isIntegerLessThan(currentRawCoalThreshold, subordinateData.RawCoal) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "原煤数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", 1)}, Message: "原煤数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentWashedCoalThreshold := s.multiplyFloat64(currentWashedCoal, threshold)
 	if s.isIntegerLessThan(currentWashedCoalThreshold, subordinateData.WashedCoal) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "洗精煤数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", 1)}, Message: "洗精煤数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentOtherCoalThreshold := s.multiplyFloat64(currentOtherCoal, threshold)
 	if s.isIntegerLessThan(currentOtherCoalThreshold, subordinateData.OtherCoal) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "other_coal", 1)}, Message: "其他数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentPowerGenerationThreshold := s.multiplyFloat64(currentPowerGeneration, threshold)
 	if s.isIntegerLessThan(currentPowerGenerationThreshold, subordinateData.PowerGen) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "火力发电数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "power_generation", 1)}, Message: "火力发电数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentHeatingThreshold := s.multiplyFloat64(currentHeating, threshold)
 	if s.isIntegerLessThan(currentHeatingThreshold, subordinateData.Heating) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "供热数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "heating", 1)}, Message: "供热数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentCoalWashingThreshold := s.multiplyFloat64(currentCoalWashing, threshold)
 	if s.isIntegerLessThan(currentCoalWashingThreshold, subordinateData.CoalWashing) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "煤炭洗选数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", 1)}, Message: "煤炭洗选数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentCokingThreshold := s.multiplyFloat64(currentCoking, threshold)
 	if s.isIntegerLessThan(currentCokingThreshold, subordinateData.Coking) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼焦数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "coking", 1)}, Message: "炼焦数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentOilRefiningThreshold := s.multiplyFloat64(currentOilRefining, threshold)
 	if s.isIntegerLessThan(currentOilRefiningThreshold, subordinateData.OilRefining) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "炼油及煤制油数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", 1)}, Message: "炼油及煤制油数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentGasProductionThreshold := s.multiplyFloat64(currentGasProduction, threshold)
 	if s.isIntegerLessThan(currentGasProductionThreshold, subordinateData.GasProd) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "制气数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "gas_production", 1)}, Message: "制气数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentIndustryThreshold := s.multiplyFloat64(currentIndustry, threshold)
 	if s.isIntegerLessThan(currentIndustryThreshold, subordinateData.Industry) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "industry", 1)}, Message: "工业数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentRawMaterialsThreshold := s.multiplyFloat64(currentRawMaterials, threshold)
 	if s.isIntegerLessThan(currentRawMaterialsThreshold, subordinateData.RawMaterials) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", 1)}, Message: "工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentOtherUsesThreshold := s.multiplyFloat64(currentOtherUses, threshold)
 	if s.isIntegerLessThan(currentOtherUsesThreshold, subordinateData.OtherUses) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "其他用途数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "other_uses", 1)}, Message: "其他用途数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentCokeThreshold := s.multiplyFloat64(currentCoke, threshold)
 	if s.isIntegerLessThan(currentCokeThreshold, subordinateData.Coke) {
-		errors = append(errors, ValidationError{RowNumber: 0, Message: "焦炭数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "coke", 1)}, Message: "焦炭数值*120%应大于等于下级单位相加之和"})
 	}
 
 	return errors
@@ -754,14 +754,19 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 		}
 
 		// 获取区域配置并更新优化缓存
-		areaResult := s.app.GetEnhancedAreaConfig()
+		areaResult := s.app.GetAreaConfig()
 		if areaResult.Ok && areaResult.Data != nil {
+			// 从map[string]interface{}构建EnhancedAreaConfig
 			if areaData, ok := areaResult.Data.(map[string]interface{}); ok {
 				areaConfig := &EnhancedAreaConfig{
 					ObjID:        s.getStringValue(areaData["obj_id"]),
 					ProvinceName: s.getStringValue(areaData["province_name"]),
 					CityName:     s.getStringValue(areaData["city_name"]),
 					CountryName:  s.getStringValue(areaData["country_name"]),
+					ProvinceCode: s.getStringValue(areaData["province_code"]),
+					CityCode:     s.getStringValue(areaData["city_code"]),
+					CountryCode:  s.getStringValue(areaData["country_code"]),
+					DataLevel:    int(s.parseFloat(s.getStringValue(areaData["data_level"]))),
 				}
 				s.UpdateOptimizedCacheAfterUpload(areaConfig, statDate, mainData)
 			}
@@ -784,7 +789,7 @@ func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provi
 		total_coal = ?, raw_coal = ?, washed_coal = ?, other_coal = ?,
 		power_generation = ?, heating = ?, coal_washing = ?, coking = ?,
 		oil_refining = ?, gas_production = ?, industry = ?, raw_materials = ?,
-		other_uses = ?, coke = ?
+		other_uses = ?, coke = ?, is_confirm = ?
 		WHERE stat_date = ? AND province_name = ? AND city_name = ? AND country_name = ?`
 
 	// 计算unit_level
@@ -796,7 +801,7 @@ func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provi
 		encryptedValues["other_coal"], encryptedValues["power_generation"], encryptedValues["heating"],
 		encryptedValues["coal_washing"], encryptedValues["coking"], encryptedValues["oil_refining"],
 		encryptedValues["gas_production"], encryptedValues["industry"], encryptedValues["raw_materials"],
-		encryptedValues["other_uses"], encryptedValues["coke"], statDate, provinceName, cityName, countryName)
+		encryptedValues["other_uses"], encryptedValues["coke"], EncryptedZero, statDate, provinceName, cityName, countryName)
 
 	if err != nil {
 		return 0, err
@@ -1021,14 +1026,19 @@ func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]in
 	// 获取区域配置并更新优化缓存
 	if len(mainData) > 0 {
 		statDate := s.getStringValue(mainData[0]["stat_date"])
-		areaResult := s.app.GetEnhancedAreaConfig()
+		areaResult := s.app.GetAreaConfig()
 		if areaResult.Ok && areaResult.Data != nil {
+			// 从map[string]interface{}构建EnhancedAreaConfig
 			if areaData, ok := areaResult.Data.(map[string]interface{}); ok {
 				areaConfig := &EnhancedAreaConfig{
 					ObjID:        s.getStringValue(areaData["obj_id"]),
 					ProvinceName: s.getStringValue(areaData["province_name"]),
 					CityName:     s.getStringValue(areaData["city_name"]),
 					CountryName:  s.getStringValue(areaData["country_name"]),
+					ProvinceCode: s.getStringValue(areaData["province_code"]),
+					CityCode:     s.getStringValue(areaData["city_code"]),
+					CountryCode:  s.getStringValue(areaData["country_code"]),
+					DataLevel:    int(s.parseFloat(s.getStringValue(areaData["data_level"]))),
 				}
 				s.UpdateOptimizedCacheAfterUpload(areaConfig, statDate, mainData)
 			}
@@ -1193,6 +1203,7 @@ func (s *DataImportService) getSubordinateDataWithOptimizedCache(areaConfig *Enh
 
 	// 1. 从年份累计缓存获取数据（数据库中已存在的下辖县区数据）
 	yearlyData, exists := attachment2CacheManager.GetYearlyAggregatedData(statDate)
+	fmt.Println("从年份累计缓存获取数据（数据库中已存在的下辖县区数据） exists 7", exists)
 	if exists {
 		// 累加年份累计数据
 		subordinateData.TotalCoal = s.addFloat64(subordinateData.TotalCoal, yearlyData.TotalCoal)

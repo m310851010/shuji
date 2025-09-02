@@ -230,9 +230,9 @@
 }
 
 .info-label {
-    font-size: 12px;
+    font-size: 14px;
     color: #333;
-    font-weight: 600;
+    font-weight: bold;
     line-height: 1.2;
     height: 100%;
     background: #f5f5f5;
@@ -242,13 +242,13 @@
     align-items: center;
     margin: 0;
     white-space: nowrap;
-    width: 120px;
-    min-width: 120px;
+    width: 150px;
+    min-width: 130px;
     flex-shrink: 0;
 }
 
 .info-value {
-    font-size: 11px;
+    font-size: 14px;
     color: #333;
     font-weight: normal;
     word-break: break-all;

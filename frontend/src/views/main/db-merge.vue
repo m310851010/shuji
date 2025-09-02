@@ -232,7 +232,7 @@
               fileNames: item.fileNames,
               tableType: tableTypes[index]
             }))
-            .filter(item => item.conflicts.length);
+            .filter(item => item.conflicts?.length);
 
           modal.showModal(tableList);
           return;
@@ -241,8 +241,8 @@
         message.success('合并成功');
         const areaResult = await GetEnhancedAreaConfig();
         const areaConfig = areaResult.data;
-        const areaCode = areaConfig.province_code || areaConfig.city_code;
-        const areaName = areaConfig.province_name || areaConfig.city_name;
+        const areaCode = areaConfig.country_code || areaConfig.city_code;
+        const areaName = areaConfig.country_name || areaConfig.city_name;
 
         //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
         const res2 = await OpenSaveDialog(
@@ -265,10 +265,10 @@
     if (value.length) {
       // 根据正则过滤掉非法文件, 文件名规则为: export_20250826150000_西城区.db
 
-      const regex = /^export_\d{14}_[\u4e00-\u9fa5]{2,}\.db$/;
+      const regex = /^export_\d{12,14}_[\u4e00-\u9fa5]{2,}\.db$/;
       const validFiles = value.filter(item => regex.test(item.name));
       if (validFiles.length !== value.length) {
-        message.warn('请选择正确的DB文件, 文件名规则为: export_20250826150000_西城区.db');
+        message.warn('请选择正确的DB文件, 文件名规则示例: export_20250826150000_西城区.db');
         selectedFiles.value = validFiles;
         return;
       }

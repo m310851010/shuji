@@ -271,8 +271,8 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 
 	// 1. 年综合能源消费量部分校验
 	// 当量值、等价值校验规则：①≧0；②≦100000
-	equivalentValue:= s.parseFloat(s.getStringValue(data["equivalent_value"]))
-	equivalentCost:= s.parseFloat(s.getStringValue(data["equivalent_cost"]))
+	equivalentValue := s.parseFloat(s.getStringValue(data["equivalent_value"]))
+	equivalentCost := s.parseFloat(s.getStringValue(data["equivalent_cost"]))
 
 	if s.isIntegerLessThan(equivalentValue, 0) {
 		errors = append(errors, ValidationError{
@@ -307,15 +307,15 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	// 2. 年煤品消费量部分校验
 	// 煤品消费总量（实物量）、煤炭消费量（实物量）、焦炭消费量（实物量）、兰炭消费量（实物量）
 	// 煤品消费总量（折标量）、煤炭消费量（折标量）、焦炭消费量（折标量）、兰炭消费量（折标量）
-	pqTotalCoalConsumption:= s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
-	pqCoalConsumption:= s.parseFloat(s.getStringValue(data["pq_coal_consumption"]))
-	pqCokeConsumption:= s.parseFloat(s.getStringValue(data["pq_coke_consumption"]))
-	pqBlueCokeConsumption:= s.parseFloat(s.getStringValue(data["pq_blue_coke_consumption"]))
+	pqTotalCoalConsumption := s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
+	pqCoalConsumption := s.parseFloat(s.getStringValue(data["pq_coal_consumption"]))
+	pqCokeConsumption := s.parseFloat(s.getStringValue(data["pq_coke_consumption"]))
+	pqBlueCokeConsumption := s.parseFloat(s.getStringValue(data["pq_blue_coke_consumption"]))
 
-	sceTotalCoalConsumption:= s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
-	sceCoalConsumption:= s.parseFloat(s.getStringValue(data["sce_coal_consumption"]))
-	sceCokeConsumption:= s.parseFloat(s.getStringValue(data["sce_coke_consumption"]))
-	sceBlueCokeConsumption:= s.parseFloat(s.getStringValue(data["sce_blue_coke_consumption"]))
+	sceTotalCoalConsumption := s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
+	sceCoalConsumption := s.parseFloat(s.getStringValue(data["sce_coal_consumption"]))
+	sceCokeConsumption := s.parseFloat(s.getStringValue(data["sce_coke_consumption"]))
+	sceBlueCokeConsumption := s.parseFloat(s.getStringValue(data["sce_blue_coke_consumption"]))
 
 	// ①≧0
 	if s.isIntegerLessThan(pqTotalCoalConsumption, 0) {
@@ -461,7 +461,7 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 
 	// 3. 煤炭消费替代情况部分校验
 	// 煤炭消费替代量（实物量）规则：①≧0；②≦100000
-	substitutionQuantity:= s.parseFloat(s.getStringValue(data["substitution_quantity"]))
+	substitutionQuantity := s.parseFloat(s.getStringValue(data["substitution_quantity"]))
 
 	if s.isIntegerLessThan(substitutionQuantity, 0) {
 		cells := []string{s.getCellPosition(TableType3, "substitution_quantity", rowNum)}
@@ -474,8 +474,8 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 
 	// 4. 原料用煤部分校验
 	// 年原料用煤量（实物量）、年原料用煤量（折标量）规则：①≧0；②≦100000；③年原料用煤量（实物量）≧年原料用煤量（折标量）
-	pqAnnualCoalQuantity:= s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
-	sceAnnualCoalQuantity:= s.parseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
+	pqAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
+	sceAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
 
 	if s.isIntegerLessThan(pqAnnualCoalQuantity, 0) {
 		cells := []string{s.getCellPosition(TableType3, "pq_annual_coal_quantity", rowNum)}
@@ -511,12 +511,12 @@ func (s *DataImportService) validateTable3OverallRulesForRow(data map[string]int
 	errors := []ValidationError{}
 
 	// 获取当前行的数值
-	equivalentValue:= s.parseFloat(s.getStringValue(data["equivalent_value"]))
-	equivalentCost:= s.parseFloat(s.getStringValue(data["equivalent_cost"]))
-	sceTotalCoalConsumption:= s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
-	pqTotalCoalConsumption:= s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
-	pqAnnualCoalQuantity:= s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
-	sceAnnualCoalQuantity:= s.parseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
+	equivalentValue := s.parseFloat(s.getStringValue(data["equivalent_value"]))
+	equivalentCost := s.parseFloat(s.getStringValue(data["equivalent_cost"]))
+	sceTotalCoalConsumption := s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
+	pqTotalCoalConsumption := s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
+	pqAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
+	sceAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
 
 	// ①年综合能源消费量与年煤品消费量（折标量）的逻辑关系
 	// 年综合能源消费量（当量值）≧年煤品消费量（折标量）
@@ -610,7 +610,7 @@ func (s *DataImportService) updateTable3DataByProjectCodeAndDocumentNumber(proje
 		pq_coke_consumption = ?, pq_blue_coke_consumption = ?, sce_total_coal_consumption = ?,
 		sce_coal_consumption = ?, sce_coke_consumption = ?, sce_blue_coke_consumption = ?,
 		is_substitution = ?, substitution_source = ?, substitution_quantity = ?, 
-		pq_annual_coal_quantity = ?, sce_annual_coal_quantity = ?
+		pq_annual_coal_quantity = ?, sce_annual_coal_quantity = ?, is_confirm = ?
 		WHERE project_code = ? AND document_number = ?`
 
 	result, err := s.app.GetDB().Exec(query,
@@ -625,6 +625,7 @@ func (s *DataImportService) updateTable3DataByProjectCodeAndDocumentNumber(proje
 		encryptedValues["sce_coke_consumption"], encryptedValues["sce_blue_coke_consumption"],
 		record["is_substitution"], record["substitution_source"], encryptedValues["substitution_quantity"],
 		encryptedValues["pq_annual_coal_quantity"], encryptedValues["sce_annual_coal_quantity"],
+		EncryptedZero,
 		projectCode, documentNumber)
 
 	if err != nil {

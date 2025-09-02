@@ -62,7 +62,7 @@
       ok-text="关闭"
     >
       <div class="wh-100 relative">
-        <div class="abs">
+        <div class="abs" style="overflow: auto">
           <ConfirmTable1 v-if="confirmModal.tableType == 'table1'" :tableInfoList="confirmModal.tableInfoList" />
           <ConfirmTable2 v-if="confirmModal.tableType == 'table2'" :tableInfoList="confirmModal.tableInfoList" />
           <ConfirmTable3 v-if="confirmModal.tableType == 'table3'" :tableInfoList="confirmModal.tableInfoList" />

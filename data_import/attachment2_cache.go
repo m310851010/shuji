@@ -100,9 +100,10 @@ func (m *Attachment2CacheManager) SetCityData(provinceName, cityName, statDate s
 	cityDataCache[key] = data
 }
 
-// IsDataImported 检查数据是否已导入
+// IsDataImported 检查数据是否已导入stat_date (1)
 func (m *Attachment2CacheManager) IsDataImported(statDate, provinceName, cityName, countryName string) bool {
 	key := fmt.Sprintf("%s|%s|%s|%s", provinceName, cityName, countryName, statDate)
+	fmt.Println()
 	return importedDataCache[key]
 }
 
@@ -147,8 +148,6 @@ func (m *Attachment2CacheManager) UpdateYearlyAggregatedData(statDate string, da
 
 // IsDataExistsInOptimizedCache 检查数据是否存在于优化缓存中
 func (m *Attachment2CacheManager) IsDataExistsInOptimizedCache(statDate, provinceName, cityName, countryName string) bool {
-	m.InitOptimizedCache()
-
 	// 使用已导入数据缓存检查
 	return m.IsDataImported(statDate, provinceName, cityName, countryName)
 }
@@ -173,7 +172,7 @@ func (m *Attachment2CacheManager) PreloadOptimizedCache() error {
 			total_coal, raw_coal, washed_coal, other_coal,
 			power_generation, heating, coal_washing, coking, oil_refining, gas_production,
 			industry, raw_materials, other_uses, coke
-		FROM coal_consumption_report
+		FROM coal_consumption_report group by stat_date, province_name, city_name, country_name
 	`
 
 	result, err := m.service.app.GetDB().Query(query)
@@ -293,15 +292,18 @@ func (m *Attachment2CacheManager) PreloadOptimizedCache() error {
 
 		// 3. 标记数据为已导入
 		m.MarkDataAsImported(statDate, provinceName, cityName, countryName)
+		fmt.Println(" 标记数据为已导入==, statDate==", statDate, "provinceName==", provinceName, "cityName==", cityName, "countryName==", countryName)
 	}
 
 	// 将数据设置到全局缓存中
 	for statDate, yearlyData := range yearlyDataMap {
 		yearlyAggregatedCache[statDate] = yearlyData
+		fmt.Println("加载完成==, yearlyData==", yearlyData, "statDate==", statDate)
 	}
 
 	for cityKey, cityData := range cityDataMap {
 		cityDataCache[cityKey] = cityData
+		fmt.Println("加载完成==, cityData==", cityData, "statDate==", cityKey)
 	}
 
 	return nil

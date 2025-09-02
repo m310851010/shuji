@@ -109,8 +109,8 @@
 
     const areaResult = await GetEnhancedAreaConfig();
     const areaConfig = areaResult.data;
-    const areaCode = areaConfig.province_code || areaConfig.city_code;
-    const areaName = areaConfig.province_name || areaConfig.city_name;
+    const areaCode = areaConfig.country_code || areaConfig.city_code;
+    const areaName = areaConfig.country_name || areaConfig.city_name;
     
     const result = await OpenSaveDialog(
       new main.FileDialogOptions({

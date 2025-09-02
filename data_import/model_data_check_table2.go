@@ -266,8 +266,8 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 
 	// 1. 累计使用时间、设计年限校验
 	// 应为0-50（含0和50）间的整数
-	totalRuntime:= s.parseFloat(s.getStringValue(data["usage_time"]))
-	designLife:= s.parseFloat(s.getStringValue(data["design_life"]))
+	totalRuntime := s.parseFloat(s.getStringValue(data["usage_time"]))
+	designLife := s.parseFloat(s.getStringValue(data["design_life"]))
 
 	if s.isIntegerLessThan(totalRuntime, 0) || s.isIntegerGreaterThan(totalRuntime, 50) {
 		cells := []string{s.getCellPosition(TableType2, "usage_time", rowNum)}
@@ -305,7 +305,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 
 	// 2. 容量校验
 	// 应为正整数
-	capacity:= s.parseFloat(s.getStringValue(data["capacity"]))
+	capacity := s.parseFloat(s.getStringValue(data["capacity"]))
 	if s.isIntegerLessThan(capacity, 0) {
 		cells := []string{s.getCellPosition(TableType2, "capacity", rowNum)}
 		errors = append(errors, ValidationError{
@@ -325,7 +325,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 
 	// 3. 年耗煤量校验
 	// ≧0且≦1000000000
-	annualCoalConsumption:= s.parseFloat(s.getStringValue(data["annual_coal_consumption"]))
+	annualCoalConsumption := s.parseFloat(s.getStringValue(data["annual_coal_consumption"]))
 	if s.isIntegerLessThan(annualCoalConsumption, 0) {
 		cells := []string{s.getCellPosition(TableType2, "annual_coal_consumption", rowNum)}
 		errors = append(errors, ValidationError{
@@ -504,6 +504,6 @@ func (s *DataImportService) addValidationErrorsToExcelTable2(filePath string, er
 
 // encryptTable2NumericFields 加密附表2数值字段
 func (s *DataImportService) encryptTable2NumericFields(record map[string]interface{}) map[string]interface{} {
-	numericFields := []string{"annual_coal_consumption"}
+	numericFields := []string{"annual_coal_consumption", "design_life", "capacity"}
 	return s.encryptNumericFields(record, numericFields)
 }
