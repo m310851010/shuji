@@ -165,16 +165,9 @@ func (s *DataImportService) modelDataCheckTable3WithRecover() db.QueryResult {
 			errors := s.validateTable3DataForModel(mainData)
 			if len(errors) > 0 {
 				// 校验失败，在Excel文件中错误行最后添加错误信息
-				err = s.addValidationErrorsToExcelAttachment2(filePath, errors, mainData)
-
+				err = s.addValidationErrorsToExcelTable3(filePath, errors, mainData)
 				if err != nil {
-					msg := err.Error()
-					// 如果错误是文件名长度超出限制，则跳过
-					if err == excelize.ErrMaxFilePathLength {
-						msg = "软件存放的路径过长，建议将软件放在磁盘一级目录再操作。"
-					}
-					systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %s", file.Name(), msg)})
-					continue
+					systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
 				}
 				failedFiles = append(failedFiles, filePath)
 				// 将验证错误转换为字符串用于显示
@@ -716,7 +709,7 @@ func (s *DataImportService) insertTable3Data(record map[string]interface{}) erro
 		encryptedValues["sce_coal_consumption"], encryptedValues["sce_coke_consumption"], encryptedValues["sce_blue_coke_consumption"],
 		record["is_substitution"], record["substitution_source"], encryptedValues["substitution_quantity"],
 		encryptedValues["pq_annual_coal_quantity"], encryptedValues["sce_annual_coal_quantity"],
-		record["create_time"], s.app.GetAreaStr(), EncryptedOne)
+		record["create_time"], s.app.GetCurrentOSUser(), EncryptedOne)
 	if err != nil {
 		return fmt.Errorf("保存数据失败: %v", err)
 	}

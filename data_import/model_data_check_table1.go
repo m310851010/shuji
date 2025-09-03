@@ -259,7 +259,7 @@ func (s *DataImportService) modelDataCheckTable1WithRecover() db.QueryResult {
 			errors := s.validateTable1DataWithEnterpriseCheckForModel(mainData, usageData, equipData)
 			if len(errors) > 0 {
 				// 校验失败，在Excel文件中错误行最后添加错误信息
-				err = s.addValidationErrorsToExcelAttachment2(filePath, errors, mainData)
+				err = s.addValidationErrorsToExcelTable1(filePath, errors)
 
 				if err != nil {
 					msg := err.Error()
@@ -268,6 +268,7 @@ func (s *DataImportService) modelDataCheckTable1WithRecover() db.QueryResult {
 						msg = "软件存放的路径过长，建议将软件放在磁盘一级目录再操作。"
 					}
 					systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %s", file.Name(), msg)})
+					failedFiles = append(failedFiles, filePath)
 					continue
 				}
 				failedFiles = append(failedFiles, filePath)
@@ -515,7 +516,7 @@ func (s *DataImportService) saveTable1Data(mainData, usageData, equipData []map[
 }
 
 // addValidationErrorsToExcel 在Excel文件中添加校验错误信息
-func (s *DataImportService) addValidationErrorsToExcel(filePath string, errors []ValidationError, mainData, usageData, equipData []map[string]interface{}) error {
+func (s *DataImportService) addValidationErrorsToExcelTable1(filePath string, errors []ValidationError) error {
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return err
@@ -558,16 +559,7 @@ func (s *DataImportService) addValidationErrorsToExcel(filePath string, errors [
 		}
 	}
 
-	// 获取最大列数
-	cols, err := f.GetCols(sheetName)
-	if err != nil {
-		return err
-	}
-
-	maxCol := len(cols)
-	if maxCol == 0 {
-		maxCol = 9
-	}
+	maxCol := 10
 
 	// 为每个错误行添加错误信息
 	for rowNum, errorMsg := range errorMap {

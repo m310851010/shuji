@@ -167,7 +167,7 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 
 			if len(errors) > 0 {
 				// 校验失败，在Excel文件中错误行最后添加错误信息
-				err = s.addValidationErrorsToExcelAttachment2(filePath, errors, mainData)
+				err = s.addValidationErrorsToExcelAttachment2(filePath, errors)
 
 				if err != nil {
 					msg := err.Error()
@@ -1108,7 +1108,7 @@ func (s *DataImportService) insertAttachment2Data(record map[string]interface{})
 }
 
 // addValidationErrorsToExcelAttachment2 在附件2Excel文件中添加校验错误信息
-func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath string, errors []ValidationError, mainData []map[string]interface{}) error {
+func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath string, errors []ValidationError) error {
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return err

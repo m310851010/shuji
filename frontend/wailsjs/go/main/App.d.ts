@@ -82,7 +82,7 @@ export function Login(arg1:string):Promise<db.QueryResult>;
 
 export function Makedir(arg1:string):Promise<main.FlagResult>;
 
-export function MergeConflictData(arg1:string,arg2:Record<string, Array<main.ConflictSourceInfo>>):Promise<db.QueryResult>;
+export function MergeConflictData(arg1:string,arg2:Array<main.ConflictData>):Promise<db.QueryResult>;
 
 export function MergeDatabase(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<db.QueryResult>;
 

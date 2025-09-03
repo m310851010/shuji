@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"github.com/tjfoc/gmsm/sm4"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -129,6 +130,10 @@ func GetCurrentOSUser() string {
 		return "系统"
 	}
 	return currentUser.Username
+}
+
+func GenerateUUID() string {
+	return uuid.New().String()
 }
 
 // copyCacheFile 带异常处理的复制缓存文件函数

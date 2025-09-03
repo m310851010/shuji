@@ -50,11 +50,7 @@
       model.value.canDownloadReport = data.hasExportReport;
       model.value.passed = !data.hasFailedFiles;
       model.value.isChecking = false;
-      if (model.value.canDownloadReport) {
-        model.value.errorMessage = result.message;
-      } else {
-        model.value.errorMessage = '';
-      }
+      model.value.errorMessage = result.message;
     };
 
     model.value.isChecking = true;

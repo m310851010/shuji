@@ -99,6 +99,23 @@
     conflict: ConflictSourceInfo[];
   }
 
+  // 新的冲突数据结构
+  interface Condition {
+    credit_code?: string; // 统一信用代码（表1、表2）
+    stat_date?: string; // 年份（表1、表2、附件2）
+    project_code?: string; // 项目代码（表3）
+    document_number?: string; // 审查意见文号（表3）
+    province_name?: string; // 省（附件2）
+    city_name?: string; // 市（附件2）
+    country_name?: string; // 县（附件2）
+  }
+
+  interface ConflictData {
+    filePath: string;
+    tableType: string;
+    conditions: Condition[];
+  }
+
   interface ConflictRecord {
     key: string;
     unitName?: string;
@@ -131,7 +148,7 @@
   }>();
 
   const emit = defineEmits<{
-    selectionChange: [selectedData: Record<string, ConflictSourceInfo[]>];
+    selectionChange: [selectedData: ConflictData[]];
   }>();
 
   const conflictData = ref<ConflictRecord[]>([]);
@@ -203,28 +220,28 @@
             title: '省',
             dataIndex: 'provinceName',
             key: 'provinceName',
-            width: '200px',
+            width: '125px',
             ellipsis: true
           },
           {
             title: '市',
             dataIndex: 'cityName',
             key: 'cityName',
-            width: '150px',
+            width: '125px',
             ellipsis: true
           },
           {
             title: '县',
             dataIndex: 'countryName',
             key: 'countryName',
-            width: '150px',
+            width: '125px',
             ellipsis: true
           },
           {
             title: '年份',
             dataIndex: 'statDate',
             key: 'statDate',
-            width: '100px'
+            width: '125px'
           }
         ];
         break;
@@ -374,6 +391,12 @@
           item.selections[dbKey] = true;
         }
       });
+
+      props.dbFileNames.forEach((_, index) => {
+        if (index !== dbIndex) {
+          allSelectedStates.value[index] = false;
+        }
+      });
     } else {
       // 如果取消选中当前列，取消该列的所有选择
       conflictData.value.forEach(item => {
@@ -488,8 +511,8 @@
   };
 
   const emitSelectionChange = () => {
-    // 构建符合 MergeConflictData 函数参数要求的数据结构
-    const selectedConflicts: Record<string, ConflictSourceInfo[]> = {};
+    // 构建符合新的 MergeConflictData 函数参数要求的数据结构
+    const selectedConflictData: ConflictData[] = [];
 
     // 按表类型分组选中的冲突数据
     props.dbFileNames.forEach((fileName, dbIndex) => {
@@ -497,27 +520,63 @@
       const selectedItems = conflictData.value.filter(item => item.hasConflict && item.selections[dbKey]);
 
       if (selectedItems.length > 0) {
-        const tableType = props.tableType;
-        if (!selectedConflicts[tableType]) {
-          selectedConflicts[tableType] = [];
-        }
-
         // 收集该文件中所有选中的冲突源信息
         selectedItems.forEach(item => {
           const conflictSource = item.conflictDetail.conflict[dbIndex];
           if (conflictSource) {
             // 检查是否已经存在相同的文件路径
-            const existingIndex = selectedConflicts[tableType].findIndex(existing => existing.filePath === conflictSource.filePath);
+            const existingIndex = selectedConflictData.findIndex(existing => existing.filePath === conflictSource.filePath);
             if (existingIndex >= 0) {
-              // 合并 obj_ids
-              selectedConflicts[tableType][existingIndex].obj_ids.push(...conflictSource.obj_ids);
+              // 添加新的冲突条件
+              const condition: Condition = {};
+
+              // 根据表类型设置相应的条件字段
+              switch (props.tableType) {
+                case TableType.table1:
+                case TableType.table2:
+                  condition.credit_code = item.creditCode;
+                  condition.stat_date = item.statDate;
+                  break;
+                case TableType.table3:
+                  condition.project_code = item.projectCode;
+                  condition.document_number = item.reviewNumber;
+                  break;
+                case TableType.attachment2:
+                  condition.province_name = item.provinceName;
+                  condition.city_name = item.cityName;
+                  condition.country_name = item.countryName;
+                  condition.stat_date = item.statDate;
+                  break;
+              }
+
+              selectedConflictData[existingIndex].conditions.push(condition);
             } else {
-              // 添加新的冲突源信息
-              selectedConflicts[tableType].push({
+              // 创建新的冲突数据
+              const condition: Condition = {};
+
+              // 根据表类型设置相应的条件字段
+              switch (props.tableType) {
+                case TableType.table1:
+                case TableType.table2:
+                  condition.credit_code = item.creditCode;
+                  condition.stat_date = item.statDate;
+                  break;
+                case TableType.table3:
+                  condition.project_code = item.projectCode;
+                  condition.document_number = item.reviewNumber;
+                  break;
+                case TableType.attachment2:
+                  condition.province_name = item.provinceName;
+                  condition.city_name = item.cityName;
+                  condition.country_name = item.countryName;
+                  condition.stat_date = item.statDate;
+                  break;
+              }
+
+              selectedConflictData.push({
                 filePath: conflictSource.filePath,
-                fileName: conflictSource.fileName,
-                tableType: conflictSource.tableType,
-                obj_ids: [...conflictSource.obj_ids]
+                tableType: props.tableType,
+                conditions: [condition]
               });
             }
           }
@@ -525,14 +584,14 @@
       }
     });
 
-    emit('selectionChange', selectedConflicts);
+    emit('selectionChange', selectedConflictData);
   };
 
   // 暴露方法给父组件
   defineExpose({
-    getSelectedData: (): Record<string, ConflictSourceInfo[]> => {
-      // 构建符合 MergeConflictData 函数参数要求的数据结构
-      const selectedConflicts: Record<string, ConflictSourceInfo[]> = {};
+    getSelectedData: (): ConflictData[] => {
+      // 构建符合新的 MergeConflictData 函数参数要求的数据结构
+      const selectedConflictData: ConflictData[] = [];
 
       // 按表类型分组选中的冲突数据
       props.dbFileNames.forEach((fileName, dbIndex) => {
@@ -540,27 +599,63 @@
         const selectedItems = conflictData.value.filter(item => item.hasConflict && item.selections[dbKey]);
 
         if (selectedItems.length > 0) {
-          const tableType = props.tableType;
-          if (!selectedConflicts[tableType]) {
-            selectedConflicts[tableType] = [];
-          }
-
           // 收集该文件中所有选中的冲突源信息
           selectedItems.forEach(item => {
             const conflictSource = item.conflictDetail.conflict[dbIndex];
             if (conflictSource) {
               // 检查是否已经存在相同的文件路径
-              const existingIndex = selectedConflicts[tableType].findIndex(existing => existing.filePath === conflictSource.filePath);
+              const existingIndex = selectedConflictData.findIndex(existing => existing.filePath === conflictSource.filePath);
               if (existingIndex >= 0) {
-                // 合并 obj_ids
-                selectedConflicts[tableType][existingIndex].obj_ids.push(...conflictSource.obj_ids);
+                // 添加新的冲突条件
+                const condition: Condition = {};
+
+                // 根据表类型设置相应的条件字段
+                switch (props.tableType) {
+                  case TableType.table1:
+                  case TableType.table2:
+                    condition.credit_code = item.creditCode;
+                    condition.stat_date = item.statDate;
+                    break;
+                  case TableType.table3:
+                    condition.project_code = item.projectCode;
+                    condition.document_number = item.reviewNumber;
+                    break;
+                  case TableType.attachment2:
+                    condition.province_name = item.provinceName;
+                    condition.city_name = item.cityName;
+                    condition.country_name = item.countryName;
+                    condition.stat_date = item.statDate;
+                    break;
+                }
+
+                selectedConflictData[existingIndex].conditions.push(condition);
               } else {
-                // 添加新的冲突源信息
-                selectedConflicts[tableType].push({
+                // 创建新的冲突数据
+                const condition: Condition = {};
+
+                // 根据表类型设置相应的条件字段
+                switch (props.tableType) {
+                  case TableType.table1:
+                  case TableType.table2:
+                    condition.credit_code = item.creditCode;
+                    condition.stat_date = item.statDate;
+                    break;
+                  case TableType.table3:
+                    condition.project_code = item.projectCode;
+                    condition.document_number = item.reviewNumber;
+                    break;
+                  case TableType.attachment2:
+                    condition.province_name = item.provinceName;
+                    condition.city_name = item.cityName;
+                    condition.country_name = item.countryName;
+                    condition.stat_date = item.statDate;
+                    break;
+                }
+
+                selectedConflictData.push({
                   filePath: conflictSource.filePath,
-                  fileName: conflictSource.fileName,
-                  tableType: conflictSource.tableType,
-                  obj_ids: [...conflictSource.obj_ids]
+                  tableType: props.tableType,
+                  conditions: [condition]
                 });
               }
             }
@@ -568,7 +663,7 @@
         }
       });
 
-      return selectedConflicts;
+      return selectedConflictData;
     },
     clearSelection: () => {
       conflictData.value.forEach(item => {

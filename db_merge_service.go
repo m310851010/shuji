@@ -60,6 +60,24 @@ type ConflictSourceInfo struct {
 	ObjIds    []string `json:"obj_ids"`
 }
 
+// ConflictData 冲突数据结构
+type ConflictData struct {
+	FilePath   string      `json:"filePath"`
+	TableType  string      `json:"tableType"`
+	Conditions []Condition `json:"conditions"`
+}
+
+// Condition 冲突条件结构
+type Condition struct {
+	CreditCode     string `json:"credit_code,omitempty"`     // 统一信用代码（表1、表2）
+	StatDate       string `json:"stat_date,omitempty"`       // 年份（表1、表2、附件2）
+	ProjectCode    string `json:"project_code,omitempty"`    // 项目代码（表3）
+	DocumentNumber string `json:"document_number,omitempty"` // 审查意见文号（表3）
+	ProvinceName   string `json:"province_name,omitempty"`   // 省（附件2）
+	CityName       string `json:"city_name,omitempty"`       // 市（附件2）
+	CountryName    string `json:"country_name,omitempty"`    // 县（附件2）
+}
+
 // MergeDatabase 合并数据库
 func (a *App) MergeDatabase(province string, city string, country string, sourceDbPath []string) db.QueryResult {
 	// 使用包装函数来处理异常
@@ -230,7 +248,7 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 
 	// 合并所有表的数据（使用已获取的非冲突数据）
 	fmt.Printf("开始合并表1数据，非冲突数据数量: %d\n", len(table1NonConflictData))
-	table1Result := a.mergeTable1DataWithTx(tx, table1NonConflictData)
+	table1Result := a.mergeTable1DataWithTx(tx, table1NonConflictData, sourceDbs, originalSourcePaths)
 	fmt.Printf("表1合并结果: Ok=%v, SuccessCount=%d, ErrorCount=%d, Message=%s\n",
 		table1Result.Ok, table1Result.SuccessCount, table1Result.ErrorCount, table1Result.Message)
 	if table1Result.Ok {
@@ -376,7 +394,7 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 	conflictInfo := TableConflictInfo{}
 	var nonConflictData []map[string]interface{}
 
-	// 1. 获取目标数据库中的表1数据，构建映射
+	// 获取目标数据库中的表1数据
 	targetQuery := `SELECT obj_id, credit_code, stat_date, unit_name 
 					FROM enterprise_coal_consumption_main`
 	targetResult, err := targetDb.Query(targetQuery)
@@ -399,8 +417,8 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 
 	// 2. 遍历每个源数据库，查询源数据并检查冲突
 	fileNamesSet := make(map[string]bool)
-	// 按文件路径分组存储冲突信息
-	fileConflictMap := make(map[string][]ConflictSourceInfo) // key: filePath, value: conflict sources
+	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
+	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo)
 	// 存储每个文件的源数据，避免重复查询
 	fileSourceDataMap := make(map[string][]map[string]interface{}) // key: filePath, value: source data
 
@@ -422,102 +440,70 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 				// 保存源数据，避免重复查询
 				fileSourceDataMap[filePath] = data
 
-				// 存储当前文件的冲突信息
-				var currentFileConflicts []ConflictSourceInfo
-				var currentFileNonConflictData []map[string]interface{}
-
-				// 遍历源数据，只检查与目标数据库的冲突，不处理源数据内部的重复
+				// 遍历源数据，检查与目标数据库的冲突
 				for _, row := range data {
 					key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
 					objId := fmt.Sprintf("%v", row["obj_id"])
 
-					// 只检查是否与目标数据冲突，不检查源数据内部重复
+					// 检查是否与目标数据冲突
 					if _, exists := targetDataMap[key]; exists {
-						// 添加到当前文件的冲突列表
-						currentFileConflicts = append(currentFileConflicts, ConflictSourceInfo{
-							FilePath:  filePath,
-							FileName:  sourceFileName,
-							TableType: "table1",
-							ObjIds:    []string{objId},
-						})
+						// 如果冲突键不存在，创建新的映射
+						if _, exists := conflictKeyMap[key]; !exists {
+							conflictKeyMap[key] = make(map[string]ConflictSourceInfo)
+						}
+
+						// 检查该文件是否已经为这个冲突键创建了记录
+						if existingConflict, exists := conflictKeyMap[key][filePath]; exists {
+							// 如果文件已存在，添加新的obj_id
+							existingConflict.ObjIds = append(existingConflict.ObjIds, objId)
+							conflictKeyMap[key][filePath] = existingConflict
+						} else {
+							// 创建新的冲突源信息
+							conflictKeyMap[key][filePath] = ConflictSourceInfo{
+								FilePath:  filePath,
+								FileName:  sourceFileName,
+								TableType: "table1",
+								ObjIds:    []string{objId},
+							}
+						}
 					} else {
-						// 没有冲突，直接添加到非冲突数据（包括源数据内部的重复）
-						currentFileNonConflictData = append(currentFileNonConflictData, row)
+						// 没有冲突，直接添加到非冲突数据
+						nonConflictData = append(nonConflictData, row)
 					}
 				}
-
-				// 将当前文件的冲突信息存储到文件冲突映射中
-				if len(currentFileConflicts) > 0 {
-					fileConflictMap[filePath] = currentFileConflicts
-				}
-
-				// 将当前文件的非冲突数据添加到总非冲突数据中
-				nonConflictData = append(nonConflictData, currentFileNonConflictData...)
 			}
 		}
 	}
 
-	// 3. 构建冲突详情，按文件分组，使用已保存的源数据
-	for filePath, conflicts := range fileConflictMap {
-		// 获取该文件的源数据
-		sourceData, exists := fileSourceDataMap[filePath]
-		if !exists {
+	// 3. 构建冲突详情，按冲突键分组
+	for conflictKey, fileConflicts := range conflictKeyMap {
+		// 解析冲突键
+		parts := strings.Split(conflictKey, "_")
+		if len(parts) != 2 {
 			continue
 		}
 
-		// 为每个文件创建一个冲突详情
-		for _, conflict := range conflicts {
-			// 从冲突记录中获取冲突键信息
-			objId := conflict.ObjIds[0]
-
-			// 从已保存的源数据中查找这条记录，避免重复查询数据库
-			var sourceRow map[string]interface{}
-			for _, row := range sourceData {
-				if fmt.Sprintf("%v", row["obj_id"]) == objId {
-					sourceRow = row
-					break
-				}
+		// 查找对应的目标数据
+		if targetRow, exists := targetDataMap[conflictKey]; exists {
+			// 创建冲突详情
+			conflictDetail := ConflictDetail{
+				ObjId:      fmt.Sprintf("%v", targetRow["obj_id"]),
+				CreditCode: fmt.Sprintf("%v", targetRow["credit_code"]),
+				StatDate:   fmt.Sprintf("%v", targetRow["stat_date"]),
+				UnitName:   fmt.Sprintf("%v", targetRow["unit_name"]),
+				Conflict:   make([]ConflictSourceInfo, 0, len(fileConflicts)),
 			}
 
-			if sourceRow != nil {
-				key := fmt.Sprintf("%v_%v", sourceRow["credit_code"], sourceRow["stat_date"])
-
-				// 查找对应的目标数据
-				if targetRow, exists := targetDataMap[key]; exists {
-					// 检查是否已经存在相同冲突键的冲突详情
-					var existingConflict *ConflictDetail
-					for i := range conflictInfo.Conflicts {
-						if conflictInfo.Conflicts[i].CreditCode == fmt.Sprintf("%v", targetRow["credit_code"]) &&
-							conflictInfo.Conflicts[i].StatDate == fmt.Sprintf("%v", targetRow["stat_date"]) {
-							existingConflict = &conflictInfo.Conflicts[i]
-							break
-						}
-					}
-
-					if existingConflict != nil {
-						// 添加到现有冲突详情中
-						existingConflict.Conflict = append(existingConflict.Conflict, conflict)
-					} else {
-						// 创建新的冲突详情
-						conflictDetail := ConflictDetail{
-							ObjId:      fmt.Sprintf("%v", targetRow["obj_id"]),
-							CreditCode: fmt.Sprintf("%v", targetRow["credit_code"]),
-							StatDate:   fmt.Sprintf("%v", targetRow["stat_date"]),
-							UnitName:   fmt.Sprintf("%v", targetRow["unit_name"]),
-							Conflict:   []ConflictSourceInfo{conflict},
-						}
-						conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
-					}
-				}
+			// 将文件冲突信息添加到冲突详情中
+			for _, fileConflict := range fileConflicts {
+				conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
 			}
+
+			conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
 		}
 	}
 
 	fmt.Printf("表1冲突检查完成 - 冲突数: %d, 非冲突数据数: %d\n", len(conflictInfo.Conflicts), len(nonConflictData))
-	if len(nonConflictData) > 0 {
-		fmt.Printf("表1非冲突数据示例: obj_id=%v, unit_name=%v, stat_date=%v\n",
-			nonConflictData[0]["obj_id"], nonConflictData[0]["unit_name"], nonConflictData[0]["stat_date"])
-	}
 
 	// 设置文件名列表
 	conflictInfo.FileNames = make([]string, 0, len(fileNamesSet))
@@ -536,7 +522,7 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 	conflictInfo := TableConflictInfo{}
 	var nonConflictData []map[string]interface{}
 
-	// 1. 获取目标数据库中的表2数据，构建映射
+	// 获取目标数据库中的表2数据
 	targetQuery := `SELECT obj_id, credit_code, stat_date, unit_name 
 					FROM critical_coal_equipment_consumption`
 	targetResult, err := targetDb.Query(targetQuery)
@@ -559,8 +545,8 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 
 	// 2. 遍历每个源数据库，查询源数据并检查冲突
 	fileNamesSet := make(map[string]bool)
-	// 按文件路径分组存储冲突信息
-	fileConflictMap := make(map[string][]ConflictSourceInfo) // key: filePath, value: conflict sources
+	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
+	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo)
 	// 存储每个文件的源数据，避免重复查询
 	fileSourceDataMap := make(map[string][]map[string]interface{}) // key: filePath, value: source data
 
@@ -582,94 +568,66 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 				// 保存源数据，避免重复查询
 				fileSourceDataMap[filePath] = data
 
-				// 存储当前文件的冲突信息
-				var currentFileConflicts []ConflictSourceInfo
-				var currentFileNonConflictData []map[string]interface{}
-
-				// 遍历源数据，只检查与目标数据库的冲突，不处理源数据内部的重复
+				// 遍历源数据，检查与目标数据库的冲突
 				for _, row := range data {
 					key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
 					objId := fmt.Sprintf("%v", row["obj_id"])
 
-					// 只检查是否与目标数据冲突，不检查源数据内部重复
+					// 检查是否与目标数据冲突
 					if _, exists := targetDataMap[key]; exists {
-						// 添加到当前文件的冲突列表
-						currentFileConflicts = append(currentFileConflicts, ConflictSourceInfo{
-							FilePath:  filePath,
-							FileName:  sourceFileName,
-							TableType: "table2",
-							ObjIds:    []string{objId},
-						})
+						// 如果冲突键不存在，创建新的映射
+						if _, exists := conflictKeyMap[key]; !exists {
+							conflictKeyMap[key] = make(map[string]ConflictSourceInfo)
+						}
+
+						// 检查该文件是否已经为这个冲突键创建了记录
+						if existingConflict, exists := conflictKeyMap[key][filePath]; exists {
+							// 如果文件已存在，添加新的obj_id
+							existingConflict.ObjIds = append(existingConflict.ObjIds, objId)
+							conflictKeyMap[key][filePath] = existingConflict
+						} else {
+							// 创建新的冲突源信息
+							conflictKeyMap[key][filePath] = ConflictSourceInfo{
+								FilePath:  filePath,
+								FileName:  sourceFileName,
+								TableType: "table2",
+								ObjIds:    []string{objId},
+							}
+						}
 					} else {
-						// 没有冲突，直接添加到非冲突数据（包括源数据内部的重复）
-						currentFileNonConflictData = append(currentFileNonConflictData, row)
+						// 没有冲突，直接添加到非冲突数据
+						nonConflictData = append(nonConflictData, row)
 					}
 				}
-
-				// 将当前文件的冲突信息存储到文件冲突映射中
-				if len(currentFileConflicts) > 0 {
-					fileConflictMap[filePath] = currentFileConflicts
-				}
-
-				// 将当前文件的非冲突数据添加到总非冲突数据中
-				nonConflictData = append(nonConflictData, currentFileNonConflictData...)
 			}
 		}
 	}
 
-	// 3. 构建冲突详情，按文件分组，使用已保存的源数据
-	for filePath, conflicts := range fileConflictMap {
-		// 获取该文件的源数据
-		sourceData, exists := fileSourceDataMap[filePath]
-		if !exists {
+	// 3. 构建冲突详情，按冲突键分组
+	for conflictKey, fileConflicts := range conflictKeyMap {
+		// 解析冲突键
+		parts := strings.Split(conflictKey, "_")
+		if len(parts) != 2 {
 			continue
 		}
 
-		// 为每个文件创建一个冲突详情
-		for _, conflict := range conflicts {
-			// 从冲突记录中获取冲突键信息
-			objId := conflict.ObjIds[0]
-
-			// 从已保存的源数据中查找这条记录，避免重复查询数据库
-			var sourceRow map[string]interface{}
-			for _, row := range sourceData {
-				if fmt.Sprintf("%v", row["obj_id"]) == objId {
-					sourceRow = row
-					break
-				}
+		// 查找对应的目标数据
+		if targetRow, exists := targetDataMap[conflictKey]; exists {
+			// 创建冲突详情
+			conflictDetail := ConflictDetail{
+				ObjId:      fmt.Sprintf("%v", targetRow["obj_id"]),
+				CreditCode: fmt.Sprintf("%v", targetRow["credit_code"]),
+				StatDate:   fmt.Sprintf("%v", targetRow["stat_date"]),
+				UnitName:   fmt.Sprintf("%v", targetRow["unit_name"]),
+				Conflict:   make([]ConflictSourceInfo, 0, len(fileConflicts)),
 			}
 
-			if sourceRow != nil {
-				key := fmt.Sprintf("%v_%v", sourceRow["credit_code"], sourceRow["stat_date"])
-
-				// 查找对应的目标数据
-				if targetRow, exists := targetDataMap[key]; exists {
-					// 检查是否已经存在相同冲突键的冲突详情
-					var existingConflict *ConflictDetail
-					for i := range conflictInfo.Conflicts {
-						if conflictInfo.Conflicts[i].CreditCode == fmt.Sprintf("%v", targetRow["credit_code"]) &&
-							conflictInfo.Conflicts[i].StatDate == fmt.Sprintf("%v", targetRow["stat_date"]) {
-							existingConflict = &conflictInfo.Conflicts[i]
-							break
-						}
-					}
-
-					if existingConflict != nil {
-						// 添加到现有冲突详情中
-						existingConflict.Conflict = append(existingConflict.Conflict, conflict)
-					} else {
-						// 创建新的冲突详情
-						conflictDetail := ConflictDetail{
-							ObjId:      fmt.Sprintf("%v", targetRow["obj_id"]),
-							CreditCode: fmt.Sprintf("%v", targetRow["credit_code"]),
-							StatDate:   fmt.Sprintf("%v", targetRow["stat_date"]),
-							UnitName:   fmt.Sprintf("%v", targetRow["unit_name"]),
-							Conflict:   []ConflictSourceInfo{conflict},
-						}
-						conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
-					}
-				}
+			// 将文件冲突信息添加到冲突详情中
+			for _, fileConflict := range fileConflicts {
+				conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
 			}
+
+			conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
 		}
 	}
 
@@ -693,7 +651,7 @@ func (a *App) checkTable3Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 	var nonConflictData []map[string]interface{}
 
 	// 获取目标数据库中的表3数据
-	targetQuery := `SELECT obj_id, project_code, document_number, project_name, construction_unit, province_name, city_name, country_name 
+	targetQuery := `SELECT obj_id, project_code, document_number, project_name
 					FROM fixed_assets_investment_project`
 	targetResult, err := targetDb.Query(targetQuery)
 	if err != nil {
@@ -711,9 +669,12 @@ func (a *App) checkTable3Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 		}
 	}
 
-	// 按文件路径分组存储冲突信息
-	fileConflictMap := make(map[string][]ConflictSourceInfo) // key: filePath, value: conflict sources
+	fmt.Printf("表3目标数据映射构建完成，共 %d 条记录\n", len(targetDataMap))
+
+	// 2. 遍历每个源数据库，查询源数据并检查冲突
 	fileNamesSet := make(map[string]bool)
+	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
+	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo)
 	// 存储每个文件的源数据，避免重复查询
 	fileSourceDataMap := make(map[string][]map[string]interface{}) // key: filePath, value: source data
 
@@ -734,94 +695,65 @@ func (a *App) checkTable3Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 				// 保存源数据，避免重复查询
 				fileSourceDataMap[filePath] = data
 
-				// 存储当前文件的冲突信息
-				var currentFileConflicts []ConflictSourceInfo
-				var currentFileNonConflictData []map[string]interface{}
-
-				// 遍历源数据，只检查与目标数据库的冲突，不处理源数据内部的重复
+				// 遍历源数据，检查与目标数据库的冲突
 				for _, row := range data {
 					key := fmt.Sprintf("%v_%v", row["project_code"], row["document_number"])
 					objId := fmt.Sprintf("%v", row["obj_id"])
 
-					// 只检查是否与目标数据冲突，不检查源数据内部重复
+					// 检查是否与目标数据冲突
 					if _, exists := targetDataMap[key]; exists {
-						// 添加到当前文件的冲突列表
-						currentFileConflicts = append(currentFileConflicts, ConflictSourceInfo{
-							FilePath:  filePath,
-							FileName:  sourceFileName,
-							TableType: "table3",
-							ObjIds:    []string{objId},
-						})
+						// 如果冲突键不存在，创建新的映射
+						if _, exists := conflictKeyMap[key]; !exists {
+							conflictKeyMap[key] = make(map[string]ConflictSourceInfo)
+						}
+
+						// 检查该文件是否已经为这个冲突键创建了记录
+						if existingConflict, exists := conflictKeyMap[key][filePath]; exists {
+							// 如果文件已存在，添加新的obj_id
+							existingConflict.ObjIds = append(existingConflict.ObjIds, objId)
+							conflictKeyMap[key][filePath] = existingConflict
+						} else {
+							// 创建新的冲突源信息
+							conflictKeyMap[key][filePath] = ConflictSourceInfo{
+								FilePath:  filePath,
+								FileName:  sourceFileName,
+								TableType: "table3",
+								ObjIds:    []string{objId},
+							}
+						}
 					} else {
-						// 没有冲突，直接添加到非冲突数据（包括源数据内部的重复）
-						currentFileNonConflictData = append(currentFileNonConflictData, row)
+						// 没有冲突，直接添加到非冲突数据
+						nonConflictData = append(nonConflictData, row)
 					}
 				}
-
-				// 将当前文件的冲突信息存储到文件冲突映射中
-				if len(currentFileConflicts) > 0 {
-					fileConflictMap[filePath] = currentFileConflicts
-				}
-
-				// 将当前文件的非冲突数据添加到总非冲突数据中
-				nonConflictData = append(nonConflictData, currentFileNonConflictData...)
 			}
 		}
 	}
 
 	// 构建冲突详情，按文件分组，使用已保存的源数据
-	for filePath, conflicts := range fileConflictMap {
-		// 获取该文件的源数据
-		sourceData, exists := fileSourceDataMap[filePath]
-		if !exists {
+	for conflictKey, fileConflicts := range conflictKeyMap {
+		// 解析冲突键
+		parts := strings.Split(conflictKey, "_")
+		if len(parts) != 2 {
 			continue
 		}
-
-		// 为每个文件创建一个冲突详情
-		for _, conflict := range conflicts {
-			// 从冲突记录中获取冲突键信息
-			objId := conflict.ObjIds[0]
-
-			// 从已保存的源数据中查找这条记录，避免重复查询数据库
-			var sourceRow map[string]interface{}
-			for _, row := range sourceData {
-				if fmt.Sprintf("%v", row["obj_id"]) == objId {
-					sourceRow = row
-					break
-				}
+		// 查找对应的目标数据
+		if targetRow, exists := targetDataMap[conflictKey]; exists {
+			// 创建冲突详情
+			conflictDetail := ConflictDetail{
+				ObjId:          fmt.Sprintf("%v", targetRow["obj_id"]),
+				ProjectName:    fmt.Sprintf("%v", targetRow["project_name"]),
+				ProjectCode:    fmt.Sprintf("%v", targetRow["project_code"]),
+				DocumentNumber: fmt.Sprintf("%v", targetRow["document_number"]),
+				Conflict:       make([]ConflictSourceInfo, 0, len(fileConflicts)),
 			}
 
-			if sourceRow != nil {
-				key := fmt.Sprintf("%v_%v", sourceRow["project_code"], sourceRow["document_number"])
-
-				// 查找对应的目标数据
-				if targetRow, exists := targetDataMap[key]; exists {
-					// 检查是否已经存在相同冲突键的冲突详情
-					var existingConflict *ConflictDetail
-					for i := range conflictInfo.Conflicts {
-						if conflictInfo.Conflicts[i].ProjectCode == fmt.Sprintf("%v", targetRow["project_code"]) &&
-							conflictInfo.Conflicts[i].DocumentNumber == fmt.Sprintf("%v", targetRow["document_number"]) {
-							existingConflict = &conflictInfo.Conflicts[i]
-							break
-						}
-					}
-
-					if existingConflict != nil {
-						// 添加到现有冲突详情中
-						existingConflict.Conflict = append(existingConflict.Conflict, conflict)
-					} else {
-						// 创建新的冲突详情
-						conflictDetail := ConflictDetail{
-							ObjId:          fmt.Sprintf("%v", targetRow["obj_id"]),
-							ProjectName:    fmt.Sprintf("%v", targetRow["project_name"]),
-							ProjectCode:    fmt.Sprintf("%v", targetRow["project_code"]),
-							DocumentNumber: fmt.Sprintf("%v", targetRow["document_number"]),
-							Conflict:       []ConflictSourceInfo{conflict},
-						}
-						conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
-					}
-				}
+			// 将文件冲突信息添加到冲突详情中
+			for _, fileConflict := range fileConflicts {
+				conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
 			}
+
+			conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
 		}
 	}
 
@@ -849,7 +781,7 @@ func (a *App) checkAttachment2Conflicts(targetDb *db.Database, sourceDbs []*db.D
 	var nonConflictData []map[string]interface{}
 
 	// 获取目标数据库中的附件2数据
-	targetQuery := `SELECT obj_id, province_name, city_name, country_name, stat_date, unit_name, unit_level 
+	targetQuery := `SELECT obj_id, province_name, city_name, country_name, stat_date
 					FROM coal_consumption_report`
 	targetResult, err := targetDb.Query(targetQuery)
 	if err != nil {
@@ -867,9 +799,10 @@ func (a *App) checkAttachment2Conflicts(targetDb *db.Database, sourceDbs []*db.D
 		}
 	}
 
-	// 按文件路径分组存储冲突信息
-	fileConflictMap := make(map[string][]ConflictSourceInfo) // key: filePath, value: conflict sources
+	// 2. 遍历每个源数据库，查询源数据并检查冲突
 	fileNamesSet := make(map[string]bool)
+	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
+	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo)
 	// 存储每个文件的源数据，避免重复查询
 	fileSourceDataMap := make(map[string][]map[string]interface{}) // key: filePath, value: source data
 
@@ -890,97 +823,66 @@ func (a *App) checkAttachment2Conflicts(targetDb *db.Database, sourceDbs []*db.D
 				// 保存源数据，避免重复查询
 				fileSourceDataMap[filePath] = data
 
-				// 存储当前文件的冲突信息
-				var currentFileConflicts []ConflictSourceInfo
-				var currentFileNonConflictData []map[string]interface{}
-
-				// 遍历源数据，只检查与目标数据库的冲突，不处理源数据内部的重复
+				// 遍历源数据，检查与目标数据库的冲突
 				for _, row := range data {
 					key := fmt.Sprintf("%v_%v_%v_%v", row["province_name"], row["city_name"], row["country_name"], row["stat_date"])
 					objId := fmt.Sprintf("%v", row["obj_id"])
 
-					// 只检查是否与目标数据冲突，不检查源数据内部重复
+					// 检查是否与目标数据冲突
 					if _, exists := targetDataMap[key]; exists {
-						// 添加到当前文件的冲突列表
-						currentFileConflicts = append(currentFileConflicts, ConflictSourceInfo{
-							FilePath:  filePath,
-							FileName:  sourceFileName,
-							TableType: "attachment2",
-							ObjIds:    []string{objId},
-						})
+						// 如果冲突键不存在，创建新的映射
+						if _, exists := conflictKeyMap[key]; !exists {
+							conflictKeyMap[key] = make(map[string]ConflictSourceInfo)
+						}
+
+						// 检查该文件是否已经为这个冲突键创建了记录
+						if existingConflict, exists := conflictKeyMap[key][filePath]; exists {
+							// 如果文件已存在，添加新的obj_id
+							existingConflict.ObjIds = append(existingConflict.ObjIds, objId)
+							conflictKeyMap[key][filePath] = existingConflict
+						} else {
+							// 创建新的冲突源信息
+							conflictKeyMap[key][filePath] = ConflictSourceInfo{
+								FilePath:  filePath,
+								FileName:  sourceFileName,
+								TableType: "attachment2",
+								ObjIds:    []string{objId},
+							}
+						}
 					} else {
-						// 没有冲突，直接添加到非冲突数据（包括源数据内部的重复）
-						currentFileNonConflictData = append(currentFileNonConflictData, row)
+						// 没有冲突，直接添加到非冲突数据
+						nonConflictData = append(nonConflictData, row)
 					}
 				}
-
-				// 将当前文件的冲突信息存储到文件冲突映射中
-				if len(currentFileConflicts) > 0 {
-					fileConflictMap[filePath] = currentFileConflicts
-				}
-
-				// 将当前文件的非冲突数据添加到总非冲突数据中
-				nonConflictData = append(nonConflictData, currentFileNonConflictData...)
 			}
 		}
 	}
 
-	// 构建冲突详情，按文件分组，使用已保存的源数据
-	for filePath, conflicts := range fileConflictMap {
-		// 获取该文件的源数据
-		sourceData, exists := fileSourceDataMap[filePath]
-		if !exists {
+	// 3. 构建冲突详情，按冲突键分组
+	for conflictKey, fileConflicts := range conflictKeyMap {
+		// 解析冲突键
+		parts := strings.Split(conflictKey, "_")
+		if len(parts) != 4 {
 			continue
 		}
-
-		// 为每个文件创建一个冲突详情
-		for _, conflict := range conflicts {
-			// 从冲突记录中获取冲突键信息
-			objId := conflict.ObjIds[0]
-
-			// 从已保存的源数据中查找这条记录，避免重复查询数据库
-			var sourceRow map[string]interface{}
-			for _, row := range sourceData {
-				if fmt.Sprintf("%v", row["obj_id"]) == objId {
-					sourceRow = row
-					break
-				}
+		// 查找对应的目标数据
+		if targetRow, exists := targetDataMap[conflictKey]; exists {
+			// 创建冲突详情
+			conflictDetail := ConflictDetail{
+				ObjId:        fmt.Sprintf("%v", targetRow["obj_id"]),
+				ProvinceName: fmt.Sprintf("%v", targetRow["province_name"]),
+				CityName:     fmt.Sprintf("%v", targetRow["city_name"]),
+				CountryName:  fmt.Sprintf("%v", targetRow["country_name"]),
+				StatDate:     fmt.Sprintf("%v", targetRow["stat_date"]),
+				Conflict:     make([]ConflictSourceInfo, 0, len(fileConflicts)),
 			}
 
-			if sourceRow != nil {
-				key := fmt.Sprintf("%v_%v_%v_%v", sourceRow["province_name"], sourceRow["city_name"], sourceRow["country_name"], sourceRow["stat_date"])
-
-				// 查找对应的目标数据
-				if targetRow, exists := targetDataMap[key]; exists {
-					// 检查是否已经存在相同冲突键的冲突详情
-					var existingConflict *ConflictDetail
-					for i := range conflictInfo.Conflicts {
-						if conflictInfo.Conflicts[i].ProvinceName == fmt.Sprintf("%v", targetRow["province_name"]) &&
-							conflictInfo.Conflicts[i].CityName == fmt.Sprintf("%v", targetRow["city_name"]) &&
-							conflictInfo.Conflicts[i].CountryName == fmt.Sprintf("%v", targetRow["country_name"]) &&
-							conflictInfo.Conflicts[i].StatDate == fmt.Sprintf("%v", targetRow["stat_date"]) {
-							existingConflict = &conflictInfo.Conflicts[i]
-							break
-						}
-					}
-
-					if existingConflict != nil {
-						// 添加到现有冲突详情中
-						existingConflict.Conflict = append(existingConflict.Conflict, conflict)
-					} else {
-						// 创建新的冲突详情
-						conflictDetail := ConflictDetail{
-							ObjId:        fmt.Sprintf("%v", targetRow["obj_id"]),
-							ProvinceName: fmt.Sprintf("%v", targetRow["province_name"]),
-							CityName:     fmt.Sprintf("%v", targetRow["city_name"]),
-							CountryName:  fmt.Sprintf("%v", targetRow["country_name"]),
-							StatDate:     fmt.Sprintf("%v", targetRow["stat_date"]),
-							Conflict:     []ConflictSourceInfo{conflict},
-						}
-						conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
-					}
-				}
+			// 将文件冲突信息添加到冲突详情中
+			for _, fileConflict := range fileConflicts {
+				conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
 			}
+
+			conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
 		}
 	}
 
@@ -997,7 +899,7 @@ func (a *App) checkAttachment2Conflicts(targetDb *db.Database, sourceDbs []*db.D
 }
 
 // mergeTable1DataWithTx 使用事务合并表1数据
-func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]interface{}) MergeResult {
+func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]interface{}, sourceDbs []*db.Database, originalSourcePaths []string) MergeResult {
 	fmt.Printf("=== 进入表1合并函数，数据数量: %d ===\n", len(nonConflictData))
 	result := MergeResult{}
 
@@ -1006,14 +908,14 @@ func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]int
 		return result
 	}
 
-	// 直接插入没有冲突的数据
+	// 1. 插入主表数据
 	insertQuery := `INSERT INTO enterprise_coal_consumption_main (
-		obj_id, unit_name, stat_date, sg_code, tel, credit_code, create_time,
+		obj_id, unit_name, stat_date, sg_code, tel, credit_code,
 		trade_a, trade_b, trade_c, province_code, province_name, city_code, city_name,
 		country_code, country_name, annual_energy_equivalent_value, annual_energy_equivalent_cost,
 		annual_raw_material_energy, annual_total_coal_consumption, annual_total_coal_products,
 		annual_raw_coal, annual_raw_coal_consumption, annual_clean_coal_consumption,
-		annual_other_coal_consumption, annual_coke_consumption, create_user, is_confirm, is_check
+		annual_other_coal_consumption, annual_coke_consumption, is_confirm, is_check, create_time, create_user
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	fmt.Printf("表1没有冲突的数据数量: %d\n", len(nonConflictData))
@@ -1024,20 +926,99 @@ func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]int
 
 		// 插入数据
 		_, err := tx.Exec(insertQuery,
-			row["obj_id"], row["unit_name"], row["stat_date"], row["sg_code"], row["tel"], row["credit_code"], row["create_time"],
+			row["obj_id"], row["unit_name"], row["stat_date"], row["sg_code"], row["tel"], row["credit_code"],
 			row["trade_a"], row["trade_b"], row["trade_c"], row["province_code"], row["province_name"], row["city_code"], row["city_name"],
 			row["country_code"], row["country_name"], row["annual_energy_equivalent_value"], row["annual_energy_equivalent_cost"],
 			row["annual_raw_material_energy"], row["annual_total_coal_consumption"], row["annual_total_coal_products"],
 			row["annual_raw_coal"], row["annual_raw_coal_consumption"], row["annual_clean_coal_consumption"],
-			row["annual_other_coal_consumption"], row["annual_coke_consumption"], row["create_user"], row["is_confirm"], row["is_check"])
+			row["annual_other_coal_consumption"], row["annual_coke_consumption"], row["is_confirm"], row["is_check"], row["create_time"], row["create_user"])
 
 		if err != nil {
 			result.ErrorCount++
-			result.Message = "插入数据失败: " + err.Error()
-			fmt.Printf("表1插入失败: %v\n", err)
+			result.Message = "插入主表数据失败: " + err.Error()
+			fmt.Printf("表1主表插入失败: %v\n", err)
 		} else {
 			result.SuccessCount++
-			fmt.Printf("表1插入成功: 第 %d 条\n", i+1)
+			fmt.Printf("表1主表插入成功: 第 %d 条\n", i+1)
+		}
+	}
+
+	// 2. 插入扩展表数据
+	// 2.1 插入主要用途情况表
+	usageInsertQuery := `INSERT INTO enterprise_coal_consumption_usage (
+		obj_id, fk_id, stat_date, create_time, main_usage, specific_usage, input_variety, input_unit,
+		input_quantity, output_energy_types, output_quantity, measurement_unit, remarks, row_no, is_confirm, is_check
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	// 2.2 插入重点耗煤装置情况表
+	equipInsertQuery := `INSERT INTO enterprise_coal_consumption_equip (
+		obj_id, fk_id, stat_date, create_time, equip_type, equip_no, total_runtime, design_life,
+		energy_efficiency, capacity_unit, capacity, coal_type, annual_coal_consumption, row_no, is_confirm, is_check
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	// 遍历每个源数据库，查询并插入扩展表数据
+	for i, sourceDb := range sourceDbs {
+		filePath := originalSourcePaths[i]
+		sourceFileName := filepath.Base(filePath)
+
+		fmt.Printf("处理源文件 %s 的扩展表数据\n", sourceFileName)
+
+		// 根据主表的credit_code查询对应的扩展表数据
+		for _, mainRow := range nonConflictData {
+			creditCode := fmt.Sprintf("%v", mainRow["credit_code"])
+			statDate := fmt.Sprintf("%v", mainRow["stat_date"])
+
+			// 查询主要用途情况表
+			usageQuery := `SELECT * FROM enterprise_coal_consumption_usage WHERE fk_id = ?`
+			usageResult, err := sourceDb.Query(usageQuery, mainRow["obj_id"])
+			if err == nil && usageResult.Ok && usageResult.Data != nil {
+				if data, ok := usageResult.Data.([]map[string]interface{}); ok {
+					if len(data) > 0 {
+						fmt.Printf("源文件 %s 主要用途情况表数据: credit_code=%s, stat_date=%s, 数据条数=%d\n",
+							sourceFileName, creditCode, statDate, len(data))
+						for _, row := range data {
+							_, err := tx.Exec(usageInsertQuery,
+								row["obj_id"], row["fk_id"], row["stat_date"], row["create_time"], row["main_usage"], row["specific_usage"],
+								row["input_variety"], row["input_unit"], row["input_quantity"], row["output_energy_types"],
+								row["output_quantity"], row["measurement_unit"], row["remarks"], row["row_no"], row["is_confirm"], row["is_check"])
+
+							if err != nil {
+								result.ErrorCount++
+								result.Message = "插入主要用途情况表数据失败: " + err.Error()
+								fmt.Printf("主要用途情况表插入失败: %v\n", err)
+							} else {
+								result.SuccessCount++
+							}
+						}
+					}
+				}
+			}
+
+			// 查询重点耗煤装置情况表
+			equipQuery := `SELECT * FROM enterprise_coal_consumption_equip WHERE fk_id = ?`
+			equipResult, err := sourceDb.Query(equipQuery, mainRow["obj_id"])
+			if err == nil && equipResult.Ok && equipResult.Data != nil {
+				if data, ok := equipResult.Data.([]map[string]interface{}); ok {
+					if len(data) > 0 {
+						fmt.Printf("源文件 %s 重点耗煤装置情况表数据: credit_code=%s, stat_date=%s, 数据条数=%d\n",
+							sourceFileName, creditCode, statDate, len(data))
+						for _, row := range data {
+							_, err := tx.Exec(equipInsertQuery,
+								row["obj_id"], row["fk_id"], row["stat_date"], row["create_time"], row["equip_type"], row["equip_no"],
+								row["total_runtime"], row["design_life"], row["energy_efficiency"], row["capacity_unit"],
+								row["capacity"], row["coal_type"], row["annual_coal_consumption"], row["row_no"], row["is_confirm"], row["is_check"])
+
+							if err != nil {
+								result.ErrorCount++
+								result.Message = "插入重点耗煤装置情况表数据失败: " + err.Error()
+								fmt.Printf("重点耗煤装置情况表插入失败: %v\n", err)
+							} else {
+								result.SuccessCount++
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1103,7 +1084,7 @@ func (a *App) mergeTable3DataWithTx(tx *sql.Tx, nonConflictData []map[string]int
 		sce_total_coal_consumption, sce_coal_consumption, sce_coke_consumption, sce_blue_coke_consumption,
 		is_substitution, substitution_source, substitution_quantity, pq_annual_coal_quantity, sce_annual_coal_quantity,
 		create_time, create_user, is_confirm, is_check
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	for _, row := range nonConflictData {
 		// 使用源数据的obj_id、create_time、create_user，不生成新的
@@ -1174,13 +1155,13 @@ func (a *App) mergeAttachment2DataWithTx(tx *sql.Tx, nonConflictData []map[strin
 }
 
 // 合并冲突数据
-func (a *App) MergeConflictData(dbFilePath string, conflicts map[string][]ConflictSourceInfo) db.QueryResult {
+func (a *App) MergeConflictData(dbFilePath string, conflictData []ConflictData) db.QueryResult {
 	// 使用包装函数来处理异常
-	return a.mergeConflictDataWithRecover(dbFilePath, conflicts)
+	return a.mergeConflictDataWithRecover(dbFilePath, conflictData)
 }
 
 // mergeConflictDataWithRecover 带异常处理的合并冲突数据函数
-func (a *App) mergeConflictDataWithRecover(dbFilePath string, conflicts map[string][]ConflictSourceInfo) db.QueryResult {
+func (a *App) mergeConflictDataWithRecover(dbFilePath string, conflictData []ConflictData) db.QueryResult {
 	// 添加异常处理，防止函数崩溃
 	defer func() {
 		if r := recover(); r != nil {
@@ -1190,7 +1171,7 @@ func (a *App) mergeConflictDataWithRecover(dbFilePath string, conflicts map[stri
 
 	result := db.QueryResult{}
 
-	if len(conflicts) == 0 {
+	if len(conflictData) == 0 {
 		result.Ok = false
 		result.Message = "没有冲突数据需要合并"
 		return result
@@ -1224,9 +1205,9 @@ func (a *App) mergeConflictDataWithRecover(dbFilePath string, conflicts map[stri
 	totalErrorCount := 0
 	tableResults := make(map[string]map[string]interface{})
 
-	// 处理所有表的冲突数据
-	for tableType, tableConflicts := range conflicts {
-		if len(tableConflicts) == 0 {
+	// 处理所有冲突数据
+	for _, conflict := range conflictData {
+		if len(conflict.Conditions) == 0 {
 			continue
 		}
 
@@ -1234,22 +1215,22 @@ func (a *App) mergeConflictDataWithRecover(dbFilePath string, conflicts map[stri
 		var tableErr error
 
 		// 根据表类型处理冲突数据
-		switch tableType {
+		switch conflict.TableType {
 		case "table1":
-			successCount, errorCount, tableErr = a.mergeTable1ConflictData(tx, tableConflicts)
+			successCount, errorCount, tableErr = a.mergeTable1ConflictDataNew(tx, conflict)
 		case "table2":
-			successCount, errorCount, tableErr = a.mergeTable2ConflictData(tx, tableConflicts)
+			successCount, errorCount, tableErr = a.mergeTable2ConflictDataNew(tx, conflict)
 		case "table3":
-			successCount, errorCount, tableErr = a.mergeTable3ConflictData(tx, tableConflicts)
+			successCount, errorCount, tableErr = a.mergeTable3ConflictDataNew(tx, conflict)
 		case "attachment2":
-			successCount, errorCount, tableErr = a.mergeAttachment2ConflictData(tx, tableConflicts)
+			successCount, errorCount, tableErr = a.mergeAttachment2ConflictDataNew(tx, conflict)
 		default:
 			// 跳过不支持的表类型
 			continue
 		}
 
 		// 记录每个表的结果
-		tableResults[tableType] = map[string]interface{}{
+		tableResults[conflict.TableType] = map[string]interface{}{
 			"successCount": successCount,
 			"errorCount":   errorCount,
 			"error":        tableErr,
@@ -1260,7 +1241,7 @@ func (a *App) mergeConflictDataWithRecover(dbFilePath string, conflicts map[stri
 
 		// 如果某个表处理出错，记录错误但不中断整个事务
 		if tableErr != nil {
-			err = fmt.Errorf("表 %s 处理失败: %v", tableType, tableErr)
+			err = fmt.Errorf("表 %s 处理失败: %v", conflict.TableType, tableErr)
 		}
 	}
 
@@ -1283,72 +1264,256 @@ func (a *App) mergeConflictDataWithRecover(dbFilePath string, conflicts map[stri
 	return result
 }
 
-// mergeTable1ConflictData 合并表1冲突数据
-func (a *App) mergeTable1ConflictData(tx *sql.Tx, conflicts []ConflictSourceInfo) (int, int, error) {
+// mergeTable1ConflictDataNew 合并表1冲突数据（新版本）
+func (a *App) mergeTable1ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int, int, error) {
 	successCount := 0
 	errorCount := 0
 
-	for _, conflict := range conflicts {
-		// 打开源数据库
-		sourceDb, err := db.NewDatabase(conflict.FilePath, DB_PASSWORD)
+	// 打开源数据库
+	sourceDb, err := db.NewDatabase(conflict.FilePath, DB_PASSWORD)
+	if err != nil {
+		return 0, 0, fmt.Errorf("打开源数据库失败: %v", err)
+	}
+	defer sourceDb.Close()
+
+	// 处理每个冲突条件
+	for _, condition := range conflict.Conditions {
+		// 先查询目标表中符合条件的所有obj_id
+		targetObjIdsQuery := `SELECT obj_id FROM enterprise_coal_consumption_main WHERE credit_code = ? AND stat_date = ?`
+		targetRows, err := tx.Query(targetObjIdsQuery, condition.CreditCode, condition.StatDate)
 		if err != nil {
+			fmt.Printf("查询目标表obj_id失败: credit_code=%s, stat_date=%s, error=%v\n", condition.CreditCode, condition.StatDate, err)
 			errorCount++
 			continue
 		}
-		defer sourceDb.Close()
+		defer targetRows.Close()
 
-		// 查询源数据
-		query := `SELECT * FROM enterprise_coal_consumption_main WHERE obj_id IN (`
-		placeholders := strings.Repeat("?,", len(conflict.ObjIds))
-		placeholders = placeholders[:len(placeholders)-1] // 移除最后一个逗号
-		query += placeholders + ")"
-
-		args := make([]interface{}, len(conflict.ObjIds))
-		for i, objId := range conflict.ObjIds {
-			args[i] = objId
+		var targetObjIds []string
+		for targetRows.Next() {
+			var targetObjId string
+			err = targetRows.Scan(&targetObjId)
+			if err != nil {
+				fmt.Printf("扫描目标表obj_id失败: %v\n", err)
+				errorCount++
+				continue
+			}
+			targetObjIds = append(targetObjIds, targetObjId)
 		}
 
-		result, err := sourceDb.Query(query, args...)
+		if len(targetObjIds) == 0 {
+			fmt.Printf("未找到目标表对应的obj_id: credit_code=%s, stat_date=%s\n", condition.CreditCode, condition.StatDate)
+			continue
+		}
+
+		fmt.Printf("删除扩展表数据: credit_code=%s, stat_date=%s, obj_ids=%v\n", condition.CreditCode, condition.StatDate, targetObjIds)
+		// 根据查询到的obj_id删除扩展表数据
+		for _, targetObjId := range targetObjIds {
+			// 删除主要用途情况表数据
+			deleteUsageQuery := `DELETE FROM enterprise_coal_consumption_usage WHERE fk_id = ?`
+			_, err = tx.Exec(deleteUsageQuery, targetObjId)
+			if err != nil {
+				fmt.Printf("删除主要用途情况表数据失败: fk_id=%s, error=%v\n", targetObjId, err)
+				errorCount++
+				continue
+			}
+
+			// 删除重点耗煤装置情况表数据
+			deleteEquipQuery := `DELETE FROM enterprise_coal_consumption_equip WHERE fk_id = ?`
+			_, err = tx.Exec(deleteEquipQuery, targetObjId)
+			if err != nil {
+				fmt.Printf("删除重点耗煤装置情况表数据失败: fk_id=%s, error=%v\n", targetObjId, err)
+				errorCount++
+				continue
+			}
+		}
+
+		// 删除主表数据
+		deleteMainQuery := `DELETE FROM enterprise_coal_consumption_main WHERE credit_code = ? AND stat_date = ?`
+		_, err = tx.Exec(deleteMainQuery, condition.CreditCode, condition.StatDate)
 		if err != nil {
+			fmt.Printf("删除主表记录失败: credit_code=%s, stat_date=%s, error=%v\n", condition.CreditCode, condition.StatDate, err)
+			errorCount++
+			continue
+		}
+
+		// 查询源数据并插入
+		query := `SELECT * FROM enterprise_coal_consumption_main WHERE credit_code = ? AND stat_date = ?`
+		result, err := sourceDb.Query(query, condition.CreditCode, condition.StatDate)
+		if err != nil {
+			fmt.Printf("查询源数据失败: credit_code=%s, stat_date=%s, error=%v\n", condition.CreditCode, condition.StatDate, err)
 			errorCount++
 			continue
 		}
 
 		if !result.Ok || result.Data == nil {
-			errorCount++
+			fmt.Printf("查询源数据失败 mergeTable1ConflictDataNew1: credit_code=%s, stat_date=%s, result=%v\n", condition.CreditCode, condition.StatDate, result)
 			continue
 		}
 
 		data, ok := result.Data.([]map[string]interface{})
 		if !ok {
-			errorCount++
 			continue
 		}
 
-		// 更新目标数据库中的数据
+		// 插入源数据到目标表
 		for _, row := range data {
-			// 更新数据，使用obj_id进行精确更新，不更新create_time、create_user、obj_id
-			updateQuery := `UPDATE enterprise_coal_consumption_main SET 
-				unit_name = ?, stat_date = ?, sg_code = ?, tel = ?, credit_code = ?,
-				trade_a = ?, trade_b = ?, trade_c = ?, province_code = ?, province_name = ?, city_code = ?, city_name = ?,
-				country_code = ?, country_name = ?, annual_energy_equivalent_value = ?, annual_energy_equivalent_cost = ?,
-				annual_raw_material_energy = ?, annual_total_coal_consumption = ?, annual_total_coal_products = ?,
-				annual_raw_coal = ?, annual_raw_coal_consumption = ?, annual_clean_coal_consumption = ?,
-				annual_other_coal_consumption = ?, annual_coke_consumption = ?, is_confirm = ?, is_check = ?
-				WHERE obj_id = ?`
+			// 完全按照源表数据插入，包括obj_id
+			insertQuery := `INSERT INTO enterprise_coal_consumption_main (
+				obj_id, unit_name, stat_date, sg_code, tel, credit_code,
+				trade_a, trade_b, trade_c, province_code, province_name, city_code, city_name,
+				country_code, country_name, annual_energy_equivalent_value, annual_energy_equivalent_cost,
+				annual_raw_material_energy, annual_total_coal_consumption, annual_total_coal_products,
+				annual_raw_coal, annual_raw_coal_consumption, annual_clean_coal_consumption,
+				annual_other_coal_consumption, annual_coke_consumption, is_confirm, is_check, create_time, create_user
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-			_, err := tx.Exec(updateQuery,
-				row["unit_name"], row["stat_date"], row["sg_code"], row["tel"], row["credit_code"],
+			_, execErr := tx.Exec(insertQuery,
+				row["obj_id"], row["unit_name"], row["stat_date"], row["sg_code"], row["tel"], row["credit_code"],
 				row["trade_a"], row["trade_b"], row["trade_c"], row["province_code"], row["province_name"], row["city_code"], row["city_name"],
 				row["country_code"], row["country_name"], row["annual_energy_equivalent_value"], row["annual_energy_equivalent_cost"],
 				row["annual_raw_material_energy"], row["annual_total_coal_consumption"], row["annual_total_coal_products"],
 				row["annual_raw_coal"], row["annual_raw_coal_consumption"], row["annual_clean_coal_consumption"],
-				row["annual_other_coal_consumption"], row["annual_coke_consumption"], row["is_confirm"], row["is_check"],
-				row["obj_id"])
+				row["annual_other_coal_consumption"], row["annual_coke_consumption"], row["is_confirm"], row["is_check"], row["create_time"], row["create_user"])
 
-			if err != nil {
+			if execErr != nil {
+				fmt.Printf("插入主表数据失败: obj_id=%s, stat_date=%s, error=%v\n", row["obj_id"], row["stat_date"], execErr)
 				errorCount++
 			} else {
+				fmt.Printf("插入主表数据成功: obj_id=%s, stat_date=%s\n", row["obj_id"], row["stat_date"])
+				successCount++
+			}
+
+			// 插入扩展表数据
+			// 插入主要用途情况表数据
+			usageQuery := `SELECT * FROM enterprise_coal_consumption_usage WHERE fk_id = ?`
+			usageResult, err := sourceDb.Query(usageQuery, row["obj_id"])
+			if err == nil && usageResult.Ok && usageResult.Data != nil {
+				if usageData, ok := usageResult.Data.([]map[string]interface{}); ok {
+					if len(usageData) > 0 {
+						fmt.Printf("插入主要用途情况表数据: obj_id=%s, 数据条数=%d\n", row["obj_id"], len(usageData))
+
+						usageInsertQuery := `INSERT INTO enterprise_coal_consumption_usage (
+							obj_id, fk_id, stat_date, create_time, main_usage, specific_usage, input_variety, input_unit,
+							input_quantity, output_energy_types, output_quantity, measurement_unit, remarks, row_no, is_confirm, is_check
+						) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+						for _, usageRow := range usageData {
+							_, err := tx.Exec(usageInsertQuery,
+								usageRow["obj_id"], row["obj_id"], usageRow["stat_date"], usageRow["create_time"], usageRow["main_usage"], usageRow["specific_usage"],
+								usageRow["input_variety"], usageRow["input_unit"], usageRow["input_quantity"], usageRow["output_energy_types"],
+								usageRow["output_quantity"], usageRow["measurement_unit"], usageRow["remarks"], usageRow["row_no"], usageRow["is_confirm"], usageRow["is_check"])
+
+							if err != nil {
+								fmt.Printf("插入主要用途情况表数据失败: %v\n", err)
+								errorCount++
+							} else {
+								successCount++
+							}
+						}
+					}
+				}
+			}
+
+			// 插入重点耗煤装置情况表数据
+			equipQuery := `SELECT * FROM enterprise_coal_consumption_equip WHERE fk_id = ?`
+			equipResult, err := sourceDb.Query(equipQuery, row["obj_id"])
+			if err == nil && equipResult.Ok && equipResult.Data != nil {
+				if equipData, ok := equipResult.Data.([]map[string]interface{}); ok {
+					if len(equipData) > 0 {
+						fmt.Printf("插入重点耗煤装置情况表数据: obj_id=%s, 数据条数=%d\n", row["obj_id"], len(equipData))
+
+						equipInsertQuery := `INSERT INTO enterprise_coal_consumption_equip (
+							obj_id, fk_id, stat_date, create_time, equip_type, equip_no, total_runtime, design_life,
+							energy_efficiency, capacity_unit, capacity, coal_type, annual_coal_consumption, row_no, is_confirm, is_check
+						) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+						for _, equipRow := range equipData {
+							_, err := tx.Exec(equipInsertQuery,
+								equipRow["obj_id"], row["obj_id"], equipRow["stat_date"], equipRow["create_time"], equipRow["equip_type"], equipRow["equip_no"],
+								equipRow["total_runtime"], equipRow["design_life"], equipRow["energy_efficiency"], equipRow["capacity_unit"],
+								equipRow["capacity"], equipRow["coal_type"], equipRow["annual_coal_consumption"], equipRow["row_no"], equipRow["is_confirm"], equipRow["is_check"])
+
+							if err != nil {
+								fmt.Printf("插入重点耗煤装置情况表数据失败: %v\n", err)
+								errorCount++
+							} else {
+								successCount++
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return successCount, errorCount, nil
+}
+
+// mergeTable2ConflictDataNew 合并表2冲突数据（新版本）
+func (a *App) mergeTable2ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int, int, error) {
+	successCount := 0
+	errorCount := 0
+
+	// 打开源数据库
+	sourceDb, err := db.NewDatabase(conflict.FilePath, DB_PASSWORD)
+	if err != nil {
+		return 0, 0, fmt.Errorf("打开源数据库失败: %v", err)
+	}
+	defer sourceDb.Close()
+
+	// 处理每个冲突条件
+	for _, condition := range conflict.Conditions {
+		// 删除目标表中符合条件的所有记录
+		deleteQuery := `DELETE FROM critical_coal_equipment_consumption WHERE credit_code = ? AND stat_date = ?`
+		_, err := tx.Exec(deleteQuery, condition.CreditCode, condition.StatDate)
+		if err != nil {
+			fmt.Printf("删除目标表记录失败 mergeTable2ConflictDataNew1: credit_code=%s, stat_date=%s, error=%v\n", condition.CreditCode, condition.StatDate, err)
+			errorCount++
+			continue
+		}
+
+		// 查询源数据并插入
+		query := `SELECT * FROM critical_coal_equipment_consumption WHERE credit_code = ? AND stat_date = ?`
+		result, err := sourceDb.Query(query, condition.CreditCode, condition.StatDate)
+		if err != nil {
+			fmt.Printf("查询源数据失败 mergeTable2ConflictDataNew2: credit_code=%s, stat_date=%s, error=%v\n", condition.CreditCode, condition.StatDate, err)
+			errorCount++
+			continue
+		}
+
+		if !result.Ok || result.Data == nil {
+			fmt.Printf("查询源数据失败 mergeTable2ConflictDataNew3: credit_code=%s, stat_date=%s, result=%v\n", condition.CreditCode, condition.StatDate, result)
+			continue
+		}
+
+		data, ok := result.Data.([]map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// 插入源数据到目标表
+		for _, row := range data {
+			// 完全按照源表数据插入，包括obj_id
+			insertQuery := `INSERT INTO critical_coal_equipment_consumption (
+				obj_id, stat_date, create_time, sg_code, unit_name, credit_code, trade_a, trade_b, trade_c, trade_d,
+				province_code, province_name, city_code, city_name, country_code, country_name, unit_addr,
+				coal_type, coal_no, usage_time, design_life, enecrgy_efficienct_bmk, capacity_unit, capacity,
+				use_info, status, annual_coal_consumption, row_no, create_user, is_confirm, is_check
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+			_, execErr := tx.Exec(insertQuery,
+				row["obj_id"], row["stat_date"], row["create_time"], row["sg_code"], row["unit_name"], row["credit_code"],
+				row["trade_a"], row["trade_b"], row["trade_c"], row["trade_d"], row["province_code"], row["province_name"],
+				row["city_code"], row["city_name"], row["country_code"], row["country_name"], row["unit_addr"],
+				row["coal_type"], row["coal_no"], row["usage_time"], row["design_life"], row["enecrgy_efficienct_bmk"],
+				row["capacity_unit"], row["capacity"], row["use_info"], row["status"], row["annual_coal_consumption"],
+				row["row_no"], row["create_user"], row["is_confirm"], row["is_check"])
+
+			if execErr != nil {
+				fmt.Printf("插入目标表记录失败 mergeTable2ConflictDataNew4: obj_id=%s, stat_date=%s, error=%v\n", row["obj_id"], row["stat_date"], execErr)
+				errorCount++
+			} else {
+				fmt.Printf("插入目标表记录成功 mergeTable2ConflictDataNew5: obj_id=%s, stat_date=%s\n", row["obj_id"], row["stat_date"])
 				successCount++
 			}
 		}
@@ -1357,144 +1522,73 @@ func (a *App) mergeTable1ConflictData(tx *sql.Tx, conflicts []ConflictSourceInfo
 	return successCount, errorCount, nil
 }
 
-// mergeTable2ConflictData 合并表2冲突数据
-func (a *App) mergeTable2ConflictData(tx *sql.Tx, conflicts []ConflictSourceInfo) (int, int, error) {
+// mergeTable3ConflictDataNew 合并表3冲突数据（新版本）
+func (a *App) mergeTable3ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int, int, error) {
 	successCount := 0
 	errorCount := 0
 
-	for _, conflict := range conflicts {
-		// 打开源数据库
-		sourceDb, err := db.NewDatabase(conflict.FilePath, DB_PASSWORD)
-		if err != nil {
-			errorCount++
-			continue
-		}
-		defer sourceDb.Close()
-
-		// 查询源数据
-		query := `SELECT * FROM critical_coal_equipment_consumption WHERE obj_id IN (`
-		placeholders := strings.Repeat("?,", len(conflict.ObjIds))
-		placeholders = placeholders[:len(placeholders)-1] // 移除最后一个逗号
-		query += placeholders + ")"
-
-		args := make([]interface{}, len(conflict.ObjIds))
-		for i, objId := range conflict.ObjIds {
-			args[i] = objId
-		}
-
-		result, err := sourceDb.Query(query, args...)
-		if err != nil {
-			errorCount++
-			continue
-		}
-
-		if !result.Ok || result.Data == nil {
-			errorCount++
-			continue
-		}
-
-		data, ok := result.Data.([]map[string]interface{})
-		if !ok {
-			errorCount++
-			continue
-		}
-
-		// 更新目标数据库中的数据
-		for _, row := range data {
-			// 更新数据，使用obj_id进行精确更新，不更新create_time、create_user、obj_id
-			updateQuery := `UPDATE critical_coal_equipment_consumption SET 
-				stat_date = ?, sg_code = ?, unit_name = ?, credit_code = ?, trade_a = ?, trade_b = ?, trade_c = ?, trade_d = ?,
-				province_code = ?, province_name = ?, city_code = ?, city_name = ?, country_code = ?, country_name = ?, unit_addr = ?,
-				coal_type = ?, coal_no = ?, usage_time = ?, design_life = ?, enecrgy_efficienct_bmk = ?, capacity_unit = ?, capacity = ?,
-				use_info = ?, status = ?, annual_coal_consumption = ?, row_no = ?, is_confirm = ?, is_check = ?
-				WHERE obj_id = ?`
-
-			_, err := tx.Exec(updateQuery,
-				row["stat_date"], row["sg_code"], row["unit_name"], row["credit_code"], row["trade_a"], row["trade_b"], row["trade_c"], row["trade_d"],
-				row["province_code"], row["province_name"], row["city_code"], row["city_name"], row["country_code"], row["country_name"], row["unit_addr"],
-				row["coal_type"], row["coal_no"], row["usage_time"], row["design_life"], row["enecrgy_efficienct_bmk"], row["capacity_unit"], row["capacity"],
-				row["use_info"], row["status"], row["annual_coal_consumption"], row["row_no"], row["is_confirm"], row["is_check"],
-				row["obj_id"])
-
-			if err != nil {
-				errorCount++
-			} else {
-				successCount++
-			}
-		}
+	// 打开源数据库
+	sourceDb, err := db.NewDatabase(conflict.FilePath, DB_PASSWORD)
+	if err != nil {
+		return 0, 0, fmt.Errorf("打开源数据库失败: %v", err)
 	}
+	defer sourceDb.Close()
 
-	return successCount, errorCount, nil
-}
-
-// mergeTable3ConflictData 合并表3冲突数据
-func (a *App) mergeTable3ConflictData(tx *sql.Tx, conflicts []ConflictSourceInfo) (int, int, error) {
-	successCount := 0
-	errorCount := 0
-
-	for _, conflict := range conflicts {
-		// 打开源数据库
-		sourceDb, err := db.NewDatabase(conflict.FilePath, DB_PASSWORD)
+	// 处理每个冲突条件
+	for _, condition := range conflict.Conditions {
+		// 删除目标表中符合条件的所有记录
+		deleteQuery := `DELETE FROM fixed_assets_investment_project WHERE project_code = ? AND document_number = ?`
+		_, err := tx.Exec(deleteQuery, condition.ProjectCode, condition.DocumentNumber)
 		if err != nil {
+			fmt.Printf("删除目标表记录失败 mergeTable3ConflictDataNew1: project_code=%s, document_number=%s, error=%v\n", condition.ProjectCode, condition.DocumentNumber, err)
 			errorCount++
 			continue
 		}
-		defer sourceDb.Close()
 
-		// 查询源数据
-		query := `SELECT * FROM fixed_assets_investment_project WHERE obj_id IN (`
-		placeholders := strings.Repeat("?,", len(conflict.ObjIds))
-		placeholders = placeholders[:len(placeholders)-1] // 移除最后一个逗号
-		query += placeholders + ")"
-
-		args := make([]interface{}, len(conflict.ObjIds))
-		for i, objId := range conflict.ObjIds {
-			args[i] = objId
-		}
-
-		result, err := sourceDb.Query(query, args...)
+		// 查询源数据并插入
+		query := `SELECT * FROM fixed_assets_investment_project WHERE project_code = ? AND document_number = ?`
+		result, err := sourceDb.Query(query, condition.ProjectCode, condition.DocumentNumber)
 		if err != nil {
+			fmt.Printf("查询源数据失败 mergeTable3ConflictDataNew2: project_code=%s, document_number=%s, error=%v\n", condition.ProjectCode, condition.DocumentNumber, err)
 			errorCount++
 			continue
 		}
 
 		if !result.Ok || result.Data == nil {
-			errorCount++
 			continue
 		}
-
 		data, ok := result.Data.([]map[string]interface{})
 		if !ok {
-			errorCount++
 			continue
 		}
 
-		// 更新目标数据库中的数据
+		// 插入源数据到目标表
 		for _, row := range data {
-			// 更新数据，使用obj_id进行精确更新，不更新create_time、create_user、obj_id
-			updateQuery := `UPDATE fixed_assets_investment_project SET 
-				stat_date = ?, sg_code = ?, project_name = ?, project_code = ?, construction_unit = ?, main_construction_content = ?,
-				unit_id = ?, province_name = ?, city_name = ?, country_name = ?, trade_a = ?, trade_c = ?, examination_approval_time = ?,
-				scheduled_time = ?, actual_time = ?, examination_authority = ?, document_number = ?, equivalent_value = ?, equivalent_cost = ?,
-				pq_total_coal_consumption = ?, pq_coal_consumption = ?, pq_coke_consumption = ?, pq_blue_coke_consumption = ?,
-				sce_total_coal_consumption = ?, sce_coal_consumption = ?, sce_coke_consumption = ?, sce_blue_coke_consumption = ?,
-				is_substitution = ?, substitution_source = ?, substitution_quantity = ?, pq_annual_coal_quantity = ?, sce_annual_coal_quantity = ?,
-				is_confirm = ?, is_check = ?
-				WHERE obj_id = ?`
+			// 完全按照源表数据插入，包括obj_id
+			insertQuery := `INSERT INTO fixed_assets_investment_project (
+				obj_id, stat_date, sg_code, project_name, project_code, construction_unit, main_construction_content,
+				unit_id, province_name, city_name, country_name, trade_a, trade_c, examination_approval_time,
+				scheduled_time, actual_time, examination_authority, document_number, equivalent_value, equivalent_cost,
+				pq_total_coal_consumption, pq_coal_consumption, pq_coke_consumption, pq_blue_coke_consumption,
+				sce_total_coal_consumption, sce_coal_consumption, sce_coke_consumption, sce_blue_coke_consumption,
+				is_substitution, substitution_source, substitution_quantity, pq_annual_coal_quantity, sce_annual_coal_quantity,
+				create_time, create_user, is_confirm, is_check
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-			_, err := tx.Exec(updateQuery,
-				row["stat_date"], row["sg_code"], row["project_name"], row["project_code"], row["construction_unit"], row["main_construction_content"],
+			_, execErr := tx.Exec(insertQuery,
+				row["obj_id"], row["stat_date"], row["sg_code"], row["project_name"], row["project_code"], row["construction_unit"], row["main_construction_content"],
 				row["unit_id"], row["province_name"], row["city_name"], row["country_name"], row["trade_a"], row["trade_c"], row["examination_approval_time"],
 				row["scheduled_time"], row["actual_time"], row["examination_authority"], row["document_number"], row["equivalent_value"], row["equivalent_cost"],
 				row["pq_total_coal_consumption"], row["pq_coal_consumption"], row["pq_coke_consumption"], row["pq_blue_coke_consumption"],
 				row["sce_total_coal_consumption"], row["sce_coal_consumption"], row["sce_coke_consumption"], row["sce_blue_coke_consumption"],
 				row["is_substitution"], row["substitution_source"], row["substitution_quantity"], row["pq_annual_coal_quantity"], row["sce_annual_coal_quantity"],
-				row["is_confirm"], row["is_check"],
-				row["obj_id"])
+				row["create_time"], row["create_user"], row["is_confirm"], row["is_check"])
 
-			if err != nil {
+			if execErr != nil {
+				fmt.Printf("插入目标表记录失败 mergeTable3ConflictDataNew3: obj_id=%s, stat_date=%s, error=%v\n", row["obj_id"], row["stat_date"], execErr)
 				errorCount++
 			} else {
+				fmt.Printf("插入目标表记录成功 mergeTable3ConflictDataNew4: obj_id=%s, stat_date=%s\n", row["obj_id"], row["stat_date"])
 				successCount++
 			}
 		}
@@ -1503,68 +1597,70 @@ func (a *App) mergeTable3ConflictData(tx *sql.Tx, conflicts []ConflictSourceInfo
 	return successCount, errorCount, nil
 }
 
-// mergeAttachment2ConflictData 合并附件2冲突数据
-func (a *App) mergeAttachment2ConflictData(tx *sql.Tx, conflicts []ConflictSourceInfo) (int, int, error) {
+// mergeAttachment2ConflictDataNew 合并附件2冲突数据（新版本）
+func (a *App) mergeAttachment2ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int, int, error) {
 	successCount := 0
 	errorCount := 0
 
-	for _, conflict := range conflicts {
-		// 打开源数据库
-		sourceDb, err := db.NewDatabase(conflict.FilePath, DB_PASSWORD)
+	// 打开源数据库
+	sourceDb, err := db.NewDatabase(conflict.FilePath, DB_PASSWORD)
+	if err != nil {
+		return 0, 0, fmt.Errorf("打开源数据库失败: %v", err)
+	}
+	defer sourceDb.Close()
+
+	// 处理每个冲突条件
+	for _, condition := range conflict.Conditions {
+		// 删除目标表中符合条件的所有记录
+		deleteQuery := `DELETE FROM coal_consumption_report WHERE province_name = ? AND city_name = ? AND country_name = ? AND stat_date = ?`
+		_, err := tx.Exec(deleteQuery, condition.ProvinceName, condition.CityName, condition.CountryName, condition.StatDate)
 		if err != nil {
+			fmt.Printf("删除目标表记录失败 mergeAttachment2ConflictDataNew1: province_name=%s, city_name=%s, country_name=%s, stat_date=%s, error=%v\n",
+				condition.ProvinceName, condition.CityName, condition.CountryName, condition.StatDate, err)
 			errorCount++
 			continue
 		}
-		defer sourceDb.Close()
 
-		// 查询源数据
-		query := `SELECT * FROM coal_consumption_report WHERE obj_id IN (`
-		placeholders := strings.Repeat("?,", len(conflict.ObjIds))
-		placeholders = placeholders[:len(placeholders)-1] // 移除最后一个逗号
-		query += placeholders + ")"
-
-		args := make([]interface{}, len(conflict.ObjIds))
-		for i, objId := range conflict.ObjIds {
-			args[i] = objId
-		}
-
-		result, err := sourceDb.Query(query, args...)
+		// 查询源数据并插入
+		query := `SELECT * FROM coal_consumption_report WHERE province_name = ? AND city_name = ? AND country_name = ? AND stat_date = ?`
+		result, err := sourceDb.Query(query, condition.ProvinceName, condition.CityName, condition.CountryName, condition.StatDate)
 		if err != nil {
+			fmt.Printf("查询源数据失败 mergeAttachment2ConflictDataNew2: province_name=%s, city_name=%s, country_name=%s, stat_date=%s, error=%v\n",
+				condition.ProvinceName, condition.CityName, condition.CountryName, condition.StatDate, err)
 			errorCount++
 			continue
 		}
 
 		if !result.Ok || result.Data == nil {
-			errorCount++
 			continue
 		}
 
 		data, ok := result.Data.([]map[string]interface{})
 		if !ok {
-			errorCount++
 			continue
 		}
 
-		// 更新目标数据库中的数据
+		// 插入源数据到目标表
 		for _, row := range data {
-			// 更新数据，使用obj_id进行精确更新，不更新create_time、create_user、obj_id
-			updateQuery := `UPDATE coal_consumption_report SET 
-				stat_date = ?, sg_code = ?, unit_id = ?, unit_name = ?, unit_level = ?, province_name = ?, city_name = ?, country_name = ?,
-				total_coal = ?, raw_coal = ?, washed_coal = ?, other_coal = ?, power_generation = ?, heating = ?, coal_washing = ?, coking = ?,
-				oil_refining = ?, gas_production = ?, industry = ?, raw_materials = ?, other_uses = ?, coke = ?, is_confirm = ?, is_check = ?
-				WHERE obj_id = ?`
+			// 完全按照源表数据插入，包括obj_id
+			insertQuery := `INSERT INTO coal_consumption_report (
+				obj_id, stat_date, sg_code, unit_id, unit_name, unit_level, province_name, city_name, country_name,
+				total_coal, raw_coal, washed_coal, other_coal, power_generation, heating, coal_washing, coking,
+				oil_refining, gas_production, industry, raw_materials, other_uses, coke, create_user, create_time, is_confirm, is_check
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-			_, err := tx.Exec(updateQuery,
-				row["stat_date"], row["sg_code"], row["unit_id"], row["unit_name"], row["unit_level"],
+			_, execErr := tx.Exec(insertQuery,
+				row["obj_id"], row["stat_date"], row["sg_code"], row["unit_id"], row["unit_name"], row["unit_level"],
 				row["province_name"], row["city_name"], row["country_name"], row["total_coal"], row["raw_coal"],
 				row["washed_coal"], row["other_coal"], row["power_generation"], row["heating"], row["coal_washing"],
 				row["coking"], row["oil_refining"], row["gas_production"], row["industry"], row["raw_materials"],
-				row["other_uses"], row["coke"], row["is_confirm"], row["is_check"],
-				row["obj_id"])
+				row["other_uses"], row["coke"], row["create_user"], row["create_time"], row["is_confirm"], row["is_check"])
 
-			if err != nil {
+			if execErr != nil {
+				fmt.Printf("插入目标表记录失败 mergeAttachment2ConflictDataNew3: obj_id=%s, stat_date=%s, error=%v\n", row["obj_id"], row["stat_date"], execErr)
 				errorCount++
 			} else {
+				fmt.Printf("插入目标表记录成功 mergeAttachment2ConflictDataNew4: obj_id=%s, stat_date=%s\n", row["obj_id"], row["stat_date"])
 				successCount++
 			}
 		}

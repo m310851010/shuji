@@ -160,26 +160,17 @@
     },
     handleOk: async () => {
       try {
-        const allSelectedConflicts: Record<string, any[]> = {};
+        const allSelectedConflicts: main.ConflictData[] = [];
 
         modal.tableRefs.forEach(tableRef => {
           if (tableRef && tableRef.getSelectedData) {
             const selectedData = tableRef.getSelectedData();
             // 合并所有表类型的冲突数据
-            Object.keys(selectedData).forEach(tableType => {
-              if (!allSelectedConflicts[tableType]) {
-                allSelectedConflicts[tableType] = [];
-              }
-              allSelectedConflicts[tableType].push(...selectedData[tableType]);
-            });
+            allSelectedConflicts.push(...selectedData);
           }
         });
 
-        // 检查是否有选中的数据
-        const hasSelectedData =
-          Object.keys(allSelectedConflicts).length > 0 && Object.values(allSelectedConflicts).some(conflicts => conflicts.length > 0);
-
-        if (hasSelectedData) {
+        if (allSelectedConflicts.length > 0) {
           const result = await MergeConflictData(modal.targetDbPath, allSelectedConflicts);
         }
 
