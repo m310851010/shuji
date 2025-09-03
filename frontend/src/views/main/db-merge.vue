@@ -121,10 +121,16 @@
   async function saveMergeDB(targetDbPath: string) {
     message.success('合并成功, 正在保存到指定位置');
     //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
+
+    const areaResult = await GetEnhancedAreaConfig();
+    const areaConfig = areaResult.data;
+    const areaCode = areaConfig.country_code || areaConfig.city_code;
+    const areaName = areaConfig.country_name || areaConfig.city_name;
+
     const res2 = await OpenSaveDialog(
       new main.FileDialogOptions({
         title: '保存合并后的DB文件',
-        defaultFilename: `export_合并_${dayjs().format('YYYYMMDDHHmmss')}.db`
+        defaultFilename: `export_${dayjs().format('YYYYMMDDHHmmss')}${areaCode}_${areaName}.db`
       })
     );
 
