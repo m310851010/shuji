@@ -449,7 +449,7 @@ func (s *DataImportService) saveTable1Data(mainData, usageData, equipData []map[
 		encryptedValues["annual_raw_material_energy"], encryptedValues["annual_total_coal_consumption"],
 		encryptedValues["annual_total_coal_products"], encryptedValues["annual_raw_coal"], encryptedValues["annual_raw_coal_consumption"],
 		encryptedValues["annual_clean_coal_consumption"], encryptedValues["annual_other_coal_consumption"],
-		encryptedValues["annual_coke_consumption"], s.app.GetCurrentOSUser(), EncryptedOne)
+		encryptedValues["annual_coke_consumption"], s.app.GetAreaStr(), EncryptedOne)
 	if err != nil {
 		return fmt.Errorf("保存主表数据失败: %v", err)
 	}

@@ -11,19 +11,20 @@ import (
 
 // DataImportRecord 导入记录
 type DataImportRecord struct {
-	ObjID       string    `json:"obj_id" db:"obj_id"`             // 主键
-	FileName    string    `json:"file_name" db:"file_name"`       // 导入文件名
-	FileType    string    `json:"file_type" db:"file_type"`       // 文件类型
-	ImportTime  int64    `json:"import_time" db:"import_time"`   // 导入时间
-	ImportState string    `json:"import_state" db:"import_state"` // 导入状态，导入成功，导入失败
-	Describe    string    `json:"describe" db:"describe"`         // 说明
-	CreateUser  string    `json:"create_user" db:"create_user"`   // 导入用户
+	ObjID       string `json:"obj_id" db:"obj_id"`             // 主键
+	FileName    string `json:"file_name" db:"file_name"`       // 导入文件名
+	FileType    string `json:"file_type" db:"file_type"`       // 文件类型
+	ImportTime  int64  `json:"import_time" db:"import_time"`   // 导入时间
+	ImportState string `json:"import_state" db:"import_state"` // 导入状态，导入成功，导入失败
+	Describe    string `json:"describe" db:"describe"`         // 说明
+	CreateUser  string `json:"create_user" db:"create_user"`   // 导入用户
 }
 
 // DataImportRecordService 导入记录服务
 type DataImportRecordService struct {
 	db       *db.Database
 	logQueue chan *DataImportRecord
+	app      *App
 }
 
 var (
@@ -32,11 +33,12 @@ var (
 )
 
 // NewDataImportRecordService 创建导入记录服务实例（单例模式）
-func NewDataImportRecordService(db *db.Database) *DataImportRecordService {
+func NewDataImportRecordService(db *db.Database, app *App) *DataImportRecordService {
 	once.Do(func() {
 		instance = &DataImportRecordService{
 			db:       db,
 			logQueue: make(chan *DataImportRecord, 10000), // 队列大小10000
+			app:      app,
 		}
 
 		// 启动异步日志处理协程
@@ -87,7 +89,7 @@ func (s *DataImportRecordService) InsertImportRecord(fileName, fileType, importS
 		ImportTime:  time.Now().UnixMilli(),
 		ImportState: importState,
 		Describe:    describe,
-		CreateUser:  GetCurrentOSUser(),
+		CreateUser:  s.app.GetAreaStr(),
 	}
 
 	// 异步发送到日志队列

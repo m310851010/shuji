@@ -412,7 +412,7 @@ func (s *DataImportService) saveTable2Data(mainData []map[string]interface{}) er
 			record["province_name"], record["city_name"], record["country_name"], record["coal_type"],
 			record["coal_no"], record["usage_time"], encryptedValues["design_life"], record["enecrgy_efficienct_bmk"],
 			record["capacity_unit"], encryptedValues["capacity"], record["use_info"], record["status"],
-			encryptedValues["annual_coal_consumption"], s.app.GetCurrentOSUser(), record["row_no"], EncryptedOne)
+			encryptedValues["annual_coal_consumption"], s.app.GetAreaStr(), record["row_no"], EncryptedOne)
 		if err != nil {
 			return fmt.Errorf("保存数据失败: %v", err)
 		}

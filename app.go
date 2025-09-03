@@ -564,7 +564,7 @@ func (a *App) InsertImportRecord(fileName, fileType, importState, describe strin
 		return
 	}
 
-	service := NewDataImportRecordService(a.db)
+	service := NewDataImportRecordService(a.db, a)
 	service.InsertImportRecord(fileName, fileType, importState, describe)
 }
 
@@ -574,7 +574,7 @@ func (a *App) GetImportRecordsByFileType(fileType string) db.QueryResult {
 		return db.QueryResult{Ok: false, Message: "数据库连接失败"}
 	}
 
-	service := NewDataImportRecordService(a.db)
+	service := NewDataImportRecordService(a.db, a)
 	return service.GetImportRecordsByFileType(fileType)
 }
 

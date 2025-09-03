@@ -70,6 +70,10 @@ export function GetAreaConfig() {
   return window['go']['main']['App']['GetAreaConfig']();
 }
 
+export function GetAreaStr() {
+  return window['go']['main']['App']['GetAreaStr']();
+}
+
 export function GetCachePath(arg1) {
   return window['go']['main']['App']['GetCachePath'](arg1);
 }

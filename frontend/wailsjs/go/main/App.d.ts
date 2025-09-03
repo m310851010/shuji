@@ -38,6 +38,8 @@ export function FileExists(arg1:string):Promise<main.FlagResult>;
 
 export function GetAreaConfig():Promise<db.QueryResult>;
 
+export function GetAreaStr():Promise<string>;
+
 export function GetCachePath(arg1:string):Promise<string>;
 
 export function GetChinaAreaMap():Promise<Array<any>>;

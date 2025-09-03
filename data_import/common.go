@@ -76,6 +76,7 @@ const (
 type App interface {
 	GetDB() *db.Database
 	GetAreaConfig() db.QueryResult
+	GetAreaStr() string
 	GetEnhancedAreaConfig() db.QueryResult
 	InsertImportRecord(fileName, fileType, importState, describe string)
 	IsEnterpriseListExist() (bool, error)
@@ -231,7 +232,6 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 
 	return errors
 }
-
 
 // validateEquipmentAndCreditCode 企业名称和统一社会信用代码校验（从表1、表2提取的通用逻辑）
 func (s *DataImportService) validateEquipmentAndCreditCode(data map[string]interface{}, unitRowNum, regionRowNum int) []string {

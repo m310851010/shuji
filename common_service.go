@@ -220,6 +220,27 @@ func (a *App) GetAreaConfig() db.QueryResult {
 	return a.getAreaConfigWithRecover()
 }
 
+// GetAreaStrAsUser 获取当前用户所在省市县字符串
+func (a *App) GetAreaStr() string {
+	areaConfigResult := a.getAreaConfigWithRecover()
+	if areaConfigResult.Ok {
+		areaConfigData, ok := areaConfigResult.Data.(map[string]interface{})
+		if !ok {
+			return ""
+		}
+		provinceName := getStringValue(areaConfigData["province_name"])
+		cityName := getStringValue(areaConfigData["city_name"])
+		countryName := getStringValue(areaConfigData["country_name"])
+		if countryName != "" {
+			return fmt.Sprintf("%s/%s/%s", provinceName, cityName, countryName)
+		} else {
+			return fmt.Sprintf("%s/%s", provinceName, cityName)
+		}
+	}
+
+	return ""
+}
+
 // getAreaConfigWithRecover 带异常处理的获取区域配置函数
 func (a *App) getAreaConfigWithRecover() db.QueryResult {
 	// 添加异常处理，防止函数崩溃

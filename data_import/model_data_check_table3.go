@@ -709,7 +709,7 @@ func (s *DataImportService) insertTable3Data(record map[string]interface{}) erro
 		encryptedValues["sce_coal_consumption"], encryptedValues["sce_coke_consumption"], encryptedValues["sce_blue_coke_consumption"],
 		record["is_substitution"], record["substitution_source"], encryptedValues["substitution_quantity"],
 		encryptedValues["pq_annual_coal_quantity"], encryptedValues["sce_annual_coal_quantity"],
-		record["create_time"], s.app.GetCurrentOSUser(), EncryptedOne)
+		record["create_time"], s.app.GetAreaStr(), EncryptedOne)
 	if err != nil {
 		return fmt.Errorf("保存数据失败: %v", err)
 	}
