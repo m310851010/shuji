@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/tjfoc/gmsm/sm4"
@@ -177,4 +178,31 @@ func copyFile(src, dst string) error {
 func SendImportResultNotification(ctx context.Context, result map[string]interface{}, messageID string) {
 	result["messageId"] = messageID
 	runtime.EventsEmit(ctx, "import_result", result)
+}
+
+// getStringValue 安全获取字符串值
+func getStringValue(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", value)
+}
+
+func parseFloat(value string) float64 {
+	if value == "" {
+		return 0
+	}
+
+	result, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0
+	}
+	return result
+}
+
+func addFloat64(a, b float64) float64 {
+	intA := int64(a * 1000)
+	intB := int64(b * 1000)
+	result := intA + intB
+	return float64(result) / 1000
 }

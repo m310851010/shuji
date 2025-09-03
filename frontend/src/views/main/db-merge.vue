@@ -108,7 +108,8 @@
     Copyfile,
     Movefile,
     Removefile,
-    GetEnhancedAreaConfig
+    GetEnhancedAreaConfig,
+    DBTranformExcel
   } from '@wailsjs/go';
   import { openModal } from '@/components/useModal';
   import { TableType, TableTypeName } from '../constant';
@@ -127,17 +128,24 @@
     const areaCode = areaConfig.country_code || areaConfig.city_code;
     const areaName = areaConfig.country_name || areaConfig.city_name;
 
+    const newName = `export_${dayjs().format('YYYYMMDDHHmmss')}${areaCode}_${areaName}`;
+    //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
     const res2 = await OpenSaveDialog(
       new main.FileDialogOptions({
-        title: '保存合并后的DB文件',
-        defaultFilename: `export_${dayjs().format('YYYYMMDDHHmmss')}${areaCode}_${areaName}.db`
+        title: '保存合并后的ZIP文件',
+        defaultFilename: `${newName}.zip`
       })
     );
 
     if (res2.canceled) {
-      Removefile(targetDbPath);
+      await Removefile(targetDbPath);
     } else {
-      await Movefile(targetDbPath, res2.filePaths[0]);
+      const zipResult = await DBTranformExcel(targetDbPath, newName);
+      if (zipResult.ok) {
+        await Movefile(zipResult.data, res2.filePaths[0]);
+      } else {
+        message.error(zipResult.message);
+      }
     }
   }
 
@@ -230,29 +238,11 @@
             }))
             .filter(item => item.conflicts?.length);
 
-          modal.showModal(tableList);
+          await modal.showModal(tableList);
           return;
         }
 
-        message.success('合并成功');
-        const areaResult = await GetEnhancedAreaConfig();
-        const areaConfig = areaResult.data;
-        const areaCode = areaConfig.country_code || areaConfig.city_code;
-        const areaName = areaConfig.country_name || areaConfig.city_name;
-
-        //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
-        const res2 = await OpenSaveDialog(
-          new main.FileDialogOptions({
-            title: '保存合并后的DB文件',
-            defaultFilename: `export_合并_${dayjs().format('YYYYMMDDHHmmss')}${areaCode}_${areaName}.db`
-          })
-        );
-
-        if (res2.canceled) {
-          Removefile(res.data.targetDbPath);
-        } else {
-          await Movefile(res.data.targetDbPath, res2.filePaths[0]);
-        }
+        await saveMergeDB(res.data.targetDbPath);
       })
       .catch(() => {});
   };

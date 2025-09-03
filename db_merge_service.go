@@ -1,13 +1,19 @@
 package main
 
 import (
+	"archive/zip"
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
+	"math"
+	"os"
 	"path/filepath"
 	"shuji/db"
 	"strings"
 	"time"
+
+	"github.com/xuri/excelize/v2"
 )
 
 // MergeResult 合并结果
@@ -1667,4 +1673,693 @@ func (a *App) mergeAttachment2ConflictDataNew(tx *sql.Tx, conflict ConflictData)
 	}
 
 	return successCount, errorCount, nil
+}
+
+// DBTranformExcel 数据库转换为Excel
+func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
+	result := db.QueryResult{}
+	fmt.Println("DBTranformExcel", dbPath, newDBName)
+
+	// 打开源数据库
+	sourceDb, err := db.NewDatabase(dbPath, DB_PASSWORD)
+	if err != nil {
+		result.Message = "打开源数据库失败: " + err.Error()
+		return result
+	}
+	defer sourceDb.Close()
+
+	// 查询附表1数据
+	query := `SELECT stat_date, credit_code, unit_name, province_name, city_name, country_name, annual_energy_equivalent_value, annual_energy_equivalent_cost, annual_total_coal_consumption FROM enterprise_coal_consumption_main`
+	table1Result, err := sourceDb.Query(query)
+	if err != nil {
+		result.Message = "查询数据失败: " + err.Error()
+		return result
+	}
+	if !table1Result.Ok || table1Result.Data == nil {
+		result.Message = "查询数据失败: " + err.Error()
+		return result
+	}
+
+	dataMap := make(map[string][]map[string]interface{})
+	for _, row := range table1Result.Data.([]map[string]interface{}) {
+		statDate := row["stat_date"].(string)
+		creditCode := row["credit_code"].(string)
+		province_name := row["province_name"].(string)
+		city_name := row["city_name"].(string)
+		country_name := row["country_name"].(string)
+		unit_name := row["unit_name"].(string)
+		annual_energy_equivalent_value := row["annual_energy_equivalent_value"].(string)
+		annual_energy_equivalent_cost := row["annual_energy_equivalent_cost"].(string)
+		annual_total_coal_consumption := row["annual_total_coal_consumption"].(string)
+		key := fmt.Sprintf("%s_%s_%s_%s_%s", statDate, creditCode, province_name, city_name, country_name)
+
+		annual_energy_equivalent_value, _ = SM4Decrypt(annual_energy_equivalent_value)
+		annual_energy_equivalent_cost, _ = SM4Decrypt(annual_energy_equivalent_cost)
+		annual_total_coal_consumption, _ = SM4Decrypt(annual_total_coal_consumption)
+
+		row := map[string]interface{}{
+			"stat_date":                      statDate,
+			"credit_code":                    creditCode,
+			"province_name":                  province_name,
+			"city_name":                      city_name,
+			"country_name":                   country_name,
+			"unit_name":                      unit_name,
+			"annual_energy_equivalent_value": annual_energy_equivalent_value,
+			"annual_energy_equivalent_cost":  annual_energy_equivalent_cost,
+			"annual_coal_consumption":        annual_total_coal_consumption,
+			"unit_type":                      "规上企业",
+		}
+
+		if rows, ok := dataMap[key]; ok {
+			rows = append(rows, row)
+			dataMap[key] = rows
+		} else {
+			dataMap[key] = []map[string]interface{}{row}
+		}
+	}
+
+	// 查询附表1 设备数据
+	equipQuery := `SELECT b.stat_date, b.credit_code, b.unit_name, b.province_name, b.city_name, b.country_name, a.equip_type, a.equip_no, a.annual_coal_consumption
+		FROM enterprise_coal_consumption_equip a LEFT JOIN enterprise_coal_consumption_main b ON a.fk_id = b.obj_id`
+	table1EquipResult, err := sourceDb.Query(equipQuery)
+	if err != nil {
+		result.Message = "查询数据失败: " + err.Error()
+		return result
+	}
+	if !table1EquipResult.Ok || table1EquipResult.Data == nil {
+		result.Message = "查询数据失败: " + err.Error()
+		return result
+	}
+
+	table1EquipMap := make(map[string][]map[string]interface{})
+	for _, row := range table1EquipResult.Data.([]map[string]interface{}) {
+		statDate := row["stat_date"].(string)
+		creditCode := row["credit_code"].(string)
+		province_name := row["province_name"].(string)
+		city_name := row["city_name"].(string)
+		country_name := row["country_name"].(string)
+		unit_name := row["unit_name"].(string)
+		equip_type := row["equip_type"].(string)
+		equip_no := row["equip_no"].(string)
+		coal_type := row["coal_type"].(string)
+		annual_coal_consumption := row["annual_coal_consumption"].(string)
+		key := fmt.Sprintf("%s_%s_%s_%s_%s", statDate, creditCode, province_name, city_name, country_name)
+
+		annual_coal_consumption_value, _ := SM4Decrypt(annual_coal_consumption)
+
+		equipRow := map[string]interface{}{
+			"stat_date":               statDate,
+			"credit_code":             creditCode,
+			"province_name":           province_name,
+			"city_name":               city_name,
+			"country_name":            country_name,
+			"unit_name":               unit_name,
+			"coal_type":               coal_type,
+			"annual_coal_consumption": annual_coal_consumption_value,
+			"equip_type":              equip_type,
+			"equip_no":                equip_no,
+			"unit_type":               "规上企业",
+		}
+
+		if rows, ok := table1EquipMap[key]; ok {
+			rows = append(rows, equipRow)
+			table1EquipMap[key] = rows
+		} else {
+			table1EquipMap[key] = []map[string]interface{}{equipRow}
+		}
+	}
+
+	table2DataMap := make(map[string]map[string]interface{})
+	// 查询附表2数据
+	table2Query := `SELECT stat_date, credit_code, unit_name, province_name, city_name, country_name, annual_coal_consumption, coal_type AS equip_type, coal_no AS equip_no FROM critical_coal_equipment_consumption`
+	table2Result, err := sourceDb.Query(table2Query)
+	if err != nil {
+		result.Message = "查询数据失败: " + err.Error()
+		return result
+	}
+	if !table2Result.Ok || table2Result.Data == nil {
+		result.Message = "查询数据失败: " + err.Error()
+		return result
+	}
+
+	for _, row := range table2Result.Data.([]map[string]interface{}) {
+		statDate := row["stat_date"].(string)
+		creditCode := row["credit_code"].(string)
+		province_name := row["province_name"].(string)
+		city_name := row["city_name"].(string)
+		country_name := row["country_name"].(string)
+		unit_name := row["unit_name"].(string)
+		annual_coal_consumption := row["annual_coal_consumption"].(string)
+		equip_type := row["equip_type"].(string)
+		equip_no := row["equip_no"].(string)
+
+		annual_coal_consumption, _ = SM4Decrypt(annual_coal_consumption)
+		annual_coal_consumptionValue := parseFloat(getStringValue(annual_coal_consumption))
+
+		key := fmt.Sprintf("%s_%s_%s_%s_%s", statDate, creditCode, province_name, city_name, country_name)
+
+		if item, ok := table2DataMap[key]; ok {
+			itemAnnualTotal, _ := item["annual_total_coal_consumption"].(float64)
+			item["annual_total_coal_consumption"] = addFloat64(itemAnnualTotal, annual_coal_consumptionValue)
+		} else {
+			item := map[string]interface{}{
+				"stat_date":               statDate,
+				"credit_code":             creditCode,
+				"province_name":           province_name,
+				"city_name":               city_name,
+				"country_name":            country_name,
+				"unit_name":               unit_name,
+				"equip_type":              equip_type,
+				"equip_no":                equip_no,
+				"annual_coal_consumption": annual_coal_consumptionValue,
+				"unit_type":               "其他用能单位",
+			}
+			table2DataMap[key] = item
+		}
+	}
+
+	for key, item := range table2DataMap {
+		itemAnnualTotal, _ := item["annual_total_coal_consumption"].(float64)
+		// 单位万吨, 保留两位小数
+		item["annual_total_coal_consumption"] = math.Round(itemAnnualTotal/10000*100) / 100
+		if rows, ok := dataMap[key]; ok {
+			rows = append(rows, item)
+			dataMap[key] = rows
+		} else {
+			dataMap[key] = []map[string]interface{}{item}
+		}
+
+		if rows, ok := table1EquipMap[key]; ok {
+			rows = append(rows, item)
+			table1EquipMap[key] = rows
+		} else {
+			table1EquipMap[key] = []map[string]interface{}{item}
+		}
+	}
+
+	sourceDb.Close()
+
+	dbDir := filepath.Dir(dbPath)
+	newDbPath := filepath.Join(dbDir, newDBName+".db")
+	a.Movefile(dbPath, newDbPath)
+
+	// 创建压缩包，包含目标DB文件和Excel文件
+	zipResult := a.createResultPackage(newDbPath, newDBName, dataMap, table1EquipMap)
+	if !zipResult.Ok {
+		log.Printf("创建压缩包失败: %s", zipResult.Message)
+		// 压缩失败不影响合并结果，只记录日志
+	} else {
+		log.Printf("压缩包创建成功: %s", zipResult.Data)
+	}
+
+	return zipResult
+}
+
+// ExportDataToExcel 导出数据到Excel文件
+func (a *App) ExportDataToExcel(dataMap map[string][]map[string]interface{}, table1EquipMap map[string][]map[string]interface{}) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 导出耗煤单位数据汇总表
+	unitDataResult := a.exportUnitDataToExcel(dataMap)
+	if !unitDataResult.Ok {
+		return unitDataResult
+	}
+
+	// 导出耗煤装置数据汇总表
+	equipDataResult := a.exportEquipDataToExcel(table1EquipMap)
+	if !equipDataResult.Ok {
+		return equipDataResult
+	}
+
+	// 返回两个Excel文件的路径
+	filePaths := []string{unitDataResult.Data.(string), equipDataResult.Data.(string)}
+	result.Ok = true
+	result.Data = filePaths
+	result.Message = "数据导出成功"
+	return result
+}
+
+// exportUnitDataToExcel 导出耗煤单位数据汇总表
+func (a *App) exportUnitDataToExcel(dataMap map[string][]map[string]interface{}) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 创建新的Excel文件
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("关闭Excel文件失败: %v", err)
+		}
+	}()
+
+	// 设置工作表名称
+	sheetName := "耗煤单位数据汇总表"
+	f.SetSheetName("Sheet1", sheetName)
+
+	// 设置大标题
+	f.SetCellValue(sheetName, "A1", "耗煤单位数据汇总表")
+	f.MergeCell(sheetName, "A1", "J1")
+
+	// 设置列标题
+	headers := []string{"年份", "省", "市", "县", "单位名称", "统一社会信用代码", "单位类别", "综合能耗量（当量值，万吨标准煤）", "综合能耗量（等价值，万吨标准煤）", "耗煤总量（实物量，万吨）"}
+
+	// 设置列标题样式
+	headerStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+			Size: 12,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#E6E6FA"},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		result.Message = "创建样式失败: " + err.Error()
+		return result
+	}
+
+	// 设置大标题样式
+	titleStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+			Size: 16,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+	})
+	if err != nil {
+		result.Message = "创建标题样式失败: " + err.Error()
+		return result
+	}
+
+	// 应用标题样式
+	f.SetCellStyle(sheetName, "A1", "A1", titleStyle)
+
+	// 写入列标题
+	for i, header := range headers {
+		cellName, _ := excelize.CoordinatesToCellName(i+1, 2)
+		f.SetCellValue(sheetName, cellName, header)
+		f.SetCellStyle(sheetName, cellName, cellName, headerStyle)
+	}
+
+	// 创建数据行样式（带黑色边框）
+	dataStyle, err := f.NewStyle(&excelize.Style{
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+	})
+	if err != nil {
+		log.Printf("创建数据行样式失败: %v", err)
+	}
+
+	// 写入数据
+	rowIndex := 3
+	for _, rows := range dataMap {
+		for _, row := range rows {
+			// 年份
+			f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIndex), row["stat_date"])
+			// 省
+			f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowIndex), row["province_name"])
+			// 市
+			f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowIndex), row["city_name"])
+			// 县
+			f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowIndex), row["country_name"])
+			// 单位名称
+			f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowIndex), row["unit_name"])
+			// 统一社会信用代码
+			f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowIndex), row["credit_code"])
+			// 单位类别
+			f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowIndex), row["unit_type"])
+			// 综合能耗量（当量值，万吨标准煤）
+			if energyValue, ok := row["annual_energy_equivalent_value"]; ok {
+				f.SetCellValue(sheetName, fmt.Sprintf("H%d", rowIndex), energyValue)
+			}
+			// 综合能耗量（等价值，万吨标准煤）
+			if energyCost, ok := row["annual_energy_equivalent_cost"]; ok {
+				f.SetCellValue(sheetName, fmt.Sprintf("I%d", rowIndex), energyCost)
+			}
+			// 耗煤总量（实物量，万吨）
+			if coalTotal, ok := row["annual_total_coal_consumption"]; ok {
+				f.SetCellValue(sheetName, fmt.Sprintf("J%d", rowIndex), coalTotal)
+			}
+
+			// 为整行应用边框样式
+			if dataStyle != 0 {
+				for col := 1; col <= 10; col++ {
+					cellName, _ := excelize.CoordinatesToCellName(col, rowIndex)
+					f.SetCellStyle(sheetName, cellName, cellName, dataStyle)
+				}
+			}
+
+			rowIndex++
+		}
+	}
+
+	// 添加注释行
+	f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIndex), "其他用能单位的耗煤总量由各装置年耗煤量加总得到，不一定与其整体耗煤量相等")
+	f.MergeCell(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("J%d", rowIndex))
+
+	// 设置注释行样式
+	commentStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Italic: true,
+			Size:   10,
+			Color:  "808080",
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "left",
+			Vertical:   "center",
+		},
+	})
+	if err == nil {
+		f.SetCellStyle(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("A%d", rowIndex), commentStyle)
+	}
+
+	// 设置列宽
+	f.SetColWidth(sheetName, "A", "A", 12) // 年份
+	f.SetColWidth(sheetName, "B", "B", 15) // 省
+	f.SetColWidth(sheetName, "C", "C", 15) // 市
+	f.SetColWidth(sheetName, "D", "D", 15) // 县
+	f.SetColWidth(sheetName, "E", "E", 25) // 单位名称
+	f.SetColWidth(sheetName, "F", "F", 25) // 统一社会信用代码
+	f.SetColWidth(sheetName, "G", "G", 15) // 单位类别
+	f.SetColWidth(sheetName, "H", "H", 25) // 综合能耗量（当量值）
+	f.SetColWidth(sheetName, "I", "I", 25) // 综合能耗量（等价值）
+	f.SetColWidth(sheetName, "J", "J", 30) // 耗煤总量
+
+	// 保存文件到临时目录
+	fileName := "耗煤单位数据汇总表.xlsx"
+	filePath := GetPath(filepath.Join(DATA_DIR_NAME, fileName))
+
+	if err := f.SaveAs(filePath); err != nil {
+		result.Message = "保存Excel文件失败: " + err.Error()
+		return result
+	}
+
+	result.Ok = true
+	result.Data = filePath
+	result.Message = "耗煤单位数据汇总表导出成功: " + fileName
+	return result
+}
+
+// exportEquipDataToExcel 导出耗煤装置数据汇总表
+func (a *App) exportEquipDataToExcel(table1EquipMap map[string][]map[string]interface{}) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 创建新的Excel文件
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("关闭Excel文件失败: %v", err)
+		}
+	}()
+
+	// 设置工作表名称
+	sheetName := "耗煤装置数据汇总表"
+	f.SetSheetName("Sheet1", sheetName)
+
+	// 设置大标题
+	f.SetCellValue(sheetName, "A1", "耗煤装置数据汇总表")
+	f.MergeCell(sheetName, "A1", "K1")
+
+	// 设置列标题
+	headers := []string{"年份", "省", "市", "县", "单位名称", "统一社会信用代码", "单位类别", "装置类型", "装置编号", "耗煤品种", "年耗煤量（实物量，万吨）"}
+
+	// 设置列标题样式
+	headerStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+			Size: 12,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#E6E6FA"},
+			Pattern: 1,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+	})
+	if err != nil {
+		result.Message = "创建样式失败: " + err.Error()
+		return result
+	}
+
+	// 设置大标题样式
+	titleStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+			Size: 16,
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+	})
+	if err != nil {
+		result.Message = "创建标题样式失败: " + err.Error()
+		return result
+	}
+
+	// 应用标题样式
+	f.SetCellStyle(sheetName, "A1", "A1", titleStyle)
+
+	// 写入列标题
+	for i, header := range headers {
+		cellName, _ := excelize.CoordinatesToCellName(i+1, 2)
+		f.SetCellValue(sheetName, cellName, header)
+		f.SetCellStyle(sheetName, cellName, cellName, headerStyle)
+	}
+
+	// 创建数据行样式（带黑色边框）
+	dataStyle, err := f.NewStyle(&excelize.Style{
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+	})
+	if err != nil {
+		log.Printf("创建数据行样式失败: %v", err)
+	}
+
+	// 写入数据
+	rowIndex := 3
+	for _, rows := range table1EquipMap {
+		for _, row := range rows {
+			// 年份
+			f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIndex), row["stat_date"])
+			// 省
+			f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowIndex), row["province_name"])
+			// 市
+			f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowIndex), row["city_name"])
+			// 县
+			f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowIndex), row["country_name"])
+			// 单位名称
+			f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowIndex), row["unit_name"])
+			// 统一社会信用代码
+			f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowIndex), row["credit_code"])
+			// 单位类别
+			f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowIndex), row["unit_type"])
+			// 装置类型
+			f.SetCellValue(sheetName, fmt.Sprintf("H%d", rowIndex), row["equip_type"])
+			// 装置编号
+			f.SetCellValue(sheetName, fmt.Sprintf("I%d", rowIndex), row["equip_no"])
+			// 耗煤品种
+			if coal_type, ok := row["coal_type"]; ok {
+				f.SetCellValue(sheetName, fmt.Sprintf("J%d", rowIndex), coal_type)
+			}
+
+			// 耗煤总量（实物量，万吨）
+			if coalTotal, ok := row["annual_coal_consumption"]; ok {
+				f.SetCellValue(sheetName, fmt.Sprintf("K%d", rowIndex), coalTotal)
+			}
+
+			fmt.Println("row", row)
+			fmt.Println("耗煤量", row["annual_coal_consumption"])
+			// 为整行应用边框样式
+			if dataStyle != 0 {
+				for col := 1; col <= 11; col++ {
+					cellName, _ := excelize.CoordinatesToCellName(col, rowIndex)
+					f.SetCellStyle(sheetName, cellName, cellName, dataStyle)
+				}
+			}
+
+			rowIndex++
+		}
+	}
+
+	// 添加注释行
+	f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIndex), "其他用能单位的耗煤总量由各装置年耗煤量加总得到，不一定与其整体耗煤量相等")
+	f.MergeCell(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("K%d", rowIndex))
+
+	// 设置注释行样式
+	commentStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Italic: true,
+			Size:   10,
+			Color:  "808080",
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "left",
+			Vertical:   "center",
+		},
+	})
+	if err == nil {
+		f.SetCellStyle(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("A%d", rowIndex), commentStyle)
+	}
+
+	// 设置列宽
+	f.SetColWidth(sheetName, "A", "A", 12) // 年份
+	f.SetColWidth(sheetName, "B", "B", 15) // 省
+	f.SetColWidth(sheetName, "C", "C", 15) // 市
+	f.SetColWidth(sheetName, "D", "D", 15) // 县
+	f.SetColWidth(sheetName, "E", "E", 25) // 单位名称
+	f.SetColWidth(sheetName, "F", "F", 25) // 统一社会信用代码
+	f.SetColWidth(sheetName, "G", "G", 15) // 单位类别
+	f.SetColWidth(sheetName, "H", "H", 20) // 装置类型
+	f.SetColWidth(sheetName, "I", "I", 20) // 装置编号
+	f.SetColWidth(sheetName, "J", "J", 15) // 耗煤品种
+	f.SetColWidth(sheetName, "K", "K", 30) // 年耗煤量
+
+	// 保存文件到临时目录
+	fileName := "耗煤装置数据汇总表.xlsx"
+	filePath := GetPath(filepath.Join(DATA_DIR_NAME, fileName))
+
+	if err := f.SaveAs(filePath); err != nil {
+		result.Message = "保存Excel文件失败: " + err.Error()
+		return result
+	}
+
+	result.Ok = true
+	result.Data = filePath
+	result.Message = "耗煤装置数据汇总表导出成功: " + fileName
+	return result
+}
+
+// createResultPackage 创建结果压缩包，包含目标DB文件和Excel文件
+func (a *App) createResultPackage(newDbPath string, newDBName string, dataMap map[string][]map[string]interface{}, table1EquipMap map[string][]map[string]interface{}) db.QueryResult {
+	result := db.QueryResult{}
+
+	// 1. 先导出Excel文件
+	exportResult := a.ExportDataToExcel(dataMap, table1EquipMap)
+	if !exportResult.Ok {
+		result.Message = "导出Excel失败: " + exportResult.Message
+		return result
+	}
+
+	// 2. 获取目标DB文件路径
+	targetDbPath := newDbPath
+
+	// 3. 创建压缩包
+	zipFileName := fmt.Sprintf("%s.zip", newDBName)
+	zipPath := GetPath(filepath.Join(DATA_DIR_NAME, zipFileName))
+
+	// 创建zip文件
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		result.Message = "创建压缩包失败: " + err.Error()
+		return result
+	}
+	defer zipFile.Close()
+
+	// 创建zip writer
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	// 4. 添加文件到压缩包
+	filesToZip := []string{
+		targetDbPath,
+	}
+
+	// 添加Excel文件路径
+	if exportResult.Data != nil {
+		if filePaths, ok := exportResult.Data.([]string); ok {
+			filesToZip = append(filesToZip, filePaths...)
+		}
+	}
+
+	// 压缩文件
+	for _, filePath := range filesToZip {
+		if err := a.addFileToZip(zipWriter, filePath); err != nil {
+			log.Printf("添加文件到压缩包失败 %s: %v", filePath, err)
+			continue
+		}
+	}
+
+	for _, filePath := range filesToZip {
+		a.Removefile(filePath)
+	}
+
+	result.Ok = true
+	result.Data = zipPath
+	result.Message = "压缩包创建成功: " + zipFileName
+	return result
+}
+
+// addFileToZip 将文件添加到zip压缩包中
+func (a *App) addFileToZip(zipWriter *zip.Writer, filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// 获取文件信息
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	// 创建zip文件头
+	header, err := zip.FileInfoHeader(fileInfo)
+	if err != nil {
+		return err
+	}
+
+	// 设置文件名（只保留文件名，不包含路径）
+	header.Name = filepath.Base(filePath)
+	header.Method = zip.Deflate
+
+	// 创建zip文件写入器
+	writer, err := zipWriter.CreateHeader(header)
+	if err != nil {
+		return err
+	}
+
+	// 复制文件内容
+	_, err = io.Copy(writer, file)
+	return err
 }

@@ -424,14 +424,6 @@ func (a *App) findAreaCodesAndSubordinates(config *EnhancedAreaConfig, chinaArea
 	return fmt.Errorf("未找到匹配的区域信息")
 }
 
-// getStringValue 安全获取字符串值
-func getStringValue(value interface{}) string {
-	if value == nil {
-		return ""
-	}
-	return fmt.Sprintf("%v", value)
-}
-
 // 获取中国区域信息
 func (a *App) GetChinaAreaMap() ([]interface{}, error) {
 	areaData, err := a.ReadFile(CHINA_AREA_FILE_PATH, true)
