@@ -490,9 +490,8 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 	// 终端消费 = 工业 + 其他用途
 	terminalConsumption := s.addFloat64(industry, otherUses)
 
-	// 计算能源加工转换+终端消费-工业（#用作原料、材料）
+	// 计算能源加工转换+终端消费(不包含 工业（#用作原料、材料）)
 	totalConsumption := s.addFloat64(energyConversion, terminalConsumption)
-	totalConsumption = s.subtractFloat64(totalConsumption, rawMaterials)
 
 	if s.isIntegerLessThan(totalCoal, totalConsumption) {
 		cells := []string{
