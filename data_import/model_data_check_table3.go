@@ -165,9 +165,16 @@ func (s *DataImportService) modelDataCheckTable3WithRecover() db.QueryResult {
 			errors := s.validateTable3DataForModel(mainData)
 			if len(errors) > 0 {
 				// 校验失败，在Excel文件中错误行最后添加错误信息
-				err = s.addValidationErrorsToExcelTable3(filePath, errors, mainData)
+				err = s.addValidationErrorsToExcelAttachment2(filePath, errors, mainData)
+
 				if err != nil {
-					systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %v", file.Name(), err)})
+					msg := err.Error()
+					// 如果错误是文件名长度超出限制，则跳过
+					if err == excelize.ErrMaxFilePathLength {
+						msg = "软件存放的路径过长，建议将软件放在磁盘一级目录再操作。"
+					}
+					systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %s", file.Name(), msg)})
+					continue
 				}
 				failedFiles = append(failedFiles, filePath)
 				// 将验证错误转换为字符串用于显示
