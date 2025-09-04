@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"math"
 	"path/filepath"
 	"shuji/db"
 	"strings"
@@ -368,21 +367,21 @@ func (a *App) validateAreaConsistency(province, city, country string) db.QueryRe
 	// 如果country有值就比较country
 	if country != "" {
 		if configCountry != country {
-			return db.QueryResult{Ok: false, Message: "上传数据不在同一个县、无法合并"}
+			return db.QueryResult{Ok: false, Message: "待合并数据文件区域与所选区域不符合，请检查"}
 		}
 	}
 
 	// 如果city有值就比较city
 	if city != "" {
 		if configCity != city {
-			return db.QueryResult{Ok: false, Message: "上传数据不在同一个市、无法合并"}
+			return db.QueryResult{Ok: false, Message: "待合并数据文件区域与所选区域不符合，请检查"}
 		}
 	}
 
 	// 如果province有值就比较province
 	if province != "" {
 		if configProvince != province {
-			return db.QueryResult{Ok: false, Message: "上传数据不在同一个省、无法合并"}
+			return db.QueryResult{Ok: false, Message: "待合并数据文件区域与所选区域不符合，请检查"}
 		}
 	}
 
@@ -1642,7 +1641,9 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 	defer sourceDb.Close()
 
 	// 查询附表1数据
-	query := `SELECT stat_date, credit_code, unit_name, province_name, city_name, country_name, annual_energy_equivalent_value, annual_energy_equivalent_cost, annual_total_coal_consumption AS annual_coal_consumption FROM enterprise_coal_consumption_main`
+	query := `SELECT stat_date, credit_code, unit_name, province_name, city_name, country_name,
+	annual_energy_equivalent_value, annual_energy_equivalent_cost, annual_total_coal_consumption AS annual_coal_consumption
+	 FROM enterprise_coal_consumption_main`
 	table1Result, err := sourceDb.Query(query)
 	if err != nil {
 		result.Message = "查询数据失败: " + err.Error()
@@ -1691,6 +1692,7 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 		}
 	}
 
+
 	// 查询附表1 设备数据
 	equipQuery := `SELECT b.stat_date, b.credit_code, b.unit_name, b.province_name, b.city_name, b.country_name, a.equip_type, a.equip_no, a.coal_type, a.annual_coal_consumption
 		FROM enterprise_coal_consumption_equip a LEFT JOIN enterprise_coal_consumption_main b ON a.fk_id = b.obj_id`
@@ -1704,7 +1706,9 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 		return result
 	}
 
-	table1EquipMap := make(map[string][]map[string]interface{})
+	// 装置清单列表
+	equipList := make([]map[string]interface{}, 0)
+
 	for _, row := range table1EquipResult.Data.([]map[string]interface{}) {
 		statDate := getStringValue(row["stat_date"])
 		creditCode := getStringValue(row["credit_code"])
@@ -1716,7 +1720,6 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 		equip_no := getStringValue(row["equip_no"])
 		coal_type := getStringValue(row["coal_type"])
 		annual_coal_consumption := getStringValue(row["annual_coal_consumption"])
-		key := fmt.Sprintf("%s_%s_%s_%s_%s", statDate, creditCode, province_name, city_name, country_name)
 
 		annual_coal_consumption_value, _ := SM4Decrypt(annual_coal_consumption)
 
@@ -1734,15 +1737,11 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 			"unit_type":               "规上企业",
 		}
 
-		if rows, ok := table1EquipMap[key]; ok {
-			rows = append(rows, equipRow)
-			table1EquipMap[key] = rows
-		} else {
-			table1EquipMap[key] = []map[string]interface{}{equipRow}
-		}
+		equipList = append(equipList, equipRow)
 	}
 
 	table2DataMap := make(map[string]map[string]interface{})
+
 	// 查询附表2数据
 	table2Query := `SELECT stat_date, credit_code, unit_name, province_name, city_name, country_name,
 	annual_coal_consumption, coal_type AS equip_type, coal_no AS equip_no
@@ -1768,14 +1767,21 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 		equip_type := getStringValue(row["equip_type"])
 		equip_no := getStringValue(row["equip_no"])
 
-		annual_coal_consumption, _ = SM4Decrypt(annual_coal_consumption)
-		annual_coal_consumptionValue := parseFloat(getStringValue(annual_coal_consumption))
+		var annual_coal_consumptionValue float64
+		if	annual_coal_consumption != "" {
+			annual_coal_consumption, _ = SM4Decrypt(annual_coal_consumption)
+			annual_coal_consumptionValue = parseFloat(getStringValue(annual_coal_consumption))
+		}
 
 		key := fmt.Sprintf("%s_%s_%s_%s_%s", statDate, creditCode, province_name, city_name, country_name)
 
-		if item, ok := table2DataMap[key]; ok {
-			itemAnnualTotal, _ := item["annual_coal_consumption"].(float64)
-			item["annual_coal_consumption"] = addFloat64(itemAnnualTotal, annual_coal_consumptionValue)
+		
+
+		if existingItem, ok := table2DataMap[key]; ok {
+			if	annual_coal_consumption != "" {
+				itemAnnualTotal, _ := existingItem["annual_coal_consumption"].(float64)
+				existingItem["annual_coal_consumption"] = addFloat64(itemAnnualTotal, annual_coal_consumptionValue)
+			}
 		} else {
 			item := map[string]interface{}{
 				"stat_date":               statDate,
@@ -1791,31 +1797,39 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 			}
 			table2DataMap[key] = item
 		}
+
+		equipItem := map[string]interface{}{
+			"stat_date":               statDate,
+			"credit_code":             creditCode,
+			"province_name":           province_name,
+			"city_name":               city_name,
+			"country_name":            country_name,
+			"unit_name":               unit_name,
+			"equip_type":              equip_type,
+			"equip_no":                equip_no,
+			"annual_coal_consumption": annual_coal_consumption,
+			"unit_type":               "其他用能单位",
+		}
+
+		equipList = append(equipList, equipItem)
 	}
 
 	for key, item := range table2DataMap {
 		itemAnnualTotal, _ := item["annual_coal_consumption"].(float64)
 		// 单位万吨, 保留两位小数
-		item["annual_coal_consumption"] = math.Round(itemAnnualTotal/10000*100) / 100
+		item["annual_coal_consumption"] = fmt.Sprintf("%.4f", itemAnnualTotal/ 10000)
 		if rows, ok := dataMap[key]; ok {
 			rows = append(rows, item)
 			dataMap[key] = rows
 		} else {
 			dataMap[key] = []map[string]interface{}{item}
 		}
-
-		if rows, ok := table1EquipMap[key]; ok {
-			rows = append(rows, item)
-			table1EquipMap[key] = rows
-		} else {
-			table1EquipMap[key] = []map[string]interface{}{item}
-		}
 	}
 
 	sourceDb.Close()
 
 	// 导出Excel文件
-	excelResult := a.ExportDataToExcel(dataMap, table1EquipMap, dbPath)
+	excelResult := a.ExportDataToExcel(dataMap, equipList, dbPath)
 	if !excelResult.Ok {
 		log.Printf("导出Excel失败: %s", excelResult.Message)
 		// Excel导出失败不影响合并结果，只记录日志
@@ -1827,7 +1841,7 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 }
 
 // ExportDataToExcel 导出数据到单个Excel文件，包含两个sheet页
-func (a *App) ExportDataToExcel(dataMap map[string][]map[string]interface{}, table1EquipMap map[string][]map[string]interface{}, dbPath string) db.QueryResult {
+func (a *App) ExportDataToExcel(dataMap map[string][]map[string]interface{}, equipList []map[string]interface{}, dbPath string) db.QueryResult {
 	result := db.QueryResult{}
 
 	// 创建新的Excel文件
@@ -1845,7 +1859,7 @@ func (a *App) ExportDataToExcel(dataMap map[string][]map[string]interface{}, tab
 	}
 
 	// 2. 创建耗煤装置数据汇总表sheet
-	equipSheetResult := a.createEquipDataSheet(f, table1EquipMap)
+	equipSheetResult := a.createEquipDataSheet(f, equipList)
 	if !equipSheetResult.Ok {
 		return equipSheetResult
 	}
@@ -2006,26 +2020,6 @@ func (a *App) createUnitDataSheet(f *excelize.File, dataMap map[string][]map[str
 		}
 	}
 
-	// 添加注释行
-	f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIndex), "其他用能单位的耗煤总量由各装置年耗煤量加总得到，不一定与其整体耗煤量相等")
-	f.MergeCell(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("J%d", rowIndex))
-
-	// 设置注释行样式
-	commentStyle, err := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{
-			Italic: true,
-			Size:   10,
-			Color:  "808080",
-		},
-		Alignment: &excelize.Alignment{
-			Horizontal: "left",
-			Vertical:   "center",
-		},
-	})
-	if err == nil {
-		f.SetCellStyle(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("A%d", rowIndex), commentStyle)
-	}
-
 	// 设置列宽
 	f.SetColWidth(sheetName, "A", "A", 12) // 年份
 	f.SetColWidth(sheetName, "B", "B", 15) // 省
@@ -2044,7 +2038,7 @@ func (a *App) createUnitDataSheet(f *excelize.File, dataMap map[string][]map[str
 }
 
 // createEquipDataSheet 在Excel文件中创建耗煤装置数据汇总表sheet
-func (a *App) createEquipDataSheet(f *excelize.File, table1EquipMap map[string][]map[string]interface{}) db.QueryResult {
+func (a *App) createEquipDataSheet(f *excelize.File, equipList []map[string]interface{}) db.QueryResult {
 	result := db.QueryResult{}
 
 	// 创建新的工作表
@@ -2130,45 +2124,43 @@ func (a *App) createEquipDataSheet(f *excelize.File, table1EquipMap map[string][
 
 	// 写入数据
 	rowIndex := 3
-	for _, rows := range table1EquipMap {
-		for _, row := range rows {
-			// 年份
-			f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIndex), row["stat_date"])
-			// 省
-			f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowIndex), row["province_name"])
-			// 市
-			f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowIndex), row["city_name"])
-			// 县
-			f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowIndex), row["country_name"])
-			// 单位名称
-			f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowIndex), row["unit_name"])
-			// 统一社会信用代码
-			f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowIndex), row["credit_code"])
-			// 单位类别
-			f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowIndex), row["unit_type"])
-			// 装置类型
-			f.SetCellValue(sheetName, fmt.Sprintf("H%d", rowIndex), row["equip_type"])
-			// 装置编号
-			f.SetCellValue(sheetName, fmt.Sprintf("I%d", rowIndex), row["equip_no"])
-			// 耗煤品种
-			if coal_type, ok := row["coal_type"]; ok {
-				f.SetCellValue(sheetName, fmt.Sprintf("J%d", rowIndex), coal_type)
-			}
-
-			// 耗煤总量（实物量，万吨）
-			if coalTotal, ok := row["annual_coal_consumption"]; ok {
-				f.SetCellValue(sheetName, fmt.Sprintf("K%d", rowIndex), coalTotal)
-			}
-			// 为整行应用边框样式
-			if dataStyle != 0 {
-				for col := 1; col <= 11; col++ {
-					cellName, _ := excelize.CoordinatesToCellName(col, rowIndex)
-					f.SetCellStyle(sheetName, cellName, cellName, dataStyle)
-				}
-			}
-
-			rowIndex++
+	for _, row := range equipList {
+		// 年份
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIndex), row["stat_date"])
+		// 省
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowIndex), row["province_name"])
+		// 市
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowIndex), row["city_name"])
+		// 县
+		f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowIndex), row["country_name"])
+		// 单位名称
+		f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowIndex), row["unit_name"])
+		// 统一社会信用代码
+		f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowIndex), row["credit_code"])
+		// 单位类别
+		f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowIndex), row["unit_type"])
+		// 装置类型
+		f.SetCellValue(sheetName, fmt.Sprintf("H%d", rowIndex), row["equip_type"])
+		// 装置编号
+		f.SetCellValue(sheetName, fmt.Sprintf("I%d", rowIndex), row["equip_no"])
+		// 耗煤品种
+		if coal_type, ok := row["coal_type"]; ok {
+			f.SetCellValue(sheetName, fmt.Sprintf("J%d", rowIndex), coal_type)
 		}
+
+		// 耗煤总量（实物量，万吨）
+		if coalTotal, ok := row["annual_coal_consumption"]; ok {
+			f.SetCellValue(sheetName, fmt.Sprintf("K%d", rowIndex), coalTotal)
+		}
+		// 为整行应用边框样式
+		if dataStyle != 0 {
+			for col := 1; col <= 11; col++ {
+				cellName, _ := excelize.CoordinatesToCellName(col, rowIndex)
+				f.SetCellStyle(sheetName, cellName, cellName, dataStyle)
+			}
+		}
+
+		rowIndex++
 	}
 
 	// 添加注释行

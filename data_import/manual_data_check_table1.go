@@ -171,7 +171,7 @@ func (s *DataImportService) queryDataDetailTable1Forinner(obj_id string, databas
 			create_time, is_confirm, is_check
 		FROM enterprise_coal_consumption_usage 
 		WHERE fk_id = ?
-		ORDER BY create_time DESC
+		ORDER BY row_no
 	`
 
 	usageResult, err := database.Query(usageQuery, mainObjId)
@@ -217,7 +217,7 @@ func (s *DataImportService) queryDataDetailTable1Forinner(obj_id string, databas
 			create_time, is_confirm, is_check
 		FROM enterprise_coal_consumption_equip 
 		WHERE fk_id = ?
-		ORDER BY create_time DESC
+		ORDER BY row_no
 	`
 
 	equipResult, err := database.Query(equipQuery, mainObjId)

@@ -1,4 +1,4 @@
-export const Table3Columns: any = [
+export const Table3Columns: any = () => [
   {
     title: '项目名称',
     dataIndex: 'project_name',
@@ -205,7 +205,7 @@ export const Table3Columns: any = [
   }
 ];
 
-export const TableAttachment2Columns = [
+export const TableAttachment2Columns = () => [
   {
     title: '省（市、区）',
     dataIndex: 'province_name',

@@ -30,7 +30,7 @@ export function ExportAttachment2ProgressToExcel(arg1:string):Promise<db.QueryRe
 
 export function ExportDBData(arg1:string):Promise<db.QueryResult>;
 
-export function ExportDataToExcel(arg1:Record<string, Array<Record<string, any>>>,arg2:Record<string, Array<Record<string, any>>>,arg3:string):Promise<db.QueryResult>;
+export function ExportDataToExcel(arg1:Record<string, Array<Record<string, any>>>,arg2:Array<Record<string, any>>,arg3:string):Promise<db.QueryResult>;
 
 export function ExportTable1ProgressToExcel(arg1:string):Promise<db.QueryResult>;
 

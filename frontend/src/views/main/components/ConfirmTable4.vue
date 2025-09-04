@@ -59,7 +59,7 @@
         // 添加新的表格配置
         tables.push({
           dataSource: props.tableInfoList,
-          columns: TableAttachment2Columns
+          columns: TableAttachment2Columns()
         });
       }
     },

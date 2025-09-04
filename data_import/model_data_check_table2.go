@@ -161,29 +161,29 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 			}
 
 			// 4. 调用校验函数,对每一行数据验证
-			// errors := s.validateTable2DataForModel(mainData)
-			// if len(errors) > 0 {
-			// 	// 校验失败，在Excel文件中错误行最后添加错误信息
-			// 	err = s.addValidationErrorsToExcelTable2(filePath, errors)
+			errors := s.validateTable2DataForModel(mainData)
+			if len(errors) > 0 {
+				// 校验失败，在Excel文件中错误行最后添加错误信息
+				err = s.addValidationErrorsToExcelTable2(filePath, errors)
 
-			// 	if err != nil {
-			// 		msg := err.Error()
-			// 		// 如果错误是文件名长度超出限制，则跳过
-			// 		if err == excelize.ErrMaxFilePathLength {
-			// 			msg = "软件存放的路径过长，建议将软件放在磁盘一级目录再操作。"
-			// 		}
-			// 		systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %s", file.Name(), msg)})
-			// 		continue
-			// 	}
-			// 	failedFiles = append(failedFiles, filePath)
-			// 	// 将验证错误转换为字符串用于显示
-			// 	var errorMessages []string
-			// 	for _, err := range errors {
-			// 		errorMessages = append(errorMessages, err.Message)
-			// 	}
-			// 	validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
-			// 	continue
-			// }
+				if err != nil {
+					msg := err.Error()
+					// 如果错误是文件名长度超出限制，则跳过
+					if err == excelize.ErrMaxFilePathLength {
+						msg = "软件存放的路径过长，建议将软件放在磁盘一级目录再操作。"
+					}
+					systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %s", file.Name(), msg)})
+					continue
+				}
+				failedFiles = append(failedFiles, filePath)
+				// 将验证错误转换为字符串用于显示
+				var errorMessages []string
+				for _, err := range errors {
+					errorMessages = append(errorMessages, err.Message)
+				}
+				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s: %s", file.Name(), strings.Join(errorMessages, "; "))})
+				continue
+			}
 
 			// 5. 校验通过后,检查文件是否已导入
 			if s.isTable2FileImported(mainData) {

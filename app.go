@@ -576,7 +576,7 @@ func (a *App) ModelDataCheckAttachment2() db.QueryResult {
 	return dataImportService.ModelDataCheckAttachment2()
 }
 
-// ModelDataCheckReportDownload 下载报告
+// ModelDataCheckReportDownload 导出报告
 func (a *App) ModelDataCheckReportDownload(tableType string) db.QueryResult {
 	dataImportService := data_import.NewDataImportService(a)
 	return dataImportService.ModelDataCheckReportDownload(tableType)

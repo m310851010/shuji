@@ -44,7 +44,7 @@
             @mouseover="handleDbMergeMouseOver"
             @mouseleave="handleDbMergeMouseLeave"
           >
-            DB文件合并
+            数据文件合并
           </div>
           <div
             class="independent-menu-item"
@@ -53,7 +53,7 @@
             @mouseover="handleDbToExcelMouseOver"
             @mouseleave="handleDbToExcelMouseLeave"
           >
-            DB文件转Excel
+            数据文件转Excel
           </div>
         </div>
 
@@ -97,12 +97,12 @@
 
    // 菜单
    const menus = ref([
-     { name: '清单导入', path: '/main/manifest-import' },
+     { name: '清单导入', path: '/main/manifest-import', disabled: false },
      { name: '数据导入', path: '/main/data-import', disabled: false },
      { name: '数据校验', path: '/main/data-check', disabled: false },
      { name: '数据导出', path: '/main/data-export', disabled: false },    
      { name: '导入进度', path: '/main/import-process', disabled: false }
-     // { name: 'DB文件合并', path: '/main/db-merge' }
+     // { name: '数据文件合并', path: '/main/db-merge' }
    ]);
 
    /**
@@ -112,11 +112,11 @@
      console.log('监听到 manifest 状态变化:', newValue);
      
      if (newValue === 1) {
-       // 状态为 1：启用所有菜单项
-       setMenusDisabledState(false);
+       // 状态为 1：禁用清单导入菜单项
+       setMenusDisabledStateByManifest(1);
      } else if (newValue === 2) {
        // 状态为 2：禁用除清单导入外的菜单项
-       setMenusDisabledState(true);
+       setMenusDisabledStateByManifest(2);
      }
    }, { immediate: false });
 
@@ -135,13 +135,13 @@
              // 状态为 null：显示弹框询问用户
              showManifestDialog();
            } else if (result.data === 1) {
-             // 状态为 1：菜单可以正常跳转选择，启用所有菜单项
-             setMenusDisabledState(false);
+             // 状态为 1：禁用清单导入菜单项
+             setMenusDisabledStateByManifest(1);
            } else if (result.data === 2) {
-             // 状态为 2：菜单禁用（除清单导入外）
+             // 状态为 2：禁用除清单导入外的菜单项
              
              $router.push('/main/manifest-import');
-             setMenusDisabledState(true);
+             setMenusDisabledStateByManifest(2);
              console.log('跳转--------------')
            }
          } else {
@@ -171,6 +171,24 @@
      };
 
      /**
+      * 根据manifest状态设置菜单项的禁用状态
+      * @param {number} manifestValue - manifest状态值（1或2）
+      */
+     const setMenusDisabledStateByManifest = (manifestValue: number) => {
+       menus.value.forEach(menu => {
+         if ('disabled' in menu) {
+           if (manifestValue === 1) {
+             // 状态为1：禁用清单导入菜单项
+             menu.disabled = menu.path === '/main/manifest-import';
+           } else if (manifestValue === 2) {
+             // 状态为2：禁用除清单导入外的其他菜单项
+             menu.disabled = menu.path !== '/main/manifest-import';
+           }
+         }
+       });
+     };
+
+     /**
       * 禁用除清单导入外的其他菜单项
       */
      const disableMenusExceptManifestImport = () => {
@@ -187,9 +205,10 @@
     const showManifestDialog = () => {
       Modal.confirm({
         title: '模式选择：',
-        content: '请选择清单校验模式！',
+        content: ' 请选择数据校验模式，如果掌握清单请优先使用 ” 有清单模式 “ ',
         okText: '有清单模式',
         cancelText: '无清单模式',
+        // style: { marginLeft: '30px' },
         async onOk() {
 
           // 禁用除清单导入外的其他菜单项
@@ -285,7 +304,7 @@
   };
 
   /**
-   * DB文件合并按钮样式（响应式计算属性）
+   * 数据文件合并按钮样式（响应式计算属性）
    */
   const dbMergeButtonStyle = computed(() => {
     const isSelected = route.path === '/main/db-merge';
@@ -305,14 +324,14 @@
   });
 
   /**
-   * 处理DB文件合并按钮点击事件
+   * 处理数据文件合并按钮点击事件
    */
   const handleDbMergeClick = () => {
     $router.push('/main/db-merge');
   };
 
   /**
-   * 处理DB文件合并按钮鼠标悬停事件
+   * 处理数据文件合并按钮鼠标悬停事件
    */
   const handleDbMergeMouseOver = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
@@ -321,7 +340,7 @@
   };
 
   /**
-   * 处理DB文件合并按钮鼠标离开事件
+   * 处理数据文件合并按钮鼠标离开事件
    */
   const handleDbMergeMouseLeave = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
@@ -331,7 +350,7 @@
   };
 
   /**
-   * DB文件转Excel按钮样式（响应式计算属性）
+   * 数据文件转Excel按钮样式（响应式计算属性）
    */
   const dbToExcelButtonStyle = computed(() => {
     const isSelected = route.path === '/main/db-to-excel';
@@ -351,14 +370,14 @@
   });
 
   /**
-   * 处理DB文件转Excel按钮点击事件
+   * 处理数据文件转Excel按钮点击事件
    */
   const handleDbToExcelClick = () => {
     $router.push('/main/db-to-excel');
   };
 
   /**
-   * 处理DB文件转Excel按钮鼠标悬停事件
+   * 处理数据文件转Excel按钮鼠标悬停事件
    */
   const handleDbToExcelMouseOver = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
@@ -367,7 +386,7 @@
   };
 
   /**
-   * 处理DB文件转Excel按钮鼠标离开事件
+   * 处理数据文件转Excel按钮鼠标离开事件
    */
   const handleDbToExcelMouseLeave = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
@@ -531,5 +550,21 @@
   /* 地址标签间距样式 */
   .area-tag {
     margin: 4px 8px !important;
+  }
+</style>
+<style>
+  .ant-btn-primary {
+    background-color: #1a5284 !important;
+    border-color: #1a5284 !important;
+  }
+
+  .ant-btn-primary:hover {
+    background-color: #0f3a5f !important;
+    border-color: #0f3a5f !important;
+  }
+
+  .ant-btn-primary:focus {
+    background-color: #1a5284 !important;
+    border-color: #1a5284 !important;
   }
 </style>

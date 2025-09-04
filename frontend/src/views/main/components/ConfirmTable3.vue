@@ -60,7 +60,7 @@
         // 添加新的表格配置
         tables.push({
           dataSource: props.tableInfoList,
-          columns: Table3Columns
+          columns: Table3Columns()
         });
       }
     },

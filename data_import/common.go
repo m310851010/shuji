@@ -579,7 +579,7 @@ func (s *DataImportService) createValidationErrorZip(failedFiles []string, table
 
 	cacheDir := s.app.GetCachePath(tableType)
 	// 创建ZIP文件
-	zipFileName := fmt.Sprintf("%s模型报告.zip", tableName)
+	zipFileName := fmt.Sprintf("%s校验报告.zip", tableName)
 	zipPath := filepath.Join(cacheDir, zipFileName)
 
 	zipFile, err := os.OpenFile(zipPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)

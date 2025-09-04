@@ -16,13 +16,13 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// ModelDataCheckReportDownload 下载模型校验结果
+// ModelDataCheckReportDownload 导出模型校验结果
 func (s *DataImportService) ModelDataCheckReportDownload(tableType string) db.QueryResult {
 	// 使用包装函数来处理异常
 	return s.modelDataCheckReportDownloadWithRecover(tableType)
 }
 
-// modelDataCheckReportDownloadWithRecover 带异常处理的下载模型校验结果函数
+// modelDataCheckReportDownloadWithRecover 带异常处理的导出模型校验结果函数
 func (s *DataImportService) modelDataCheckReportDownloadWithRecover(tableType string) db.QueryResult {
 	var result db.QueryResult
 
@@ -41,11 +41,11 @@ func (s *DataImportService) modelDataCheckReportDownloadWithRecover(tableType st
 
 	cacheDir := s.app.GetCachePath(tableType)
 	// 创建ZIP文件
-	zipFileName := fmt.Sprintf("%s模型报告.zip", s.getTableName(tableType))
+	zipFileName := fmt.Sprintf("%s校验报告.zip", s.getTableName(tableType))
 	zipFilePath := filepath.Join(cacheDir, zipFileName)
 
 	selectPath, err := runtime.SaveFileDialog(s.app.GetCtx(), runtime.SaveDialogOptions{
-		Title:           "下载模型报告",
+		Title:           "导出校验报告",
 		DefaultFilename: zipFileName,
 		Filters: []runtime.FileFilter{
 			{
@@ -57,7 +57,7 @@ func (s *DataImportService) modelDataCheckReportDownloadWithRecover(tableType st
 	if err != nil {
 		result = db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("下载模型报告失败: %v", err),
+			Message: fmt.Sprintf("导出校验报告失败: %v", err),
 		}
 		return result
 	}
@@ -65,7 +65,7 @@ func (s *DataImportService) modelDataCheckReportDownloadWithRecover(tableType st
 	if selectPath == "" {
 		result = db.QueryResult{
 			Ok:      false,
-			Message: "下载模型报告失败: 未选择文件",
+			Message: "导出校验报告失败: 未选择文件",
 		}
 		return result
 	}
@@ -74,7 +74,7 @@ func (s *DataImportService) modelDataCheckReportDownloadWithRecover(tableType st
 	if err != nil {
 		result = db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("下载模型校验结果失败: %v", err),
+			Message: fmt.Sprintf("导出模型校验结果失败: %v", err),
 		}
 		return result
 	}
@@ -84,7 +84,7 @@ func (s *DataImportService) modelDataCheckReportDownloadWithRecover(tableType st
 	if err != nil {
 		result = db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("下载模型校验结果失败: %v", err),
+			Message: fmt.Sprintf("导出模型校验结果失败: %v", err),
 		}
 		return result
 	}
@@ -96,14 +96,14 @@ func (s *DataImportService) modelDataCheckReportDownloadWithRecover(tableType st
 	if err != nil {
 		result = db.QueryResult{
 			Ok:      false,
-			Message: fmt.Sprintf("下载模型校验结果失败: %v", err),
+			Message: fmt.Sprintf("导出模型校验结果失败: %v", err),
 		}
 		return result
 	}
 
 	result = db.QueryResult{
 		Ok:      true,
-		Message: "下载模型校验结果成功",
+		Message: "导出模型校验结果成功",
 	}
 	return result
 

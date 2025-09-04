@@ -4,7 +4,7 @@
       <div style="line-height: 32px" class="result-text">
         <span v-if="tableType === 'table1' || tableType === 'table2'">完成清单导入后，才能查看导入进度</span>
       </div>
-      <a-button type="primary" @click="handleExportClick">导出清单</a-button>
+      <a-button type="primary" @click="handleExportClick" v-if="false">导出清单</a-button>
     </a-flex>
   </div>
 
@@ -148,7 +148,7 @@
       if (data.area_level === 3) {
         titleList.value = [{ label: '共', total: data.list.length, unit: `条数据` }];
         tableScroll.value = { x: 4000 };
-        columns.value = Table3Columns;
+        columns.value = Table3Columns();
         return;
       }
 
@@ -171,7 +171,7 @@
         if (data.area_level === 3) {
           titleList.value = [{ label: '共', total: data.list.length, unit: `条数据` }];
           tableScroll.value = { x: 2000 };
-          return TableAttachment2Columns;
+          return TableAttachment2Columns();
         }
         return newColumns({ area_name: getAreaName(data.area_level!) });
       });

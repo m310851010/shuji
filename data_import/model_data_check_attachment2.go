@@ -276,11 +276,6 @@ func (s *DataImportService) validateAttachment2DataForModel(mainData []map[strin
 		// 数据一致性校验
 		consistencyErrors := s.validateAttachment2DataConsistency(data, excelRowNum)
 		errors = append(errors, consistencyErrors...)
-
-		// 整体规则校验（行内字段间逻辑关系）
-		overallErrors := s.validateAttachment2OverallRulesForRow(data, excelRowNum)
-		errors = append(errors, overallErrors...)
-
 	}
 
 	// 数据库验证
@@ -513,27 +508,6 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 			s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum),
 		}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应大于等于能源加工转换+终端消费-工业（#用作原料、材料）", Cells: cells})
-	}
-
-	return errors
-}
-
-// validateAttachment2OverallRulesForRow 校验附件2单行整体规则（行内字段间逻辑关系）（优化版本，使用定点数运算）
-func (s *DataImportService) validateAttachment2OverallRulesForRow(data map[string]interface{}, rowNum int) []ValidationError {
-	errors := []ValidationError{}
-
-	// 获取当前行的数值
-	totalCoal := s.parseFloat(s.getStringValue(data["total_coal"]))
-	coke := s.parseFloat(s.getStringValue(data["coke"]))
-
-	// ②焦炭消费量与煤炭消费量的逻辑关系
-	// 焦炭消费量应小于等于煤炭消费总量（焦炭是煤炭的加工产品）
-	if s.isIntegerGreaterThan(coke, totalCoal) {
-		cells := []string{
-			s.getCellPosition(TableTypeAttachment2, "coke", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
-		}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量应小于等于煤炭消费总量", Cells: cells})
 	}
 
 	return errors
