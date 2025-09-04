@@ -253,10 +253,7 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 	actualConflictCount := 0
 
 	// 合并所有表的数据（使用已获取的非冲突数据）
-	fmt.Printf("开始合并表1数据，非冲突数据数量: %d\n", len(table1NonConflictData))
 	table1Result := a.mergeTable1DataWithTx(tx, table1NonConflictData, sourceDbs, originalSourcePaths)
-	fmt.Printf("表1合并结果: Ok=%v, SuccessCount=%d, ErrorCount=%d, Message=%s\n",
-		table1Result.Ok, table1Result.SuccessCount, table1Result.ErrorCount, table1Result.Message)
 	if table1Result.Ok {
 		successCount += table1Result.SuccessCount
 		actualConflictCount += table1Result.ConflictCount
@@ -419,8 +416,6 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 		}
 	}
 
-	fmt.Printf("表1目标数据映射构建完成，共 %d 条记录\n", len(targetDataMap))
-
 	// 2. 遍历每个源数据库，查询源数据并检查冲突
 	fileNamesSet := make(map[string]bool)
 	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
@@ -440,8 +435,6 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 				filePath := originalSourcePaths[i]
 				sourceFileName := filepath.Base(filePath)
 				fileNamesSet[sourceFileName] = true
-
-				fmt.Printf("处理源文件 %s，共 %d 条记录\n", sourceFileName, len(data))
 
 				// 保存源数据，避免重复查询
 				fileSourceDataMap[filePath] = data
@@ -509,8 +502,6 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 		}
 	}
 
-	fmt.Printf("表1冲突检查完成 - 冲突数: %d, 非冲突数据数: %d\n", len(conflictInfo.Conflicts), len(nonConflictData))
-
 	// 设置文件名列表
 	conflictInfo.FileNames = make([]string, 0, len(fileNamesSet))
 	for fileName := range fileNamesSet {
@@ -547,8 +538,6 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 		}
 	}
 
-	fmt.Printf("表2目标数据映射构建完成，共 %d 条记录\n", len(targetDataMap))
-
 	// 2. 遍历每个源数据库，查询源数据并检查冲突
 	fileNamesSet := make(map[string]bool)
 	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
@@ -568,8 +557,6 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 				filePath := originalSourcePaths[i]
 				sourceFileName := filepath.Base(filePath)
 				fileNamesSet[sourceFileName] = true
-
-				fmt.Printf("处理源文件 %s，共 %d 条记录\n", sourceFileName, len(data))
 
 				// 保存源数据，避免重复查询
 				fileSourceDataMap[filePath] = data
@@ -637,8 +624,6 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 		}
 	}
 
-	fmt.Printf("表2冲突检查完成 - 冲突数: %d, 非冲突数据数: %d\n", len(conflictInfo.Conflicts), len(nonConflictData))
-
 	// 设置文件名列表
 	conflictInfo.FileNames = make([]string, 0, len(fileNamesSet))
 	for fileName := range fileNamesSet {
@@ -674,8 +659,6 @@ func (a *App) checkTable3Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 			}
 		}
 	}
-
-	fmt.Printf("表3目标数据映射构建完成，共 %d 条记录\n", len(targetDataMap))
 
 	// 2. 遍历每个源数据库，查询源数据并检查冲突
 	fileNamesSet := make(map[string]bool)
@@ -906,7 +889,6 @@ func (a *App) checkAttachment2Conflicts(targetDb *db.Database, sourceDbs []*db.D
 
 // mergeTable1DataWithTx 使用事务合并表1数据
 func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]interface{}, sourceDbs []*db.Database, originalSourcePaths []string) MergeResult {
-	fmt.Printf("=== 进入表1合并函数，数据数量: %d ===\n", len(nonConflictData))
 	result := MergeResult{}
 
 	if len(nonConflictData) == 0 {
@@ -924,11 +906,8 @@ func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]int
 		annual_other_coal_consumption, annual_coke_consumption, is_confirm, is_check, create_time, create_user
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	fmt.Printf("表1没有冲突的数据数量: %d\n", len(nonConflictData))
 	for i, row := range nonConflictData {
 		// 使用源数据的obj_id、create_time、create_user，不生成新的
-		fmt.Printf("表1插入第 %d 条数据: obj_id=%v, unit_name=%v, stat_date=%v\n",
-			i+1, row["obj_id"], row["unit_name"], row["stat_date"])
 
 		// 插入数据
 		_, err := tx.Exec(insertQuery,
@@ -963,16 +942,9 @@ func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]int
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	// 遍历每个源数据库，查询并插入扩展表数据
-	for i, sourceDb := range sourceDbs {
-		filePath := originalSourcePaths[i]
-		sourceFileName := filepath.Base(filePath)
-
-		fmt.Printf("处理源文件 %s 的扩展表数据\n", sourceFileName)
-
+	for _, sourceDb := range sourceDbs {
 		// 根据主表的credit_code查询对应的扩展表数据
 		for _, mainRow := range nonConflictData {
-			creditCode := fmt.Sprintf("%v", mainRow["credit_code"])
-			statDate := fmt.Sprintf("%v", mainRow["stat_date"])
 
 			// 查询主要用途情况表
 			usageQuery := `SELECT * FROM enterprise_coal_consumption_usage WHERE fk_id = ?`
@@ -980,8 +952,7 @@ func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]int
 			if err == nil && usageResult.Ok && usageResult.Data != nil {
 				if data, ok := usageResult.Data.([]map[string]interface{}); ok {
 					if len(data) > 0 {
-						fmt.Printf("源文件 %s 主要用途情况表数据: credit_code=%s, stat_date=%s, 数据条数=%d\n",
-							sourceFileName, creditCode, statDate, len(data))
+
 						for _, row := range data {
 							_, err := tx.Exec(usageInsertQuery,
 								row["obj_id"], row["fk_id"], row["stat_date"], row["create_time"], row["main_usage"], row["specific_usage"],
@@ -1006,8 +977,6 @@ func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]int
 			if err == nil && equipResult.Ok && equipResult.Data != nil {
 				if data, ok := equipResult.Data.([]map[string]interface{}); ok {
 					if len(data) > 0 {
-						fmt.Printf("源文件 %s 重点耗煤装置情况表数据: credit_code=%s, stat_date=%s, 数据条数=%d\n",
-							sourceFileName, creditCode, statDate, len(data))
 						for _, row := range data {
 							_, err := tx.Exec(equipInsertQuery,
 								row["obj_id"], row["fk_id"], row["stat_date"], row["create_time"], row["equip_type"], row["equip_no"],
@@ -1132,12 +1101,8 @@ func (a *App) mergeAttachment2DataWithTx(tx *sql.Tx, nonConflictData []map[strin
 		oil_refining, gas_production, industry, raw_materials, other_uses, coke, create_user, create_time, is_confirm, is_check
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	fmt.Printf("附件2没有冲突的数据数量: %d\n", len(nonConflictData))
 	for i, row := range nonConflictData {
 		// 使用源数据的obj_id、create_time、create_user，不生成新的
-		fmt.Printf("附件2插入第 %d 条数据: obj_id=%v, unit_name=%v, stat_date=%v\n",
-			i+1, row["obj_id"], row["unit_name"], row["stat_date"])
-
 		// 插入数据
 		_, err := tx.Exec(insertQuery,
 			row["obj_id"], row["stat_date"], row["sg_code"], row["unit_id"], row["unit_name"], row["unit_level"],
@@ -1288,7 +1253,6 @@ func (a *App) mergeTable1ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int
 		targetObjIdsQuery := `SELECT obj_id FROM enterprise_coal_consumption_main WHERE credit_code = ? AND stat_date = ?`
 		targetRows, err := tx.Query(targetObjIdsQuery, condition.CreditCode, condition.StatDate)
 		if err != nil {
-			fmt.Printf("查询目标表obj_id失败: credit_code=%s, stat_date=%s, error=%v\n", condition.CreditCode, condition.StatDate, err)
 			errorCount++
 			continue
 		}
@@ -1311,7 +1275,6 @@ func (a *App) mergeTable1ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int
 			continue
 		}
 
-		fmt.Printf("删除扩展表数据: credit_code=%s, stat_date=%s, obj_ids=%v\n", condition.CreditCode, condition.StatDate, targetObjIds)
 		// 根据查询到的obj_id删除扩展表数据
 		for _, targetObjId := range targetObjIds {
 			// 删除主要用途情况表数据
@@ -1385,7 +1348,6 @@ func (a *App) mergeTable1ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int
 				fmt.Printf("插入主表数据失败: obj_id=%s, stat_date=%s, error=%v\n", row["obj_id"], row["stat_date"], execErr)
 				errorCount++
 			} else {
-				fmt.Printf("插入主表数据成功: obj_id=%s, stat_date=%s\n", row["obj_id"], row["stat_date"])
 				successCount++
 			}
 
@@ -1396,7 +1358,6 @@ func (a *App) mergeTable1ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int
 			if err == nil && usageResult.Ok && usageResult.Data != nil {
 				if usageData, ok := usageResult.Data.([]map[string]interface{}); ok {
 					if len(usageData) > 0 {
-						fmt.Printf("插入主要用途情况表数据: obj_id=%s, 数据条数=%d\n", row["obj_id"], len(usageData))
 
 						usageInsertQuery := `INSERT INTO enterprise_coal_consumption_usage (
 							obj_id, fk_id, stat_date, create_time, main_usage, specific_usage, input_variety, input_unit,
@@ -1426,7 +1387,6 @@ func (a *App) mergeTable1ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int
 			if err == nil && equipResult.Ok && equipResult.Data != nil {
 				if equipData, ok := equipResult.Data.([]map[string]interface{}); ok {
 					if len(equipData) > 0 {
-						fmt.Printf("插入重点耗煤装置情况表数据: obj_id=%s, 数据条数=%d\n", row["obj_id"], len(equipData))
 
 						equipInsertQuery := `INSERT INTO enterprise_coal_consumption_equip (
 							obj_id, fk_id, stat_date, create_time, equip_type, equip_no, total_runtime, design_life,
@@ -1519,7 +1479,6 @@ func (a *App) mergeTable2ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int
 				fmt.Printf("插入目标表记录失败 mergeTable2ConflictDataNew4: obj_id=%s, stat_date=%s, error=%v\n", row["obj_id"], row["stat_date"], execErr)
 				errorCount++
 			} else {
-				fmt.Printf("插入目标表记录成功 mergeTable2ConflictDataNew5: obj_id=%s, stat_date=%s\n", row["obj_id"], row["stat_date"])
 				successCount++
 			}
 		}
@@ -1594,7 +1553,6 @@ func (a *App) mergeTable3ConflictDataNew(tx *sql.Tx, conflict ConflictData) (int
 				fmt.Printf("插入目标表记录失败 mergeTable3ConflictDataNew3: obj_id=%s, stat_date=%s, error=%v\n", row["obj_id"], row["stat_date"], execErr)
 				errorCount++
 			} else {
-				fmt.Printf("插入目标表记录成功 mergeTable3ConflictDataNew4: obj_id=%s, stat_date=%s\n", row["obj_id"], row["stat_date"])
 				successCount++
 			}
 		}
@@ -1666,7 +1624,6 @@ func (a *App) mergeAttachment2ConflictDataNew(tx *sql.Tx, conflict ConflictData)
 				fmt.Printf("插入目标表记录失败 mergeAttachment2ConflictDataNew3: obj_id=%s, stat_date=%s, error=%v\n", row["obj_id"], row["stat_date"], execErr)
 				errorCount++
 			} else {
-				fmt.Printf("插入目标表记录成功 mergeAttachment2ConflictDataNew4: obj_id=%s, stat_date=%s\n", row["obj_id"], row["stat_date"])
 				successCount++
 			}
 		}
@@ -1678,7 +1635,6 @@ func (a *App) mergeAttachment2ConflictDataNew(tx *sql.Tx, conflict ConflictData)
 // DBTranformExcel 数据库转换为Excel
 func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 	result := db.QueryResult{}
-	fmt.Println("DBTranformExcel", dbPath, newDBName)
 
 	// 打开源数据库
 	sourceDb, err := db.NewDatabase(dbPath, DB_PASSWORD)
@@ -1689,7 +1645,7 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 	defer sourceDb.Close()
 
 	// 查询附表1数据
-	query := `SELECT stat_date, credit_code, unit_name, province_name, city_name, country_name, annual_energy_equivalent_value, annual_energy_equivalent_cost, annual_total_coal_consumption FROM enterprise_coal_consumption_main`
+	query := `SELECT stat_date, credit_code, unit_name, province_name, city_name, country_name, annual_energy_equivalent_value, annual_energy_equivalent_cost, annual_total_coal_consumption AS annual_coal_consumption FROM enterprise_coal_consumption_main`
 	table1Result, err := sourceDb.Query(query)
 	if err != nil {
 		result.Message = "查询数据失败: " + err.Error()
@@ -1702,20 +1658,20 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 
 	dataMap := make(map[string][]map[string]interface{})
 	for _, row := range table1Result.Data.([]map[string]interface{}) {
-		statDate := row["stat_date"].(string)
-		creditCode := row["credit_code"].(string)
-		province_name := row["province_name"].(string)
-		city_name := row["city_name"].(string)
-		country_name := row["country_name"].(string)
-		unit_name := row["unit_name"].(string)
-		annual_energy_equivalent_value := row["annual_energy_equivalent_value"].(string)
-		annual_energy_equivalent_cost := row["annual_energy_equivalent_cost"].(string)
-		annual_total_coal_consumption := row["annual_total_coal_consumption"].(string)
+		statDate := getStringValue(row["stat_date"])
+		creditCode := getStringValue(row["credit_code"])
+		province_name := getStringValue(row["province_name"])
+		city_name := getStringValue(row["city_name"])
+		country_name := getStringValue(row["country_name"])
+		unit_name := getStringValue(row["unit_name"])
+		annual_energy_equivalent_value := getStringValue(row["annual_energy_equivalent_value"])
+		annual_energy_equivalent_cost := getStringValue(row["annual_energy_equivalent_cost"])
+		annual_coal_consumption := getStringValue(row["annual_coal_consumption"])
 		key := fmt.Sprintf("%s_%s_%s_%s_%s", statDate, creditCode, province_name, city_name, country_name)
 
 		annual_energy_equivalent_value, _ = SM4Decrypt(annual_energy_equivalent_value)
 		annual_energy_equivalent_cost, _ = SM4Decrypt(annual_energy_equivalent_cost)
-		annual_total_coal_consumption, _ = SM4Decrypt(annual_total_coal_consumption)
+		annual_coal_consumption, _ = SM4Decrypt(annual_coal_consumption)
 
 		row := map[string]interface{}{
 			"stat_date":                      statDate,
@@ -1726,7 +1682,7 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 			"unit_name":                      unit_name,
 			"annual_energy_equivalent_value": annual_energy_equivalent_value,
 			"annual_energy_equivalent_cost":  annual_energy_equivalent_cost,
-			"annual_coal_consumption":        annual_total_coal_consumption,
+			"annual_coal_consumption":        annual_coal_consumption,
 			"unit_type":                      "规上企业",
 		}
 
@@ -1739,7 +1695,7 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 	}
 
 	// 查询附表1 设备数据
-	equipQuery := `SELECT b.stat_date, b.credit_code, b.unit_name, b.province_name, b.city_name, b.country_name, a.equip_type, a.equip_no, a.annual_coal_consumption
+	equipQuery := `SELECT b.stat_date, b.credit_code, b.unit_name, b.province_name, b.city_name, b.country_name, a.equip_type, a.equip_no, a.coal_type, a.annual_coal_consumption
 		FROM enterprise_coal_consumption_equip a LEFT JOIN enterprise_coal_consumption_main b ON a.fk_id = b.obj_id`
 	table1EquipResult, err := sourceDb.Query(equipQuery)
 	if err != nil {
@@ -1753,16 +1709,16 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 
 	table1EquipMap := make(map[string][]map[string]interface{})
 	for _, row := range table1EquipResult.Data.([]map[string]interface{}) {
-		statDate := row["stat_date"].(string)
-		creditCode := row["credit_code"].(string)
-		province_name := row["province_name"].(string)
-		city_name := row["city_name"].(string)
-		country_name := row["country_name"].(string)
-		unit_name := row["unit_name"].(string)
-		equip_type := row["equip_type"].(string)
-		equip_no := row["equip_no"].(string)
-		coal_type := row["coal_type"].(string)
-		annual_coal_consumption := row["annual_coal_consumption"].(string)
+		statDate := getStringValue(row["stat_date"])
+		creditCode := getStringValue(row["credit_code"])
+		province_name := getStringValue(row["province_name"])
+		city_name := getStringValue(row["city_name"])
+		country_name := getStringValue(row["country_name"])
+		unit_name := getStringValue(row["unit_name"])
+		equip_type := getStringValue(row["equip_type"])
+		equip_no := getStringValue(row["equip_no"])
+		coal_type := getStringValue(row["coal_type"])
+		annual_coal_consumption := getStringValue(row["annual_coal_consumption"])
 		key := fmt.Sprintf("%s_%s_%s_%s_%s", statDate, creditCode, province_name, city_name, country_name)
 
 		annual_coal_consumption_value, _ := SM4Decrypt(annual_coal_consumption)
@@ -1791,7 +1747,9 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 
 	table2DataMap := make(map[string]map[string]interface{})
 	// 查询附表2数据
-	table2Query := `SELECT stat_date, credit_code, unit_name, province_name, city_name, country_name, annual_coal_consumption, coal_type AS equip_type, coal_no AS equip_no FROM critical_coal_equipment_consumption`
+	table2Query := `SELECT stat_date, credit_code, unit_name, province_name, city_name, country_name,
+	annual_coal_consumption, coal_type AS equip_type, coal_no AS equip_no
+	FROM critical_coal_equipment_consumption`
 	table2Result, err := sourceDb.Query(table2Query)
 	if err != nil {
 		result.Message = "查询数据失败: " + err.Error()
@@ -1803,15 +1761,15 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 	}
 
 	for _, row := range table2Result.Data.([]map[string]interface{}) {
-		statDate := row["stat_date"].(string)
-		creditCode := row["credit_code"].(string)
-		province_name := row["province_name"].(string)
-		city_name := row["city_name"].(string)
-		country_name := row["country_name"].(string)
-		unit_name := row["unit_name"].(string)
-		annual_coal_consumption := row["annual_coal_consumption"].(string)
-		equip_type := row["equip_type"].(string)
-		equip_no := row["equip_no"].(string)
+		statDate := getStringValue(row["stat_date"])
+		creditCode := getStringValue(row["credit_code"])
+		province_name := getStringValue(row["province_name"])
+		city_name := getStringValue(row["city_name"])
+		country_name := getStringValue(row["country_name"])
+		unit_name := getStringValue(row["unit_name"])
+		annual_coal_consumption := getStringValue(row["annual_coal_consumption"])
+		equip_type := getStringValue(row["equip_type"])
+		equip_no := getStringValue(row["equip_no"])
 
 		annual_coal_consumption, _ = SM4Decrypt(annual_coal_consumption)
 		annual_coal_consumptionValue := parseFloat(getStringValue(annual_coal_consumption))
@@ -1819,8 +1777,8 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 		key := fmt.Sprintf("%s_%s_%s_%s_%s", statDate, creditCode, province_name, city_name, country_name)
 
 		if item, ok := table2DataMap[key]; ok {
-			itemAnnualTotal, _ := item["annual_total_coal_consumption"].(float64)
-			item["annual_total_coal_consumption"] = addFloat64(itemAnnualTotal, annual_coal_consumptionValue)
+			itemAnnualTotal, _ := item["annual_coal_consumption"].(float64)
+			item["annual_coal_consumption"] = addFloat64(itemAnnualTotal, annual_coal_consumptionValue)
 		} else {
 			item := map[string]interface{}{
 				"stat_date":               statDate,
@@ -1839,9 +1797,9 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 	}
 
 	for key, item := range table2DataMap {
-		itemAnnualTotal, _ := item["annual_total_coal_consumption"].(float64)
+		itemAnnualTotal, _ := item["annual_coal_consumption"].(float64)
 		// 单位万吨, 保留两位小数
-		item["annual_total_coal_consumption"] = math.Round(itemAnnualTotal/10000*100) / 100
+		item["annual_coal_consumption"] = math.Round(itemAnnualTotal/10000*100) / 100
 		if rows, ok := dataMap[key]; ok {
 			rows = append(rows, item)
 			dataMap[key] = rows
@@ -2019,7 +1977,7 @@ func (a *App) exportUnitDataToExcel(dataMap map[string][]map[string]interface{})
 				f.SetCellValue(sheetName, fmt.Sprintf("I%d", rowIndex), energyCost)
 			}
 			// 耗煤总量（实物量，万吨）
-			if coalTotal, ok := row["annual_total_coal_consumption"]; ok {
+			if coalTotal, ok := row["annual_coal_consumption"]; ok {
 				f.SetCellValue(sheetName, fmt.Sprintf("J%d", rowIndex), coalTotal)
 			}
 
@@ -2206,9 +2164,6 @@ func (a *App) exportEquipDataToExcel(table1EquipMap map[string][]map[string]inte
 			if coalTotal, ok := row["annual_coal_consumption"]; ok {
 				f.SetCellValue(sheetName, fmt.Sprintf("K%d", rowIndex), coalTotal)
 			}
-
-			fmt.Println("row", row)
-			fmt.Println("耗煤量", row["annual_coal_consumption"])
 			// 为整行应用边框样式
 			if dataStyle != 0 {
 				for col := 1; col <= 11; col++ {
