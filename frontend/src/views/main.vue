@@ -117,6 +117,9 @@
      } else if (newValue === 2) {
        // 状态为 2：禁用除清单导入外的菜单项
        setMenusDisabledStateByManifest(2);
+     } else if (newValue === 3) {
+       // 状态为 3：解除所有菜单禁用
+       setMenusDisabledStateByManifest(3);
      }
    }, { immediate: false });
 
@@ -143,6 +146,9 @@
              $router.push('/main/manifest-import');
              setMenusDisabledStateByManifest(2);
              console.log('跳转--------------')
+           } else if (result.data === 3) {
+             // 状态为 3：解除所有菜单禁用
+             setMenusDisabledStateByManifest(3);
            }
          } else {
            console.error('获取 manifest 值失败:', result.message);
@@ -159,20 +165,8 @@
      };
 
      /**
-      * 设置菜单项的禁用状态
-      * @param {boolean} disabled - 是否禁用菜单项
-      */
-     const setMenusDisabledState = (disabled: boolean) => {
-       menus.value.forEach(menu => {
-         if ( 'disabled' in menu) {
-           menu.disabled = disabled;
-         }
-       });
-     };
-
-     /**
       * 根据manifest状态设置菜单项的禁用状态
-      * @param {number} manifestValue - manifest状态值（1或2）
+      * @param {number} manifestValue - manifest状态值（1、2或3）
       */
      const setMenusDisabledStateByManifest = (manifestValue: number) => {
        menus.value.forEach(menu => {
@@ -183,9 +177,13 @@
            } else if (manifestValue === 2) {
              // 状态为2：禁用除清单导入外的其他菜单项
              menu.disabled = menu.path !== '/main/manifest-import';
+           } else if (manifestValue === 3) {
+             // 状态为3：解除所有菜单禁用
+             menu.disabled = false;
            }
          }
        });
+       
      };
 
      /**
@@ -193,7 +191,9 @@
       */
      const disableMenusExceptManifestImport = () => {
        menus.value.forEach(menu => {
-         if ( 'disabled' in menu) {
+         if (menu.path === '/main/manifest-import') {
+           menu.disabled = false;
+         } else {
            menu.disabled = true;
          }
        });

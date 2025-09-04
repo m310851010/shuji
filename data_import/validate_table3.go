@@ -82,7 +82,7 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 	if !skipValidate {
 		// 检查表头一致性
 		if len(headers) < len(expectedHeaders) {
-			return nil, fmt.Errorf("表头列数不足，期望%d列，实际%d列", len(expectedHeaders), len(headers))
+			return nil, fmt.Errorf("与数据模板不匹配")
 		}
 
 		for i, expected := range expectedHeaders {
@@ -92,7 +92,7 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 
 			actual := strings.TrimSpace(headers[i])
 			if actual != expected {
-				return nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+				return nil, fmt.Errorf("与数据模板不匹配")
 			}
 		}
 	}

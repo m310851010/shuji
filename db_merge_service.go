@@ -2020,6 +2020,26 @@ func (a *App) createUnitDataSheet(f *excelize.File, dataMap map[string][]map[str
 		}
 	}
 
+	// 添加注释行
+	f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIndex), "其他用能单位的耗煤总量由各装置年耗煤量加总得到，不一定与其整体耗煤量相等")
+	f.MergeCell(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("K%d", rowIndex))
+
+	// 设置注释行样式
+	commentStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Italic: true,
+			Size:   10,
+			Color:  "808080",
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "left",
+			Vertical:   "center",
+		},
+	})
+	if err == nil {
+		f.SetCellStyle(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("A%d", rowIndex), commentStyle)
+	}
+
 	// 设置列宽
 	f.SetColWidth(sheetName, "A", "A", 12) // 年份
 	f.SetColWidth(sheetName, "B", "B", 15) // 省
@@ -2161,26 +2181,6 @@ func (a *App) createEquipDataSheet(f *excelize.File, equipList []map[string]inte
 		}
 
 		rowIndex++
-	}
-
-	// 添加注释行
-	f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowIndex), "其他用能单位的耗煤总量由各装置年耗煤量加总得到，不一定与其整体耗煤量相等")
-	f.MergeCell(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("K%d", rowIndex))
-
-	// 设置注释行样式
-	commentStyle, err := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{
-			Italic: true,
-			Size:   10,
-			Color:  "808080",
-		},
-		Alignment: &excelize.Alignment{
-			Horizontal: "left",
-			Vertical:   "center",
-		},
-	})
-	if err == nil {
-		f.SetCellStyle(sheetName, fmt.Sprintf("A%d", rowIndex), fmt.Sprintf("A%d", rowIndex), commentStyle)
 	}
 
 	// 设置列宽

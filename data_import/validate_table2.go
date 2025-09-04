@@ -21,11 +21,11 @@ func (s *DataImportService) parseTable2Excel(f *excelize.File, skipValidate bool
 	// 解析主表数据
 	unitInfo, mainData, err := s.parseTable2MainSheet(f, sheets[0], skipValidate)
 	if err != nil {
-		return nil, nil, fmt.Errorf("和%s模板不匹配,  %v", TableName2, err)
+		return nil, nil, fmt.Errorf("与数据模板不匹配")
 	}
 
 	if len(mainData) == 0 {
-		return nil, nil, fmt.Errorf("导入文件没有检测到数据, 请检查文件是否正确")
+		return nil, nil, fmt.Errorf("与数据模板不匹配")
 	}
 
 	return unitInfo, mainData, nil
@@ -73,7 +73,7 @@ func (s *DataImportService) parseTable2MainSheet(f *excelize.File, sheetName str
 
 			actual := strings.TrimSpace(headers[i])
 			if actual != expected {
-				return unitInfo, nil, fmt.Errorf("第%d列表头不匹配，期望：%s，实际：%s", i+1, expected, actual)
+				return unitInfo, nil, fmt.Errorf("与数据模板不匹配")
 			}
 		}
 	}
@@ -124,7 +124,7 @@ func (s *DataImportService) parseTable2UnitInfo(rows [][]string) (map[string]int
 
 	// 第3行：单位名称和统一社会信用代码
 	if len(rows) < 4 {
-		return nil, fmt.Errorf("表格行数不足，无法解析单位基本信息")
+		return nil, fmt.Errorf("与数据模板不匹配")
 	}
 
 	row3 := rows[2] // 第3行（0索引为2）

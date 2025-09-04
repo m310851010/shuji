@@ -23,19 +23,19 @@ func (s *DataImportService) parseTable1Excel(f *excelize.File, skipValidate bool
 	// 解析主表数据（企业基本信息）
 	mainData, err := s.parseTable1MainSheet(f, sheets[0], skipValidate)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("和%s模板不匹配, 企业基本信息: %v", TableName1, err)
+		return nil, nil, nil, fmt.Errorf("与数据模板不匹配")
 	}
 
 	// 解析用途数据（煤炭消费主要用途情况）
 	usageData, err := s.parseTable1UsageSheet(f, sheets[0], skipValidate)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("和%s模板不匹配, 用途数据: %v", TableName1, err)
+		return nil, nil, nil, fmt.Errorf("与数据模板不匹配")
 	}
 
 	// 解析设备数据（重点耗煤装置情况）
 	equipData, err := s.parseTable1EquipSheet(f, sheets[0], skipValidate)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("和%s模板不匹配, 设备数据: %v", TableName1, err)
+		return nil, nil, nil, fmt.Errorf("与数据模板不匹配")
 	}
 
 	return mainData, usageData, equipData, nil
@@ -72,17 +72,17 @@ func (s *DataImportService) parseTable1MainSheet(f *excelize.File, sheetName str
 	if !skipValidate {
 		// 检查表头一致性
 		if len(headers) < len(expectedHeaders) {
-			return nil, fmt.Errorf("企业基本信息表头列数不足，模板需要%d列，导入文件%d列", len(expectedHeaders), len(headers))
+			return nil, fmt.Errorf("与数据模板不匹配")
 		}
 
 		for i, expected := range expectedHeaders {
 			if i >= len(headers) {
-				return nil, fmt.Errorf("缺少表头：%s", expected)
+				return nil, fmt.Errorf("与数据模板不匹配")
 			}
 
 			actual := strings.TrimSpace(headers[i])
 			if actual != expected {
-				return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，导入数据为:%s", i+1, expected, actual)
+				return nil, fmt.Errorf("与数据模板不匹配")
 			}
 		}
 	}
@@ -196,7 +196,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 
 	// 检查表头一致性
 	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("用途表表头列数不足，模板需要%d列，导入文件%d列", len(expectedHeaders), len(headers))
+		return nil, fmt.Errorf("与数据模板不匹配")
 	}
 
 	// 构建表头映射
@@ -208,7 +208,7 @@ func (s *DataImportService) parseTable1UsageSheet(f *excelize.File, sheetName st
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，导入数据为:%s", i+1, expected, actual)
+			return nil, fmt.Errorf("与数据模板不匹配")
 		}
 		headerMap[i] = s.mapTable1UsageHeaderToField(expected)
 	}
@@ -283,19 +283,19 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 
 	// 检查表头一致性
 	if len(headers) < len(expectedHeaders) {
-		return nil, fmt.Errorf("设备表表头列数不足，模板需要%d列，导入文件%d列", len(expectedHeaders), len(headers))
+		return nil, fmt.Errorf("与数据模板不匹配")
 	}
 
 	// 构建表头映射
 	headerMap := make(map[int]string)
 	for i, expected := range expectedHeaders {
 		if i >= len(headers) {
-			return nil, fmt.Errorf("缺少表头：%s", expected)
+			return nil, fmt.Errorf("与数据模板不匹配")
 		}
 
 		actual := strings.TrimSpace(headers[i])
 		if actual != expected {
-			return nil, fmt.Errorf("第%d列表头不匹配，模板需要：%s，导入数据为:%s", i+1, expected, actual)
+			return nil, fmt.Errorf("与数据模板不匹配")
 		}
 		headerMap[i] = s.mapTable1EquipHeaderToField(expected)
 	}

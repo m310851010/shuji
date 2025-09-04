@@ -22,7 +22,7 @@
 <script setup lang="tsx">
   import { message, TableColumnType } from 'ant-design-vue';
   import { useTableHeight } from '@/hook';
-  import { ExportDBData, OpenSaveDialog, QueryExportData, GetEnhancedAreaConfig } from '@wailsjs/go';
+  import { ExportDBData, OpenSaveDialog, QueryExportData, GetEnhancedAreaConfig, GetAreaConfig } from '@wailsjs/go';
   import { main } from '@wailsjs/models';
   import dayjs from 'dayjs';
   import { TableType, TableTypeName } from '@/views/constant';
@@ -57,7 +57,7 @@
     }
   });
 
-  const columns: TableColumnType<ExportItem>[] = [
+  const columns: TableColumnType<ExportItem>[] = reactive([
     {
       title: '年份',
       dataIndex: 'stat_date',
@@ -70,13 +70,6 @@
       key: 'tableTypeName',
       align: 'center'
     },
-    /*{
-      title: '导入进度',
-      align: 'center',
-      customRender: ({ record }) => {
-        return `${record.is_checked_yes}/${record.count}`;
-      }
-    },*/
     {
       title: '导入进度',
       align: 'center',
@@ -102,7 +95,15 @@
         // ${record.count}
       }
     }
-  ];
+  ]);
+
+  onMounted(async () => {
+    const areaResult = await GetAreaConfig();
+    if (areaResult.ok && areaResult.data?.country_name) {
+      columns.splice(2, 1);
+    }
+  });
+
   const handleExportClick = async () => {
     let allPass = true;
     for (const item of dataSource.value) {

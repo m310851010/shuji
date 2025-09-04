@@ -84,8 +84,8 @@
               ]);
               
               if (enterpriseExists && equipmentExists) {
-                await UpdateStateManifest(1);
-                console.log('企业清单和装置清单都存在，manifest 状态已更新为 1');
+                await UpdateStateManifest(3);
+                console.log('企业清单和装置清单都存在，manifest 状态已更新为 3');
                 // 通知父组件刷新状态
                 await refreshManifestState();
               } else {
