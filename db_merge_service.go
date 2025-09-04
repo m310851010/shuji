@@ -1807,8 +1807,11 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 			"unit_name":               unit_name,
 			"equip_type":              equip_type,
 			"equip_no":                equip_no,
-			"annual_coal_consumption": annual_coal_consumption,
+			"annual_coal_consumption": "",
 			"unit_type":               "其他用能单位",
+		}
+		if	annual_coal_consumption != "" {
+			equipItem["annual_coal_consumption"] = fmt.Sprintf("%.4f", annual_coal_consumptionValue/ 10000)
 		}
 
 		equipList = append(equipList, equipItem)
