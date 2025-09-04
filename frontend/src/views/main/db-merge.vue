@@ -1,7 +1,7 @@
 <template>
   <div class="wh-100 flex-vertical">
     <div class="page-header">
-      <span class="header-title">DB文件合并</span>
+      <span class="header-title">数据文件合并</span>
     </div>
     <div class="page-content text-center">
       <UploadComponent
@@ -9,11 +9,11 @@
         v-on:update:model-value="handleUpdateModelValue"
         :accept="() => true"
         :validFile="['db']"
-        filterName="DB文件"
+        filterName="数据文件"
         filterPattern="*.db"
-        title="选择DB文件"
+        title="选择数据文件"
       >
-        <div>只能选择DB文件（.db），支持批量选择(最多4个)</div>
+        <div>只能选择数据文件（.db），支持批量选择(最多4个)</div>
         <div>支持一次性拖一个或多个文件Excel文件，以及整个文件夹</div>
         <div>选择文件后，点击下方按钮开始合并</div>
       </UploadComponent>
@@ -112,7 +112,7 @@
     //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
 
     const areaCode = formState.district || formState.city;
-   // 获取区域名称
+    // 获取区域名称
     const cityName = selectedCity?.name || '';
     let districtName = '';
     if (selectedCity.children) {
@@ -125,7 +125,7 @@
     //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
     const res2 = await OpenSaveDialog(
       new main.FileDialogOptions({
-        title: '保存合并后的DB文件',
+        title: '保存合并后的数据文件',
         defaultFilename: `${newName}.db`
       })
     );
@@ -142,7 +142,7 @@
     tableList: [] as any[],
     tableRefs: [] as any[],
     targetDbPath: '',
-    title: 'DB文件合并',
+    title: '数据文件合并',
     showModal: async (data: any) => {
       modal.show = true;
       modal.tableList = data;
@@ -181,7 +181,7 @@
 
   const handleMerge = () => {
     if (!selectedFiles.value.length) {
-      message.error('请先选择DB文件');
+      message.error('请先选择数据文件');
     }
 
     formRef.value
@@ -242,7 +242,7 @@
       const regex = /^export_\d{18,20}_[\u4e00-\u9fa5]{2,}\.db$/;
       const validFiles = value.filter(item => regex.test(item.name));
       if (validFiles.length !== value.length) {
-        message.warn('请选择正确的DB文件, 文件名规则示例: export_20250826152020150000_西城区.db');
+        message.warn('请选择正确的数据文件, 文件名规则示例: export_20250826152020150000_西城区.db');
         selectedFiles.value = validFiles;
         return;
       }
