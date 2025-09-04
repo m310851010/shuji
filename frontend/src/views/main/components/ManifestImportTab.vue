@@ -26,7 +26,7 @@
   import UploadComponent from './Upload.vue';
   import { openInfoModal, openModal } from '@/components/useModal';
   import { message, notification } from 'ant-design-vue';
-  import { UpdateStateManifest } from '@wailsjs/go';
+  import { UpdateStateManifest, IsEnterpriseListExist, IsEquipmentListExist } from '@wailsjs/go';
   
   // 注入父组件提供的刷新方法
   const refreshManifestState = inject('refreshManifestState', () => {});
@@ -76,14 +76,23 @@
         const fn = async () => {
           const importResult = await model.value.importFunc(file.fullPath);
           if (importResult.ok) {
-            // 导入成功后更新 state.json 中的 manifest 状态为 1
+            // 导入成功后检查企业清单和装置清单是否都存在，如果都存在则更新 state.json 中的 manifest 状态为 1
             try {
-              await UpdateStateManifest(1);
-              console.log('manifest 状态已更新为 1');
-              // 通知父组件刷新状态
-              await refreshManifestState();
+              const [enterpriseExists, equipmentExists] = await Promise.all([
+                IsEnterpriseListExist(),
+                IsEquipmentListExist()
+              ]);
+              
+              if (enterpriseExists && equipmentExists) {
+                await UpdateStateManifest(1);
+                console.log('企业清单和装置清单都存在，manifest 状态已更新为 1');
+                // 通知父组件刷新状态
+                await refreshManifestState();
+              } else {
+                console.log('企业清单或装置清单不存在，不更新 manifest 状态');
+              }
             } catch (error) {
-              console.error('更新 manifest 状态失败:', error);
+              console.error('检查清单存在性或更新 manifest 状态失败:', error);
             }
             
             notification.success({

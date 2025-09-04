@@ -68,7 +68,6 @@
 
   async function handleTable(result: Promise<db.QueryResult>, initColumns: (data: ProcessData) => any[]) {
     const res = await result;
-    console.log(res);
     if (!res.ok) {
       message.error(res.message);
       return;
@@ -77,9 +76,15 @@
     if (!data) {
       return;
     }
+    data.years ||= [];
+    const yearSet = new Set(data.years);
+    yearSet.add('2023');
+    yearSet.add('2024');
+    data.years = Array.from(yearSet);
+    data.years.sort();
+
     const _columns = initColumns(data);
     if (data.years) {
-      data.years.sort();
       data.years.forEach(year => {
         _columns.push({
           title: `${year}年数据`,

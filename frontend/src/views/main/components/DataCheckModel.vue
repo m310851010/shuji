@@ -17,7 +17,7 @@
         <pre style="white-space: break-spaces; line-height: 25px">{{ model.errorMessage }}</pre>
       </div>
       <div>
-        <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">下载模型报告</a-button>
+        <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">导出校验报告</a-button>
       </div>
     </a-flex>
   </div>

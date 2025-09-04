@@ -814,7 +814,6 @@ func (s *DataImportService) validateTable1EnergyCoalRelation(data map[string]int
 
 	// 获取相关数值
 	annualEnergyEquivalentValue := s.parseFloat(s.getStringValue(data["annual_energy_equivalent_value"]))
-	annualEnergyEquivalentCost := s.parseFloat(s.getStringValue(data["annual_energy_equivalent_cost"]))
 	annualTotalCoalProducts := s.parseFloat(s.getStringValue(data["annual_total_coal_products"]))
 
 	// 年综合能耗当量值≧耗煤总量（标准量）
@@ -827,20 +826,6 @@ func (s *DataImportService) validateTable1EnergyCoalRelation(data map[string]int
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
 			Message:   "年综合能耗当量值应大于等于耗煤总量（标准量）",
-			Cells:     cells,
-		})
-	}
-
-	// 年综合能耗等价值≧耗煤总量（标准量）
-	if s.isIntegerLessThan(annualEnergyEquivalentCost, annualTotalCoalProducts) {
-		// 获取涉及到的单元格位置
-		cells := []string{
-			s.getCellPosition(TableType1, "annual_energy_equivalent_cost", rowNum),
-			s.getCellPosition(TableType1, "annual_total_coal_products", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "年综合能耗等价值应大于等于耗煤总量（标准量）",
 			Cells:     cells,
 		})
 	}

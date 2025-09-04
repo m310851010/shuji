@@ -52,6 +52,7 @@
             placeholder="请选择县"
             :options="districtOptions"
             :filter-option="filterOption"
+            @change="handleDistrictChange"
           ></a-select>
         </a-form-item>
       </a-form>
@@ -99,19 +100,7 @@
   import UploadComponent from './components/Upload.vue';
   import DBMergeCoverTable from './components/DBMergeCoverTable.vue';
   import { reactive, ref } from 'vue';
-  import {
-    GetChinaAreaStr,
-    MergeDatabase,
-    SaveAreaConfig,
-    MergeConflictData,
-    OpenSaveDialog,
-    Copyfile,
-    Movefile,
-    Removefile,
-    GetEnhancedAreaConfig,
-    DBTranformExcel
-  } from '@wailsjs/go';
-  import { openModal } from '@/components/useModal';
+  import { GetChinaAreaStr, MergeDatabase, MergeConflictData, OpenSaveDialog, Movefile, Removefile } from '@wailsjs/go';
   import { TableType, TableTypeName } from '../constant';
   import { main } from '@wailsjs/models';
   import dayjs from 'dayjs';
@@ -123,29 +112,22 @@
     message.success('合并成功, 正在保存到指定位置');
     //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
 
-    const areaResult = await GetEnhancedAreaConfig();
-    const areaConfig = areaResult.data;
-    const areaCode = areaConfig.country_code || areaConfig.city_code;
-    const areaName = areaConfig.country_name || areaConfig.city_name;
-
+    const areaCode = selectedDistrictCode || selectedCityCode;
+    const areaName = formState.district || formState.city;
     const newName = `export_${dayjs().format('YYYYMMDDHHmmss')}${areaCode}_${areaName}`;
+
     //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
     const res2 = await OpenSaveDialog(
       new main.FileDialogOptions({
-        title: '保存合并后的ZIP文件',
-        defaultFilename: `${newName}.zip`
+        title: '保存合并后的DB文件',
+        defaultFilename: `${newName}.db`
       })
     );
 
     if (res2.canceled) {
-      await Removefile(targetDbPath);
+      Removefile(targetDbPath);
     } else {
-      const zipResult = await DBTranformExcel(targetDbPath, newName);
-      if (zipResult.ok) {
-        await Movefile(zipResult.data, res2.filePaths[0]);
-      } else {
-        message.error(zipResult.message);
-      }
+      await Movefile(targetDbPath, res2.filePaths[0]);
     }
   }
 
@@ -290,6 +272,8 @@
 
   let selectedProvince: any | null = null;
   let selectedCity: any | null = null;
+  let selectedCityCode = '';
+  let selectedDistrictCode = '';
 
   onMounted(async () => {
     const res = await GetChinaAreaStr();
@@ -301,6 +285,7 @@
     }));
   });
 
+  // 省选择
   const handleProvinceChange = (value: string) => {
     selectedCity = null;
     cityOptions.value = [];
@@ -321,11 +306,16 @@
     districtOptions.value = [];
   };
 
+  // 市选择
   const handleCityChange = (value: string) => {
+    selectedDistrictCode = '';
+    selectedCityCode = '';
     if (!value) {
       selectedCity = null;
       districtOptions.value = [];
       formState.district = null;
+      selectedCityCode = '';
+
       return;
     }
     selectedCity = selectedProvince!.children.find((item: any) => item.code === value)!;
@@ -333,10 +323,17 @@
       districtOptions.value = [];
       return;
     }
+
+    selectedCityCode = value;
     districtOptions.value = selectedCity.children.map((item: any) => ({
       value: item.code,
       label: item.name
     }));
+  };
+
+  // 县选择
+  const handleDistrictChange = (value: string) => {
+    selectedDistrictCode = value;
   };
 
   const filterOption = (input: string, option: any) => {

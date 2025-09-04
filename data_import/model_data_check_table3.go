@@ -512,7 +512,6 @@ func (s *DataImportService) validateTable3OverallRulesForRow(data map[string]int
 
 	// 获取当前行的数值
 	equivalentValue := s.parseFloat(s.getStringValue(data["equivalent_value"]))
-	equivalentCost := s.parseFloat(s.getStringValue(data["equivalent_cost"]))
 	sceTotalCoalConsumption := s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
 	pqTotalCoalConsumption := s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
 	pqAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
@@ -528,19 +527,6 @@ func (s *DataImportService) validateTable3OverallRulesForRow(data map[string]int
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
 			Message:   "年综合能源消费量（当量值）应大于等于年煤品消费量（折标量）",
-			Cells:     cells,
-		})
-	}
-
-	// 年综合能源消费量（等价值）≧年煤品消费量（折标量）
-	if s.isIntegerLessThan(equivalentCost, sceTotalCoalConsumption) {
-		cells := []string{
-			s.getCellPosition(TableType3, "equivalent_cost", rowNum),
-			s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "年综合能源消费量（等价值）应大于等于年煤品消费量（折标量）",
 			Cells:     cells,
 		})
 	}

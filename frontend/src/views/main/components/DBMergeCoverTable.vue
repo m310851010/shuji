@@ -322,15 +322,11 @@
   const processConflictData = (conflicts: ConflictDetail[]) => {
     const processedData: ConflictRecord[] = [];
 
+    debugger;
     conflicts.forEach((conflict, index) => {
       if (conflict.conflict && conflict.conflict.length > 0) {
         // 初始化选择状态，默认只选中第一个文件
         const selections: Record<string, boolean> = {};
-
-        props.dbFileNames.forEach((_, dbIndex) => {
-          const dbKey = `db${dbIndex}`;
-          selections[dbKey] = dbIndex === 0; // 只选中第一个文件
-        });
 
         // 根据表类型设置不同的字段
         const record: ConflictRecord = {
@@ -440,12 +436,15 @@
   };
 
   const handleViewDetailData = async (record: ConflictRecord, dbKey: string) => {
+    console.log('查看详细数据 - 记录:', record);
     const dbIndex = parseInt(dbKey.replace('db', ''));
+    const fileName = props.dbFileNames[dbIndex];
 
-    // 查找对应的冲突源信息
-    const conflictSource = record.conflictDetail.conflict[dbIndex];
+    // 根据文件名查找对应的冲突源信息
+    const conflictSource = record.conflictDetail.conflict.find(source => source.fileName === fileName);
 
     console.log('查看详细数据 - 记录:', record);
+    console.log('查看详细数据 - 文件名:', fileName);
     console.log('查看详细数据 - 冲突源:', conflictSource);
 
     if (conflictSource) {
@@ -522,7 +521,7 @@
       if (selectedItems.length > 0) {
         // 收集该文件中所有选中的冲突源信息
         selectedItems.forEach(item => {
-          const conflictSource = item.conflictDetail.conflict[dbIndex];
+          const conflictSource = item.conflictDetail.conflict.find(source => source.fileName === fileName);
           if (conflictSource) {
             // 检查是否已经存在相同的文件路径
             const existingIndex = selectedConflictData.findIndex(existing => existing.filePath === conflictSource.filePath);
@@ -601,7 +600,7 @@
         if (selectedItems.length > 0) {
           // 收集该文件中所有选中的冲突源信息
           selectedItems.forEach(item => {
-            const conflictSource = item.conflictDetail.conflict[dbIndex];
+            const conflictSource = item.conflictDetail.conflict.find(source => source.fileName === fileName);
             if (conflictSource) {
               // 检查是否已经存在相同的文件路径
               const existingIndex = selectedConflictData.findIndex(existing => existing.filePath === conflictSource.filePath);
