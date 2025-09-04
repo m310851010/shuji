@@ -78,18 +78,28 @@
       }
     },*/
     {
+      title: '导入进度',
+      align: 'center',
+      customRender: ({ record }) => {
+        return `${record.is_checked_yes}`;
+        // /${record.count}
+      }
+    },
+    {
       title: '自动校验',
       ellipsis: true,
       align: 'center',
       customRender: ({ record }) => {
-        return `${record.is_checked_yes}/${record.count}`;
+        return `${record.is_checked_yes}`;
+        // /${record.count}
       }
     },
     {
       title: '人工校验',
       align: 'center',
       customRender: ({ record }) => {
-        return `${record.is_confirm_yes}/${record.count}`;
+        return `${record.is_confirm_yes}`;
+        // ${record.count}
       }
     }
   ];

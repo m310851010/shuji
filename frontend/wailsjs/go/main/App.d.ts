@@ -72,6 +72,8 @@ export function GetImportRecordsByFileType(arg1:string):Promise<db.QueryResult>;
 
 export function GetPasswordInfo():Promise<db.QueryResult>;
 
+export function GetStateManifest():Promise<db.QueryResult>;
+
 export function ImportEnterpriseList(arg1:string):Promise<db.QueryResult>;
 
 export function ImportKeyEquipmentList(arg1:string):Promise<db.QueryResult>;
@@ -165,6 +167,8 @@ export function SaveAreaConfig(arg1:main.AreaConfig):Promise<db.QueryResult>;
 export function SetUserPassword(arg1:string):Promise<db.QueryResult>;
 
 export function ShowMessageBox(arg1:main.MessageBoxOptions):Promise<main.MessageBoxResult>;
+
+export function UpdateStateManifest(arg1:any):Promise<db.QueryResult>;
 
 export function ValidateAttachment2File(arg1:string,arg2:boolean):Promise<db.QueryResult>;
 

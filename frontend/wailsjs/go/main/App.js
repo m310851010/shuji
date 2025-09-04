@@ -138,6 +138,10 @@ export function GetPasswordInfo() {
   return window['go']['main']['App']['GetPasswordInfo']();
 }
 
+export function GetStateManifest() {
+  return window['go']['main']['App']['GetStateManifest']();
+}
+
 export function ImportEnterpriseList(arg1) {
   return window['go']['main']['App']['ImportEnterpriseList'](arg1);
 }
@@ -324,6 +328,10 @@ export function SetUserPassword(arg1) {
 
 export function ShowMessageBox(arg1) {
   return window['go']['main']['App']['ShowMessageBox'](arg1);
+}
+
+export function UpdateStateManifest(arg1) {
+  return window['go']['main']['App']['UpdateStateManifest'](arg1);
 }
 
 export function ValidateAttachment2File(arg1, arg2) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -493,4 +494,218 @@ func (a *App) GetEquipmentByCreditCode(creditCode string) db.QueryResult {
 		Data:    rows.Data,
 		Message: "查询装置清单成功",
 	}
+}
+
+// GetStateManifest 读取state.json文件中的manifest值
+func (a *App) GetStateManifest() db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("GetStateManifest 发生异常: %v", r)
+		}
+	}()
+
+	result := db.QueryResult{
+		Ok:      false,
+		Data:    nil,
+		Message: "",
+	}
+
+	// 使用 getCachePath("") 获取缓存路径，然后在该路径下存放 state.json
+	cachePath := a.GetCachePath("")
+	cacheStateFilePath := filepath.Join(cachePath, "state.json")
+	// 获取public目录下的state.json文件路径（作为模板）
+	publicStateFilePath := filepath.Join("frontend", "public", "state.json")
+
+	// 检查缓存目录下的state.json文件是否存在
+	if _, err := os.Stat(cacheStateFilePath); os.IsNotExist(err) {
+		// 如果缓存目录下的文件不存在，检查public目录下的模板文件是否存在
+		if _, err := os.Stat(publicStateFilePath); os.IsNotExist(err) {
+			result.Message = "模板文件" + publicStateFilePath + "不存在"
+			return result
+		}
+
+		// 确保缓存目录存在
+		cacheDir := filepath.Dir(cacheStateFilePath)
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			result.Message = "创建缓存目录失败: " + err.Error()
+			return result
+		}
+
+		// 从public目录复制state.json到缓存目录
+		publicContent, err := os.ReadFile(publicStateFilePath)
+		if err != nil {
+			result.Message = "读取模板文件失败: " + err.Error()
+			return result
+		}
+
+		err = os.WriteFile(cacheStateFilePath, publicContent, 0644)
+		if err != nil {
+			result.Message = "复制state.json文件到缓存目录失败: " + err.Error()
+			return result
+		}
+	}
+
+	// 读取缓存目录下的state.json文件内容
+	fileContent, err := os.ReadFile(cacheStateFilePath)
+	if err != nil {
+		result.Message = "读取缓存目录下的state.json文件失败: " + err.Error()
+		return result
+	}
+
+	// 解析JSON
+	var stateData map[string]interface{}
+	err = json.Unmarshal(fileContent, &stateData)
+	if err != nil {
+		result.Message = "解析state.json文件失败: " + err.Error()
+		return result
+	}
+
+	// 获取manifest值
+	manifestValue := stateData["manifest"]
+
+	result.Ok = true
+	result.Data = manifestValue
+	result.Message = "获取manifest值成功"
+	return result
+}
+
+// UpdateStateManifest 更新state.json文件中的manifest值
+func (a *App) UpdateStateManifest(manifestValue interface{}) db.QueryResult {
+	// 添加异常处理，防止函数崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("UpdateStateManifest 发生异常: %v", r)
+		}
+	}()
+
+	result := db.QueryResult{
+		Ok:      false,
+		Data:    nil,
+		Message: "",
+	}
+
+	// 使用 getCachePath("") 获取缓存路径，然后在该路径下存放 state.json
+	cachePath := a.GetCachePath("")
+	cacheStateFilePath := filepath.Join(cachePath, "state.json")
+	// 获取public目录下的state.json文件路径（作为模板）
+	publicStateFilePath := filepath.Join("frontend", "public", "state.json")
+
+	// 检查缓存目录下的state.json文件是否存在
+	if _, err := os.Stat(cacheStateFilePath); os.IsNotExist(err) {
+		// 如果缓存目录下的文件不存在，检查public目录下的模板文件是否存在
+		if _, err := os.Stat(publicStateFilePath); os.IsNotExist(err) {
+			// 如果模板文件也不存在，创建包含默认值的新文件
+			stateData := map[string]interface{}{
+				"manifest": manifestValue,
+			}
+
+			// 确保缓存目录存在
+			cacheDir := filepath.Dir(cacheStateFilePath)
+			if err := os.MkdirAll(cacheDir, 0755); err != nil {
+				result.Message = "创建缓存目录失败: " + err.Error()
+				return result
+			}
+
+			// 将数据转换为JSON
+			jsonData, err := json.MarshalIndent(stateData, "", "    ")
+			if err != nil {
+				result.Message = "创建state.json文件失败: " + err.Error()
+				return result
+			}
+
+			// 写入文件
+			err = os.WriteFile(cacheStateFilePath, jsonData, 0644)
+			if err != nil {
+				result.Message = "写入state.json文件失败: " + err.Error()
+				return result
+			}
+
+			result.Ok = true
+			result.Data = manifestValue
+			result.Message = "创建并更新manifest值成功"
+			return result
+		}
+
+		// 确保缓存目录存在
+		cacheDir := filepath.Dir(cacheStateFilePath)
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			result.Message = "创建缓存目录失败: " + err.Error()
+			return result
+		}
+
+		// 从public目录复制state.json到缓存目录
+		publicContent, err := os.ReadFile(publicStateFilePath)
+		if err != nil {
+			result.Message = "读取模板文件失败: " + err.Error()
+			return result
+		}
+
+		// 解析模板文件内容
+		var stateData map[string]interface{}
+		err = json.Unmarshal(publicContent, &stateData)
+		if err != nil {
+			result.Message = "解析模板文件失败: " + err.Error()
+			return result
+		}
+
+		// 更新manifest值
+		stateData["manifest"] = manifestValue
+
+		// 将更新后的数据转换为JSON
+		jsonData, err := json.MarshalIndent(stateData, "", "    ")
+		if err != nil {
+			result.Message = "转换JSON数据失败: " + err.Error()
+			return result
+		}
+
+		// 写入缓存目录下的文件
+		err = os.WriteFile(cacheStateFilePath, jsonData, 0644)
+		if err != nil {
+			result.Message = "复制并更新state.json文件到缓存目录失败: " + err.Error()
+			return result
+		}
+
+		result.Ok = true
+		result.Data = manifestValue
+		result.Message = "复制并更新manifest值成功"
+		return result
+	}
+
+	// 读取缓存目录下的现有文件内容
+	fileContent, err := os.ReadFile(cacheStateFilePath)
+	if err != nil {
+		result.Message = "读取缓存目录下的state.json文件失败: " + err.Error()
+		return result
+	}
+
+	// 解析JSON
+	var stateData map[string]interface{}
+	err = json.Unmarshal(fileContent, &stateData)
+	if err != nil {
+		result.Message = "解析state.json文件失败: " + err.Error()
+		return result
+	}
+
+	// 更新manifest值
+	stateData["manifest"] = manifestValue
+
+	// 将更新后的数据转换为JSON
+	jsonData, err := json.MarshalIndent(stateData, "", "    ")
+	if err != nil {
+		result.Message = "转换JSON数据失败: " + err.Error()
+		return result
+	}
+
+	// 写入缓存目录下的文件
+	err = os.WriteFile(cacheStateFilePath, jsonData, 0644)
+	if err != nil {
+		result.Message = "写入缓存目录下的state.json文件失败: " + err.Error()
+		return result
+	}
+
+	result.Ok = true
+	result.Data = manifestValue
+	result.Message = "更新manifest值成功"
+	return result
 }

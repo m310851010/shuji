@@ -26,6 +26,10 @@
   import UploadComponent from './Upload.vue';
   import { openInfoModal, openModal } from '@/components/useModal';
   import { message, notification } from 'ant-design-vue';
+  import { UpdateStateManifest } from '@wailsjs/go';
+  
+  // 注入父组件提供的刷新方法
+  const refreshManifestState = inject('refreshManifestState', () => {});
 
   const model = defineModel({
     type: Object,
@@ -72,6 +76,16 @@
         const fn = async () => {
           const importResult = await model.value.importFunc(file.fullPath);
           if (importResult.ok) {
+            // 导入成功后更新 state.json 中的 manifest 状态为 1
+            try {
+              await UpdateStateManifest(1);
+              console.log('manifest 状态已更新为 1');
+              // 通知父组件刷新状态
+              await refreshManifestState();
+            } catch (error) {
+              console.error('更新 manifest 状态失败:', error);
+            }
+            
             notification.success({
               placement: 'top',
               message: '导入成功',
