@@ -322,11 +322,15 @@
   const processConflictData = (conflicts: ConflictDetail[]) => {
     const processedData: ConflictRecord[] = [];
 
-    debugger;
     conflicts.forEach((conflict, index) => {
       if (conflict.conflict && conflict.conflict.length > 0) {
         // 初始化选择状态，默认只选中第一个文件
         const selections: Record<string, boolean> = {};
+        
+        // 设置默认选中第一个数据库
+        if (props.dbFileNames.length > 0) {
+          selections['db0'] = true;
+        }
 
         // 根据表类型设置不同的字段
         const record: ConflictRecord = {

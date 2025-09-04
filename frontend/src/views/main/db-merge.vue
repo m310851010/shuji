@@ -52,7 +52,6 @@
             placeholder="请选择县"
             :options="districtOptions"
             :filter-option="filterOption"
-            @change="handleDistrictChange"
           ></a-select>
         </a-form-item>
       </a-form>
@@ -112,8 +111,15 @@
     message.success('合并成功, 正在保存到指定位置');
     //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
 
-    const areaCode = selectedDistrictCode || selectedCityCode;
-    const areaName = formState.district || formState.city;
+    const areaCode = formState.district || formState.city;
+   // 获取区域名称
+    const cityName = selectedCity?.name || '';
+    let districtName = '';
+    if (selectedCity.children) {
+      districtName = selectedCity.children.find((item: any) => item.code === formState.district)?.name || '';
+    }
+    const areaName = districtName || cityName;
+
     const newName = `export_${dayjs().format('YYYYMMDDHHmmss')}${areaCode}_${areaName}`;
 
     //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
@@ -272,8 +278,6 @@
 
   let selectedProvince: any | null = null;
   let selectedCity: any | null = null;
-  let selectedCityCode = '';
-  let selectedDistrictCode = '';
 
   onMounted(async () => {
     const res = await GetChinaAreaStr();
@@ -308,13 +312,10 @@
 
   // 市选择
   const handleCityChange = (value: string) => {
-    selectedDistrictCode = '';
-    selectedCityCode = '';
     if (!value) {
       selectedCity = null;
       districtOptions.value = [];
       formState.district = null;
-      selectedCityCode = '';
 
       return;
     }
@@ -324,16 +325,10 @@
       return;
     }
 
-    selectedCityCode = value;
     districtOptions.value = selectedCity.children.map((item: any) => ({
       value: item.code,
       label: item.name
     }));
-  };
-
-  // 县选择
-  const handleDistrictChange = (value: string) => {
-    selectedDistrictCode = value;
   };
 
   const filterOption = (input: string, option: any) => {
