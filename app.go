@@ -255,6 +255,59 @@ func (a *App) GetFileInfo(path string) (*FileInfo, error) {
 	return fileInfo, nil
 }
 
+// OpenFileInExplorer 打开文件所在位置
+func (a *App) OpenFileInExplorer(path string) db.QueryResult {
+	fullPath := GetPath(path)
+
+	// 检查文件或目录是否存在
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		return db.QueryResult{Ok: false, Message: "文件或目录不存在: " + fullPath}
+	}
+
+	fileInfo, err := os.Stat(fullPath)
+	if err != nil {
+		return db.QueryResult{Ok: false, Message: "获取文件信息失败: " + err.Error()}
+	}
+
+	var cmd *exec.Cmd
+
+	switch sysruntime.GOOS {
+	case "windows":
+		if !fileInfo.IsDir() {
+			// Windows: 打开文件所在目录并选中文件
+			cmd = exec.Command("cmd", "/c", "start", "explorer", "/select,", fullPath)
+		} else {
+			// Windows: 直接打开目录
+			cmd = exec.Command("cmd", "/c", "start", "explorer", fullPath)
+		}
+	case "darwin":
+		if !fileInfo.IsDir() {
+			// macOS: 打开文件所在目录并选中文件
+			cmd = exec.Command("open", "-R", fullPath)
+		} else {
+			// macOS: 直接打开目录
+			cmd = exec.Command("open", fullPath)
+		}
+	case "linux":
+		if !fileInfo.IsDir() {
+			// Linux: 打开文件所在目录并选中文件
+			// 尝试使用 xdg-open，如果失败则尝试其他文件管理器
+			cmd = exec.Command("xdg-open", filepath.Dir(fullPath))
+		} else {
+			// Linux: 直接打开目录
+			cmd = exec.Command("xdg-open", fullPath)
+		}
+	default:
+		return db.QueryResult{Ok: false, Message: "不支持的操作系统: " + sysruntime.GOOS}
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		return db.QueryResult{Ok: false, Message: "打开文件失败: " + err.Error()}
+	}
+	return db.QueryResult{Ok: true, Message: "成功打开文件资源管理器", Data: fullPath}
+}
+
 func (a *App) FileExists(path string) FlagResult {
 	log.Printf("FileExists: %s", path)
 	path = GetPath(path)

@@ -38,8 +38,8 @@ export function Copyfile(arg1, arg2) {
   return window['go']['main']['App']['Copyfile'](arg1, arg2);
 }
 
-export function DBTranformExcel(arg1, arg2) {
-  return window['go']['main']['App']['DBTranformExcel'](arg1, arg2);
+export function DBTranformExcel(arg1) {
+  return window['go']['main']['App']['DBTranformExcel'](arg1);
 }
 
 export function ExitApp() {
@@ -54,8 +54,8 @@ export function ExportDBData(arg1) {
   return window['go']['main']['App']['ExportDBData'](arg1);
 }
 
-export function ExportDataToExcel(arg1, arg2) {
-  return window['go']['main']['App']['ExportDataToExcel'](arg1, arg2);
+export function ExportDataToExcel(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ExportDataToExcel'](arg1, arg2, arg3);
 }
 
 export function ExportTable1ProgressToExcel(arg1) {
@@ -224,6 +224,10 @@ export function OpenExternal(arg1) {
 
 export function OpenFileDialog(arg1) {
   return window['go']['main']['App']['OpenFileDialog'](arg1);
+}
+
+export function OpenFileInExplorer(arg1) {
+  return window['go']['main']['App']['OpenFileInExplorer'](arg1);
 }
 
 export function OpenSaveDialog(arg1) {

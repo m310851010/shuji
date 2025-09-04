@@ -22,7 +22,7 @@ export function CopySystemDb(arg1:string):Promise<db.Database>;
 
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
 
-export function DBTranformExcel(arg1:string,arg2:string):Promise<db.QueryResult>;
+export function DBTranformExcel(arg1:string):Promise<db.QueryResult>;
 
 export function ExitApp():Promise<void>;
 
@@ -30,7 +30,7 @@ export function ExportAttachment2ProgressToExcel(arg1:string):Promise<db.QueryRe
 
 export function ExportDBData(arg1:string):Promise<db.QueryResult>;
 
-export function ExportDataToExcel(arg1:Record<string, Array<Record<string, any>>>,arg2:Record<string, Array<Record<string, any>>>):Promise<db.QueryResult>;
+export function ExportDataToExcel(arg1:Record<string, Array<Record<string, any>>>,arg2:Record<string, Array<Record<string, any>>>,arg3:string):Promise<db.QueryResult>;
 
 export function ExportTable1ProgressToExcel(arg1:string):Promise<db.QueryResult>;
 
@@ -115,6 +115,8 @@ export function Movefile(arg1:string,arg2:string):Promise<main.FlagResult>;
 export function OpenExternal(arg1:string):Promise<void>;
 
 export function OpenFileDialog(arg1:main.FileDialogOptions):Promise<main.FileDialogResult>;
+
+export function OpenFileInExplorer(arg1:string):Promise<db.QueryResult>;
 
 export function OpenSaveDialog(arg1:main.FileDialogOptions):Promise<main.FileDialogResult>;
 

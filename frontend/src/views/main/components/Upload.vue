@@ -93,28 +93,30 @@
 
   const allFiles: { file: File; valid: boolean }[] = [];
 
-  OnFileDrop(async (x, y, paths) => {
-    const files: EnhancedFile[] = [];
-    for (let i = 0; i < allFiles.length; i++) {
-      const item = allFiles[i];
-      if (item.valid) {
-        const fullPath = paths[i];
-        const fileInfo = await GetFileInfo(fullPath);
-        if (fileInfo.isDirectory) {
-          const _files: EnhancedFile[] = await getFilesDir(fullPath);
-          files.push(..._files);
-        } else {
-          Object.assign(item.file, { isDirectory: false, isFile: true, fullPath });
-          files.push(item.file as EnhancedFile);
+  onMounted(() => {
+    OnFileDrop(async (x, y, paths) => {
+      const files: EnhancedFile[] = [];
+      for (let i = 0; i < allFiles.length; i++) {
+        const item = allFiles[i];
+        if (item.valid) {
+          const fullPath = paths[i];
+          const fileInfo = await GetFileInfo(fullPath);
+          if (fileInfo.isDirectory) {
+            const _files: EnhancedFile[] = await getFilesDir(fullPath);
+            files.push(..._files);
+          } else {
+            Object.assign(item.file, { isDirectory: false, isFile: true, fullPath });
+            files.push(item.file as EnhancedFile);
+          }
         }
       }
-    }
 
-    if (files.length) {
-      selectedFiles.value = files;
-      emit('file-change', selectedFiles.value);
-    }
-  }, true);
+      if (files.length) {
+        selectedFiles.value = files;
+        emit('file-change', selectedFiles.value);
+      }
+    }, true);
+  });
 
   onUnmounted(() => {
     OnFileDropOff();

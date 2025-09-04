@@ -1,13 +1,10 @@
 package main
 
 import (
-	"archive/zip"
 	"database/sql"
 	"fmt"
-	"io"
 	"log"
 	"math"
-	"os"
 	"path/filepath"
 	"shuji/db"
 	"strings"
@@ -1633,7 +1630,7 @@ func (a *App) mergeAttachment2ConflictDataNew(tx *sql.Tx, conflict ConflictData)
 }
 
 // DBTranformExcel 数据库转换为Excel
-func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
+func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 	result := db.QueryResult{}
 
 	// 打开源数据库
@@ -1817,48 +1814,20 @@ func (a *App) DBTranformExcel(dbPath string, newDBName string) db.QueryResult {
 
 	sourceDb.Close()
 
-	dbDir := filepath.Dir(dbPath)
-	newDbPath := filepath.Join(dbDir, newDBName+".db")
-	a.Movefile(dbPath, newDbPath)
-
-	// 创建压缩包，包含目标DB文件和Excel文件
-	zipResult := a.createResultPackage(newDbPath, newDBName, dataMap, table1EquipMap)
-	if !zipResult.Ok {
-		log.Printf("创建压缩包失败: %s", zipResult.Message)
-		// 压缩失败不影响合并结果，只记录日志
+	// 导出Excel文件
+	excelResult := a.ExportDataToExcel(dataMap, table1EquipMap, dbPath)
+	if !excelResult.Ok {
+		log.Printf("导出Excel失败: %s", excelResult.Message)
+		// Excel导出失败不影响合并结果，只记录日志
 	} else {
-		log.Printf("压缩包创建成功: %s", zipResult.Data)
+		log.Printf("Excel导出成功: %s", excelResult.Data)
 	}
 
-	return zipResult
+	return excelResult
 }
 
-// ExportDataToExcel 导出数据到Excel文件
-func (a *App) ExportDataToExcel(dataMap map[string][]map[string]interface{}, table1EquipMap map[string][]map[string]interface{}) db.QueryResult {
-	result := db.QueryResult{}
-
-	// 导出耗煤单位数据汇总表
-	unitDataResult := a.exportUnitDataToExcel(dataMap)
-	if !unitDataResult.Ok {
-		return unitDataResult
-	}
-
-	// 导出耗煤装置数据汇总表
-	equipDataResult := a.exportEquipDataToExcel(table1EquipMap)
-	if !equipDataResult.Ok {
-		return equipDataResult
-	}
-
-	// 返回两个Excel文件的路径
-	filePaths := []string{unitDataResult.Data.(string), equipDataResult.Data.(string)}
-	result.Ok = true
-	result.Data = filePaths
-	result.Message = "数据导出成功"
-	return result
-}
-
-// exportUnitDataToExcel 导出耗煤单位数据汇总表
-func (a *App) exportUnitDataToExcel(dataMap map[string][]map[string]interface{}) db.QueryResult {
+// ExportDataToExcel 导出数据到单个Excel文件，包含两个sheet页
+func (a *App) ExportDataToExcel(dataMap map[string][]map[string]interface{}, table1EquipMap map[string][]map[string]interface{}, dbPath string) db.QueryResult {
 	result := db.QueryResult{}
 
 	// 创建新的Excel文件
@@ -1868,6 +1837,50 @@ func (a *App) exportUnitDataToExcel(dataMap map[string][]map[string]interface{})
 			log.Printf("关闭Excel文件失败: %v", err)
 		}
 	}()
+
+	// 1. 创建耗煤单位数据汇总表sheet
+	unitSheetResult := a.createUnitDataSheet(f, dataMap)
+	if !unitSheetResult.Ok {
+		return unitSheetResult
+	}
+
+	// 2. 创建耗煤装置数据汇总表sheet
+	equipSheetResult := a.createEquipDataSheet(f, table1EquipMap)
+	if !equipSheetResult.Ok {
+		return equipSheetResult
+	}
+
+	// 3. 根据dbPath生成Excel文件名
+	dbDir := filepath.Dir(dbPath)
+	dbBaseName := filepath.Base(dbPath)
+	dbBaseName = strings.TrimSuffix(dbBaseName, filepath.Ext(dbBaseName))
+	fileName := dbBaseName + ".xlsx"
+	filePath := filepath.Join(dbDir, fileName)
+	fmt.Printf("filePath: %s", filePath)
+	fmt.Printf("fileName: %s", fileName)
+
+	if err := f.SaveAs(filePath); err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, "used by another process") {
+			result.Message = "保存Excel文件失败: 文件已被其他程序占用，请关闭文件后重试"
+			return result
+		}
+		result.Message = "保存Excel文件失败: " + err.Error()
+		return result
+	}
+
+	result.Ok = true
+	result.Data = map[string]interface{}{
+		"outputPath": filePath,
+		"fileName":   fileName,
+	}
+	result.Message = "转换成功"
+	return result
+}
+
+// createUnitDataSheet 在Excel文件中创建耗煤单位数据汇总表sheet
+func (a *App) createUnitDataSheet(f *excelize.File, dataMap map[string][]map[string]interface{}) db.QueryResult {
+	result := db.QueryResult{}
 
 	// 设置工作表名称
 	sheetName := "耗煤单位数据汇总表"
@@ -2025,36 +2038,18 @@ func (a *App) exportUnitDataToExcel(dataMap map[string][]map[string]interface{})
 	f.SetColWidth(sheetName, "I", "I", 25) // 综合能耗量（等价值）
 	f.SetColWidth(sheetName, "J", "J", 30) // 耗煤总量
 
-	// 保存文件到临时目录
-	fileName := "耗煤单位数据汇总表.xlsx"
-	filePath := GetPath(filepath.Join(DATA_DIR_NAME, fileName))
-
-	if err := f.SaveAs(filePath); err != nil {
-		result.Message = "保存Excel文件失败: " + err.Error()
-		return result
-	}
-
 	result.Ok = true
-	result.Data = filePath
-	result.Message = "耗煤单位数据汇总表导出成功: " + fileName
+	result.Message = "耗煤单位数据汇总表sheet创建成功"
 	return result
 }
 
-// exportEquipDataToExcel 导出耗煤装置数据汇总表
-func (a *App) exportEquipDataToExcel(table1EquipMap map[string][]map[string]interface{}) db.QueryResult {
+// createEquipDataSheet 在Excel文件中创建耗煤装置数据汇总表sheet
+func (a *App) createEquipDataSheet(f *excelize.File, table1EquipMap map[string][]map[string]interface{}) db.QueryResult {
 	result := db.QueryResult{}
 
-	// 创建新的Excel文件
-	f := excelize.NewFile()
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Printf("关闭Excel文件失败: %v", err)
-		}
-	}()
-
-	// 设置工作表名称
+	// 创建新的工作表
 	sheetName := "耗煤装置数据汇总表"
-	f.SetSheetName("Sheet1", sheetName)
+	f.NewSheet(sheetName)
 
 	// 设置大标题
 	f.SetCellValue(sheetName, "A1", "耗煤装置数据汇总表")
@@ -2209,112 +2204,7 @@ func (a *App) exportEquipDataToExcel(table1EquipMap map[string][]map[string]inte
 	f.SetColWidth(sheetName, "J", "J", 15) // 耗煤品种
 	f.SetColWidth(sheetName, "K", "K", 30) // 年耗煤量
 
-	// 保存文件到临时目录
-	fileName := "耗煤装置数据汇总表.xlsx"
-	filePath := GetPath(filepath.Join(DATA_DIR_NAME, fileName))
-
-	if err := f.SaveAs(filePath); err != nil {
-		result.Message = "保存Excel文件失败: " + err.Error()
-		return result
-	}
-
 	result.Ok = true
-	result.Data = filePath
-	result.Message = "耗煤装置数据汇总表导出成功: " + fileName
+	result.Message = "耗煤装置数据汇总表sheet创建成功"
 	return result
-}
-
-// createResultPackage 创建结果压缩包，包含目标DB文件和Excel文件
-func (a *App) createResultPackage(newDbPath string, newDBName string, dataMap map[string][]map[string]interface{}, table1EquipMap map[string][]map[string]interface{}) db.QueryResult {
-	result := db.QueryResult{}
-
-	// 1. 先导出Excel文件
-	exportResult := a.ExportDataToExcel(dataMap, table1EquipMap)
-	if !exportResult.Ok {
-		result.Message = "导出Excel失败: " + exportResult.Message
-		return result
-	}
-
-	// 2. 获取目标DB文件路径
-	targetDbPath := newDbPath
-
-	// 3. 创建压缩包
-	zipFileName := fmt.Sprintf("%s.zip", newDBName)
-	zipPath := GetPath(filepath.Join(DATA_DIR_NAME, zipFileName))
-
-	// 创建zip文件
-	zipFile, err := os.Create(zipPath)
-	if err != nil {
-		result.Message = "创建压缩包失败: " + err.Error()
-		return result
-	}
-	defer zipFile.Close()
-
-	// 创建zip writer
-	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
-
-	// 4. 添加文件到压缩包
-	filesToZip := []string{
-		targetDbPath,
-	}
-
-	// 添加Excel文件路径
-	if exportResult.Data != nil {
-		if filePaths, ok := exportResult.Data.([]string); ok {
-			filesToZip = append(filesToZip, filePaths...)
-		}
-	}
-
-	// 压缩文件
-	for _, filePath := range filesToZip {
-		if err := a.addFileToZip(zipWriter, filePath); err != nil {
-			log.Printf("添加文件到压缩包失败 %s: %v", filePath, err)
-			continue
-		}
-	}
-
-	for _, filePath := range filesToZip {
-		a.Removefile(filePath)
-	}
-
-	result.Ok = true
-	result.Data = zipPath
-	result.Message = "压缩包创建成功: " + zipFileName
-	return result
-}
-
-// addFileToZip 将文件添加到zip压缩包中
-func (a *App) addFileToZip(zipWriter *zip.Writer, filePath string) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	// 获取文件信息
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return err
-	}
-
-	// 创建zip文件头
-	header, err := zip.FileInfoHeader(fileInfo)
-	if err != nil {
-		return err
-	}
-
-	// 设置文件名（只保留文件名，不包含路径）
-	header.Name = filepath.Base(filePath)
-	header.Method = zip.Deflate
-
-	// 创建zip文件写入器
-	writer, err := zipWriter.CreateHeader(header)
-	if err != nil {
-		return err
-	}
-
-	// 复制文件内容
-	_, err = io.Copy(writer, file)
-	return err
 }

@@ -31,13 +31,7 @@
       <!-- 转换结果显示 -->
       <div v-if="convertResults.length > 0" class="result-section">
         <h3>转换结果</h3>
-        <a-table 
-          :dataSource="convertResults" 
-          :columns="resultColumns" 
-          :pagination="false"
-          size="small"
-          bordered
-        >
+        <a-table :dataSource="convertResults" :columns="resultColumns" :pagination="false" size="small" bordered>
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'">
               <a-tag :color="record.success ? 'green' : 'red'">
@@ -45,13 +39,7 @@
               </a-tag>
             </template>
             <template v-if="column.key === 'action'">
-              <a-button 
-                v-if="record.success" 
-                type="link" 
-                @click="openFile(record.outputPath)"
-              >
-                打开文件
-              </a-button>
+              <a-button v-if="record.success" type="link" @click="openFile(record.outputPath)">打开文件</a-button>
             </template>
           </template>
         </a-table>
@@ -64,59 +52,60 @@
   import { ref, reactive } from 'vue';
   import { message } from 'ant-design-vue';
   import UploadComponent from './components/Upload.vue';
-  // 这里需要导入后端转换函数，假设为 ConvertDbToExcel
-  // import { ConvertDbToExcel, OpenFileInExplorer } from '@wailsjs/go';
+  import { DBTranformExcel, OpenFileInExplorer } from '@wailsjs/go';
 
   // 选中的文件
   const selectedFiles = ref<EnhancedFile[]>([]);
-  
+
   // 转换状态
   const isConverting = ref(false);
   const convertProgress = ref(0);
   const convertStatus = ref<'normal' | 'active' | 'success' | 'exception'>('normal');
   const progressText = ref('');
-  
+
   // 转换结果
-  const convertResults = ref<Array<{
-    fileName: string;
-    inputPath: string;
-    outputPath: string;
-    success: boolean;
-    message: string;
-  }>>([]);
+  const convertResults = ref<
+    Array<{
+      fileName: string;
+      inputPath: string;
+      outputPath: string;
+      success: boolean;
+      message: string;
+    }>
+  >([]);
 
   // 结果表格列定义
   const resultColumns = [
     {
       title: '文件名',
       dataIndex: 'fileName',
-      key: 'fileName',
+      key: 'fileName'
     },
     {
       title: '输入路径',
       dataIndex: 'inputPath',
       key: 'inputPath',
-      ellipsis: true,
+      ellipsis: true
     },
     {
       title: '输出路径',
       dataIndex: 'outputPath',
       key: 'outputPath',
-      ellipsis: true,
+      ellipsis: true
     },
     {
       title: '状态',
-      key: 'status',
+      key: 'status'
     },
     {
       title: '消息',
       dataIndex: 'message',
-      key: 'message',
+      key: 'message'
     },
     {
       title: '操作',
-      key: 'action',
-    },
+      key: 'action'
+    }
   ];
 
   /**
@@ -142,37 +131,24 @@
     convertProgress.value = 0;
     convertStatus.value = 'active';
     convertResults.value = [];
-    
+
     try {
       const totalFiles = selectedFiles.value.length;
-      
+
       for (let i = 0; i < totalFiles; i++) {
         const file = selectedFiles.value[i];
         progressText.value = `正在转换: ${file.name} (${i + 1}/${totalFiles})`;
-        
+
         try {
           // 这里调用后端转换函数
-          // const result = await ConvertDbToExcel(file.fullPath);
-          
-          // 模拟转换过程
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // 模拟转换结果
-          const result = {
-            ok: true,
-            data: {
-              outputPath: file.fullPath.replace('.db', '.xlsx'),
-              message: '转换成功'
-            }
-          };
-          
+          const result = await DBTranformExcel(file.fullPath);
           if (result.ok) {
             convertResults.value.push({
               fileName: file.name,
               inputPath: file.fullPath,
               outputPath: result.data.outputPath,
               success: true,
-              message: result.data.message
+              message: result.message
             });
           } else {
             convertResults.value.push({
@@ -180,7 +156,7 @@
               inputPath: file.fullPath,
               outputPath: '',
               success: false,
-              message: result.data?.message || '转换失败'
+              message: result.message || '转换失败'
             });
           }
         } catch (error) {
@@ -193,23 +169,22 @@
             message: '转换过程中发生错误'
           });
         }
-        
+
         // 更新进度
         convertProgress.value = Math.round(((i + 1) / totalFiles) * 100);
       }
-      
+
       convertStatus.value = 'success';
       progressText.value = '转换完成';
-      
+
       const successCount = convertResults.value.filter(r => r.success).length;
       const failCount = convertResults.value.length - successCount;
-      
+
       if (failCount === 0) {
         message.success(`所有文件转换成功！共 ${successCount} 个文件`);
       } else {
         message.warning(`转换完成！成功 ${successCount} 个，失败 ${failCount} 个`);
       }
-      
     } catch (error) {
       console.error('转换过程发生错误:', error);
       convertStatus.value = 'exception';
@@ -227,7 +202,7 @@
   const openFile = async (filePath: string) => {
     try {
       // 这里调用后端函数打开文件
-      // await OpenFileInExplorer(filePath);
+      await OpenFileInExplorer(filePath);
       message.success('文件已在资源管理器中打开');
     } catch (error) {
       console.error('打开文件失败:', error);
@@ -243,23 +218,23 @@
     background-color: #f9f9f9;
     border-radius: 6px;
   }
-  
+
   .progress-text {
     margin-top: 10px;
     color: #666;
     font-size: 14px;
   }
-  
+
   .result-section {
     margin-top: 30px;
     text-align: left;
   }
-  
+
   .result-section h3 {
     margin-bottom: 16px;
     color: #1a5284;
   }
-  
+
   .operation-area {
     margin-top: 30px;
   }
