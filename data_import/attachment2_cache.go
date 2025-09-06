@@ -44,6 +44,9 @@ type CityData struct {
 	Coke         float64 // 焦炭
 }
 
+// 复用 YearlyAggregatedData 作为指标数据结构
+// StatDate 字段在已导入数据缓存中不使用，但为了保持结构一致性保留
+
 // Attachment2CacheManager 附件2缓存管理器
 type Attachment2CacheManager struct {
 	service *DataImportService
@@ -54,7 +57,7 @@ var (
 	// 优化缓存
 	yearlyAggregatedCache     map[string]*YearlyAggregatedData // 年份累计数据缓存 key: statDate (下辖县区数据累加)
 	cityDataCache             map[string]*CityData             // 当前市数据缓存 key: province_city_statDate (本市数据)
-	importedDataCache         map[string]bool                  // 已导入数据缓存 key: province_city_country_statDate
+	importedDataCache         map[string]*YearlyAggregatedData // 已导入数据缓存 key: province_city_country_statDate，值为各项指标数据
 	optimizedCacheInitialized bool                             // 优化缓存是否已初始化
 )
 
@@ -70,7 +73,7 @@ func (m *Attachment2CacheManager) InitOptimizedCache() {
 	if !optimizedCacheInitialized {
 		yearlyAggregatedCache = make(map[string]*YearlyAggregatedData)
 		cityDataCache = make(map[string]*CityData)
-		importedDataCache = make(map[string]bool)
+		importedDataCache = make(map[string]*YearlyAggregatedData)
 		optimizedCacheInitialized = true
 	}
 }
@@ -100,17 +103,23 @@ func (m *Attachment2CacheManager) SetCityData(provinceName, cityName, statDate s
 	cityDataCache[key] = data
 }
 
-// IsDataImported 检查数据是否已导入stat_date (1)
-func (m *Attachment2CacheManager) IsDataImported(statDate, provinceName, cityName, countryName string) bool {
+// GetImportedData 获取已导入的指标数据
+func (m *Attachment2CacheManager) GetImportedData(statDate, provinceName, cityName, countryName string) (*YearlyAggregatedData, bool) {
 	key := fmt.Sprintf("%s|%s|%s|%s", provinceName, cityName, countryName, statDate)
-	fmt.Println()
-	return importedDataCache[key]
+	data, exists := importedDataCache[key]
+	return data, exists
 }
 
-// MarkDataAsImported 标记数据为已导入
-func (m *Attachment2CacheManager) MarkDataAsImported(statDate, provinceName, cityName, countryName string) {
+// IsDataImported 检查数据是否已导入
+func (m *Attachment2CacheManager) IsDataImported(statDate, provinceName, cityName, countryName string) bool {
+	_, exists := m.GetImportedData(statDate, provinceName, cityName, countryName)
+	return exists
+}
+
+// SetImportedData 设置已导入的指标数据
+func (m *Attachment2CacheManager) SetImportedData(statDate, provinceName, cityName, countryName string, data *YearlyAggregatedData) {
 	key := fmt.Sprintf("%s|%s|%s|%s", provinceName, cityName, countryName, statDate)
-	importedDataCache[key] = true
+	importedDataCache[key] = data
 }
 
 // RemoveDataFromImported 从已导入缓存中移除数据
@@ -290,9 +299,26 @@ func (m *Attachment2CacheManager) PreloadOptimizedCache() error {
 			}
 		}
 
-		// 3. 标记数据为已导入
-		m.MarkDataAsImported(statDate, provinceName, cityName, countryName)
-		fmt.Println(" 标记数据为已导入==, statDate==", statDate, "provinceName==", provinceName, "cityName==", cityName, "countryName==", countryName)
+		// 3. 存储指标数据到已导入缓存
+		indicatorData := &YearlyAggregatedData{
+			StatDate:     statDate,
+			TotalCoal:    totalCoal,
+			RawCoal:      rawCoal,
+			WashedCoal:   washedCoal,
+			OtherCoal:    otherCoal,
+			PowerGen:     powerGeneration,
+			Heating:      heating,
+			CoalWashing:  coalWashing,
+			Coking:       coking,
+			OilRefining:  oilRefining,
+			GasProd:      gasProduction,
+			Industry:     industry,
+			RawMaterials: rawMaterials,
+			OtherUses:    otherUses,
+			Coke:         coke,
+		}
+		m.SetImportedData(statDate, provinceName, cityName, countryName, indicatorData)
+		fmt.Println(" 存储指标数据==, statDate==", statDate, "provinceName==", provinceName, "cityName==", cityName, "countryName==", countryName)
 	}
 
 	// 将数据设置到全局缓存中
