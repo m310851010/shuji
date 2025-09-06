@@ -238,8 +238,9 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 		}
 	}
 
+	areaConfig := s.GetAreaConfig()
 	// 按行读取文件数据并校验
-	validationErrors := s.validateAttachment2Data(mainData)
+	validationErrors := s.validateAttachment2Data(mainData, areaConfig)
 	if len(validationErrors) > 0 {
 		errorMessage := fmt.Sprintf("数据校验失败: %s", strings.Join(validationErrors, "; "))
 		s.app.InsertImportRecord(fileName, TableTypeAttachment2, "导入失败", errorMessage)
@@ -288,7 +289,7 @@ func (s *DataImportService) ValidateAttachment2File(filePath string, isCover boo
 }
 
 // validateAttachment2Data 校验附件2数据
-func (s *DataImportService) validateAttachment2Data(mainData []map[string]interface{}) []string {
+func (s *DataImportService) validateAttachment2Data(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig) []string {
 	errors := []string{}
 
 	// 附件2必填字段
@@ -339,10 +340,6 @@ func (s *DataImportService) validateAttachment2Data(mainData []map[string]interf
 		"coke":             "焦炭",
 	}
 
-	areaResult := s.app.GetAreaConfig()
-	row := areaResult.Data.(map[string]interface{})
-	expectedCountry := s.getStringValue(row["country_name"])
-
 	// 在一个循环中完成所有验证
 	for _, data := range mainData {
 		// Excel中的实际行号：数据从第8行开始（表头第4行+3行说明+1行数据）
@@ -352,7 +349,7 @@ func (s *DataImportService) validateAttachment2Data(mainData []map[string]interf
 		fieldErrors1 := s.validateRequiredFieldsOrdered(data, attachment2ReqiredFieldsOrder1, attachment2RequiredFields1, excelRowNum)
 		errors = append(errors, fieldErrors1...)
 
-		if expectedCountry != "" {
+		if areaConfig.CountryName != "" {
 			errors = append(errors, s.validateRequiredField(data, "country_name", "县（区）", excelRowNum)...)
 		}
 

@@ -108,6 +108,35 @@ func NewDataImportService(app App) *DataImportService {
 	}
 }
 
+// GetAreaConfig 获取当前用户区域配置
+func (s *DataImportService) GetAreaConfig() *EnhancedAreaConfig {
+	var areaConfig *EnhancedAreaConfig
+	// 获取区域配置并更新优化缓存
+	areaResult := s.app.GetAreaConfig()
+	if areaResult.Ok && areaResult.Data != nil {
+		// 从map[string]interface{}构建EnhancedAreaConfig
+		if areaData, ok := areaResult.Data.(map[string]interface{}); ok {
+			city_name := s.getStringValue(areaData["city_name"])
+			country_name := s.getStringValue(areaData["country_name"])
+			DataLevel := 1
+			if city_name == "" {
+				DataLevel = 1
+			} else if country_name == "" {
+				DataLevel = 2
+			} else {
+				DataLevel = 3
+			}
+			areaConfig = &EnhancedAreaConfig{
+				ProvinceName: s.getStringValue(areaData["province_name"]),
+				CityName:     city_name,
+				CountryName:  country_name,
+				DataLevel:    DataLevel,
+			}
+		}
+	}
+	return areaConfig
+}
+
 // convertToInterfaceSlice 将字符串切片转换为接口切片
 func (s *DataImportService) convertToInterfaceSlice(strSlice []string) []interface{} {
 	result := make([]interface{}, len(strSlice))
@@ -325,11 +354,6 @@ func (s *DataImportService) validateRegionOnly(data map[string]interface{}, exce
 
 	// 使用公共函数检查省市县是否匹配
 	return s.checkRegionMatch(provinceName, cityName, countryName, expectedProvince, expectedCity, expectedCountry, excelRowNum)
-}
-
-// GetAreaConfig 获取区域配置 - 直接调用App的方法
-func (s *DataImportService) GetAreaConfig() db.QueryResult {
-	return s.app.GetAreaConfig()
 }
 
 // decryptValue 解密数值

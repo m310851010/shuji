@@ -43,6 +43,8 @@ func (s *DataImportService) ModelDataCoverAttachment2(filePaths []string) db.Que
 		}
 	}
 
+	areaConfig := s.GetAreaConfig()
+
 	var validationErrors []ValidationError
 	var failedFiles []string
 
@@ -73,7 +75,7 @@ func (s *DataImportService) ModelDataCoverAttachment2(filePaths []string) db.Que
 				continue
 			}
 
-			err = s.coverAttachment2Data(mainData, file.Name())
+			err = s.coverAttachment2Data(mainData, file.Name(), areaConfig)
 			if err != nil {
 				validationErrors = append(validationErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 覆盖数据失败: %v", file.Name(), err)})
 				failedFiles = append(failedFiles, filePath)
@@ -131,12 +133,15 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 
 	s.initAttachment2CacheManager()
 
-	var validationErrors []ValidationError = []ValidationError{} // 错误信息
-	var systemErrors []ValidationError = []ValidationError{}     // 系统错误信息
-	var importedFiles []string = []string{}                      // 导入的文件
-	var coverFiles []string = []string{}                         // 覆盖的文件
-	var failedFiles []string = []string{}                        // 失败的文件
-	var hasExcelFile bool = false                                // 是否有Excel文件
+	areaConfig := s.GetAreaConfig()
+
+
+	var validationErrors = []ValidationError{} // 错误信息
+	var systemErrors = []ValidationError{}     // 系统错误信息
+	var importedFiles = []string{}             // 导入的文件
+	var coverFiles = []string{}                // 覆盖的文件
+	var failedFiles = []string{}               // 失败的文件
+	var hasExcelFile = false                   // 是否有Excel文件
 
 	// 2. 循环调用对应的解析Excel函数
 	for _, file := range files {
@@ -163,7 +168,7 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 			}
 
 			// 4. 调用校验函数,对每一行数据验证
-			errors := s.validateAttachment2DataForModel(mainData)
+			errors := s.validateAttachment2DataForModel(mainData, areaConfig)
 
 			if len(errors) > 0 {
 				// 校验失败，在Excel文件中错误行最后添加错误信息
@@ -195,7 +200,7 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 			}
 
 			// 6. 如果没有导入过,把数据保存到相应的数据库表中
-			err = s.saveAttachment2DataForModel(mainData)
+			err = s.saveAttachment2DataForModel(mainData, areaConfig)
 
 			if err != nil {
 				systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 保存数据失败: %v", file.Name(), err)})
@@ -261,7 +266,7 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 }
 
 // validateAttachment2DataForModel 校验附件2数据（模型校验专用）
-func (s *DataImportService) validateAttachment2DataForModel(mainData []map[string]interface{}) []ValidationError {
+func (s *DataImportService) validateAttachment2DataForModel(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig) []ValidationError {
 	errors := []ValidationError{}
 
 	// 逐行校验数值字段、数据一致性和整体规则（行内字段间逻辑关系）
@@ -279,7 +284,7 @@ func (s *DataImportService) validateAttachment2DataForModel(mainData []map[strin
 	}
 
 	// 数据库验证
-	dbErrors := s.validateAttachment2DatabaseRules(mainData)
+	dbErrors := s.validateAttachment2DatabaseRules(mainData, areaConfig)
 	errors = append(errors, dbErrors...)
 
 	return errors
@@ -495,6 +500,7 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 	totalConsumption := s.addFloat64(energyConversion, terminalConsumption)
 
 	if s.isIntegerLessThan(totalCoal, totalConsumption) {
+		fmt.Println("煤合计应大于等于能源加工转换+终端消费-工业（#用作原料、材料）", totalCoal, totalConsumption)
 		cells := []string{
 			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
 			s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum),
@@ -526,46 +532,10 @@ func (s *DataImportService) initAttachment2CacheManager() {
 }
 
 // validateAttachment2DatabaseRules 校验附件2数据库验证规则（优化版本）
-func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[string]interface{}) []ValidationError {
+func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig) []ValidationError {
 	errors := []ValidationError{}
 
 	if len(mainData) == 0 {
-		return errors
-	}
-
-	// 获取当前用户的区域配置
-	areaResult := s.app.GetAreaConfig()
-	if !areaResult.Ok || areaResult.Data == nil {
-		return errors
-	}
-
-	// 从map[string]interface{}构建EnhancedAreaConfig
-	areaData, ok := areaResult.Data.(map[string]interface{})
-	if !ok {
-		fmt.Printf("无法获取区域配置数据，Data类型: %T\n", areaResult.Data)
-		return errors
-	}
-
-	city_name := s.getStringValue(areaData["city_name"])
-	country_name := s.getStringValue(areaData["country_name"])
-	DataLevel := 1
-	if city_name == "" {
-		DataLevel = 1
-	} else if country_name == "" {
-		DataLevel = 2
-	} else {
-		DataLevel = 3
-	}
-	areaConfig := &EnhancedAreaConfig{
-		ObjID:        s.getStringValue(areaData["obj_id"]),
-		ProvinceName: s.getStringValue(areaData["province_name"]),
-		CityName:     city_name,
-		CountryName:  country_name,
-		DataLevel:    DataLevel,
-	}
-
-	// 县级用户不需要校验
-	if areaConfig.DataLevel == 3 {
 		return errors
 	}
 
@@ -575,10 +545,44 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 		return errors
 	}
 
-	// 获取下辖区县的累加数据（使用优化缓存）
-	subordinateData, err := s.getSubordinateDataWithOptimizedCache(areaConfig, statDate, mainData)
-	if err != nil {
-		return errors
+	// 初始化下辖区县累加数据
+	subordinateData := &YearlyAggregatedData{
+		StatDate:     statDate,
+		TotalCoal:    0.0,
+		RawCoal:      0.0,
+		WashedCoal:   0.0,
+		OtherCoal:    0.0,
+		PowerGen:     0.0,
+		Heating:      0.0,
+		CoalWashing:  0.0,
+		Coking:       0.0,
+		OilRefining:  0.0,
+		GasProd:      0.0,
+		Industry:     0.0,
+		RawMaterials: 0.0,
+		OtherUses:    0.0,
+		Coke:         0.0,
+	}
+
+	// 1. 从年份累计缓存获取数据（数据库中已存在的下辖县区数据）
+	yearlyData, exists := attachment2CacheManager.GetYearlyAggregatedData(statDate)
+	fmt.Println("从年份累计缓存获取数据（数据库中已存在的下辖县区数据） exists", exists)
+	if exists {
+		// 累加年份累计数据
+		subordinateData.TotalCoal = yearlyData.TotalCoal
+		subordinateData.RawCoal = yearlyData.RawCoal
+		subordinateData.WashedCoal = yearlyData.WashedCoal
+		subordinateData.OtherCoal = yearlyData.OtherCoal
+		subordinateData.PowerGen = yearlyData.PowerGen
+		subordinateData.Heating = yearlyData.Heating
+		subordinateData.CoalWashing = yearlyData.CoalWashing
+		subordinateData.Coking = yearlyData.Coking
+		subordinateData.OilRefining = yearlyData.OilRefining
+		subordinateData.GasProd = yearlyData.GasProd
+		subordinateData.Industry = yearlyData.Industry
+		subordinateData.RawMaterials = yearlyData.RawMaterials
+		subordinateData.OtherUses = yearlyData.OtherUses
+		subordinateData.Coke = yearlyData.Coke
 	}
 
 	// 计算当前本市数据总和（countryName为空的数据）
@@ -597,26 +601,45 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 	currentOtherUses := 0.0
 	currentCoke := 0.0
 
+	cityData, exists := attachment2CacheManager.GetCityData(areaConfig.ProvinceName, areaConfig.CityName, statDate)
+	if exists {
+		currentTotalCoal = cityData.TotalCoal
+		currentRawCoal = cityData.RawCoal
+		currentWashedCoal = cityData.WashedCoal
+		currentOtherCoal = cityData.OtherCoal
+		currentPowerGeneration = cityData.PowerGen
+		currentHeating = cityData.Heating
+		currentCoalWashing = cityData.CoalWashing
+		currentCoking = cityData.Coking
+		currentOilRefining = cityData.OilRefining
+		currentGasProduction = cityData.GasProd
+		currentIndustry = cityData.Industry
+		currentRawMaterials = cityData.RawMaterials
+		currentOtherUses = cityData.OtherUses
+		currentCoke = cityData.Coke
+	}
+
+	rowNumber := 1
 	for _, record := range mainData {
 		recordCountryName := s.getStringValue(record["country_name"])
 
+		totalCoal := s.parseFloat(s.getStringValue(record["total_coal"]))
+		rawCoal := s.parseFloat(s.getStringValue(record["raw_coal"]))
+		washedCoal := s.parseFloat(s.getStringValue(record["washed_coal"]))
+		otherCoal := s.parseFloat(s.getStringValue(record["other_coal"]))
+		powerGeneration := s.parseFloat(s.getStringValue(record["power_generation"]))
+		heating := s.parseFloat(s.getStringValue(record["heating"]))
+		coalWashing := s.parseFloat(s.getStringValue(record["coal_washing"]))
+		coking := s.parseFloat(s.getStringValue(record["coking"]))
+		oilRefining := s.parseFloat(s.getStringValue(record["oil_refining"]))
+		gasProduction := s.parseFloat(s.getStringValue(record["gas_production"]))
+		industry := s.parseFloat(s.getStringValue(record["industry"]))
+		rawMaterials := s.parseFloat(s.getStringValue(record["raw_materials"]))
+		otherUses := s.parseFloat(s.getStringValue(record["other_uses"]))
+		coke := s.parseFloat(s.getStringValue(record["coke"]))
+
 		// 只累加本市数据（countryName为空）
 		if recordCountryName == "" {
-			totalCoal := s.parseFloat(s.getStringValue(record["total_coal"]))
-			rawCoal := s.parseFloat(s.getStringValue(record["raw_coal"]))
-			washedCoal := s.parseFloat(s.getStringValue(record["washed_coal"]))
-			otherCoal := s.parseFloat(s.getStringValue(record["other_coal"]))
-			powerGeneration := s.parseFloat(s.getStringValue(record["power_generation"]))
-			heating := s.parseFloat(s.getStringValue(record["heating"]))
-			coalWashing := s.parseFloat(s.getStringValue(record["coal_washing"]))
-			coking := s.parseFloat(s.getStringValue(record["coking"]))
-			oilRefining := s.parseFloat(s.getStringValue(record["oil_refining"]))
-			gasProduction := s.parseFloat(s.getStringValue(record["gas_production"]))
-			industry := s.parseFloat(s.getStringValue(record["industry"]))
-			rawMaterials := s.parseFloat(s.getStringValue(record["raw_materials"]))
-			otherUses := s.parseFloat(s.getStringValue(record["other_uses"]))
-			coke := s.parseFloat(s.getStringValue(record["coke"]))
-
 			currentTotalCoal = s.addFloat64(currentTotalCoal, totalCoal)
 			currentRawCoal = s.addFloat64(currentRawCoal, rawCoal)
 			currentWashedCoal = s.addFloat64(currentWashedCoal, washedCoal)
@@ -631,89 +654,181 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 			currentRawMaterials = s.addFloat64(currentRawMaterials, rawMaterials)
 			currentOtherUses = s.addFloat64(currentOtherUses, otherUses)
 			currentCoke = s.addFloat64(currentCoke, coke)
+			rowNumber = s.getExcelRowNumber(record)
+		} else {
+			subordinateData.TotalCoal = s.addFloat64(subordinateData.TotalCoal, totalCoal)
+			subordinateData.RawCoal = s.addFloat64(subordinateData.RawCoal, rawCoal)
+			subordinateData.WashedCoal = s.addFloat64(subordinateData.WashedCoal, washedCoal)
+			subordinateData.OtherCoal = s.addFloat64(subordinateData.OtherCoal, otherCoal)
+			subordinateData.PowerGen = s.addFloat64(subordinateData.PowerGen, powerGeneration)
+			subordinateData.Heating = s.addFloat64(subordinateData.Heating, heating)
+			subordinateData.CoalWashing = s.addFloat64(subordinateData.CoalWashing, coalWashing)
+			subordinateData.Coking = s.addFloat64(subordinateData.Coking, coking)
+			subordinateData.OilRefining = s.addFloat64(subordinateData.OilRefining, oilRefining)
+			subordinateData.GasProd = s.addFloat64(subordinateData.GasProd, gasProduction)
+			subordinateData.Industry = s.addFloat64(subordinateData.Industry, industry)
+			subordinateData.RawMaterials = s.addFloat64(subordinateData.RawMaterials, rawMaterials)
+			subordinateData.OtherUses = s.addFloat64(subordinateData.OtherUses, otherUses)
+			subordinateData.Coke = s.addFloat64(subordinateData.Coke, coke)
 		}
 	}
 
+	if currentTotalCoal == 0 && currentRawCoal == 0{
+		return errors
+	}
+	
+
 	// 校验规则：同年份本单位所导入数值*120%应≥下级单位相加之和
 	threshold := 1.2
+
+	fmt.Println("currentTotalCoal", currentTotalCoal)
+	fmt.Println("subordinateData.TotalCoal", subordinateData.TotalCoal)
+	fmt.Println("currentRawCoal", currentRawCoal)
+	fmt.Println("subordinateData.RawCoal", subordinateData.RawCoal)
+	fmt.Println("currentWashedCoal", currentWashedCoal)
+	fmt.Println("subordinateData.WashedCoal", subordinateData.WashedCoal)
+	fmt.Println("currentOtherCoal", currentOtherCoal)
+	fmt.Println("subordinateData.OtherCoal", subordinateData.OtherCoal)
+	fmt.Println("currentPowerGeneration", currentPowerGeneration)
+	fmt.Println("subordinateData.PowerGen", subordinateData.PowerGen)
+	fmt.Println("currentHeating", currentHeating)
+	fmt.Println("subordinateData.Heating", subordinateData.Heating)
+	fmt.Println("currentCoalWashing", currentCoalWashing)
+	fmt.Println("subordinateData.CoalWashing", subordinateData.CoalWashing)
+	fmt.Println("currentCoking", currentCoking)
+	fmt.Println("subordinateData.Coking", subordinateData.Coking)
+	fmt.Println("currentOilRefining", currentOilRefining)
+	fmt.Println("subordinateData.OilRefining", subordinateData.OilRefining)
+	fmt.Println("currentGasProduction", currentGasProduction)
+	fmt.Println("subordinateData.GasProd", subordinateData.GasProd)
+	fmt.Println("currentIndustry", currentIndustry)
+	fmt.Println("subordinateData.Industry", subordinateData.Industry)
+	fmt.Println("currentRawMaterials", currentRawMaterials)
+	fmt.Println("subordinateData.RawMaterials", subordinateData.RawMaterials)
+	fmt.Println("currentOtherUses", currentOtherUses)
+	fmt.Println("subordinateData.OtherUses", subordinateData.OtherUses)
+	fmt.Println("currentCoke", currentCoke)
+	fmt.Println("subordinateData.Coke", subordinateData.Coke)
 
 	// 校验各个字段（使用下辖区县累加数据）
 	// 计算 currentTotalCoal * threshold
 	currentTotalCoalThreshold := s.multiplyFloat64(currentTotalCoal, threshold)
 	if s.isIntegerLessThan(currentTotalCoalThreshold, subordinateData.TotalCoal) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "total_coal", 1)}, Message: "煤合计数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("煤合计数值*120%应大于等于下级单位相加之和", currentTotalCoalThreshold, subordinateData.TotalCoal)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "total_coal", 1)}, Message: "煤合计数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentRawCoalThreshold := s.multiplyFloat64(currentRawCoal, threshold)
 	if s.isIntegerLessThan(currentRawCoalThreshold, subordinateData.RawCoal) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", 1)}, Message: "原煤数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("原煤数值*120%应大于等于下级单位相加之和", currentRawCoalThreshold, subordinateData.RawCoal)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", 1)}, Message: "原煤数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentWashedCoalThreshold := s.multiplyFloat64(currentWashedCoal, threshold)
 	if s.isIntegerLessThan(currentWashedCoalThreshold, subordinateData.WashedCoal) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", 1)}, Message: "洗精煤数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("洗精煤数值*120%应大于等于下级单位相加之和", currentWashedCoalThreshold, subordinateData.WashedCoal)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", 1)}, Message: "洗精煤数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentOtherCoalThreshold := s.multiplyFloat64(currentOtherCoal, threshold)
 	if s.isIntegerLessThan(currentOtherCoalThreshold, subordinateData.OtherCoal) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "other_coal", 1)}, Message: "其他数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("其他数值*120%应大于等于下级单位相加之和", currentOtherCoalThreshold, subordinateData.OtherCoal)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "other_coal", 1)}, Message: "其他数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentPowerGenerationThreshold := s.multiplyFloat64(currentPowerGeneration, threshold)
 	if s.isIntegerLessThan(currentPowerGenerationThreshold, subordinateData.PowerGen) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "power_generation", 1)}, Message: "火力发电数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("火力发电数值*120%应大于等于下级单位相加之和", currentPowerGenerationThreshold, subordinateData.PowerGen)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "power_generation", 1)}, Message: "火力发电数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentHeatingThreshold := s.multiplyFloat64(currentHeating, threshold)
 	if s.isIntegerLessThan(currentHeatingThreshold, subordinateData.Heating) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "heating", 1)}, Message: "供热数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("供热数值*120%应大于等于下级单位相加之和", currentHeatingThreshold, subordinateData.Heating)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "heating", 1)}, Message: "供热数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentCoalWashingThreshold := s.multiplyFloat64(currentCoalWashing, threshold)
 	if s.isIntegerLessThan(currentCoalWashingThreshold, subordinateData.CoalWashing) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", 1)}, Message: "煤炭洗选数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("煤炭洗选数值*120%应大于等于下级单位相加之和", currentCoalWashingThreshold, subordinateData.CoalWashing)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", 1)}, Message: "煤炭洗选数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentCokingThreshold := s.multiplyFloat64(currentCoking, threshold)
 	if s.isIntegerLessThan(currentCokingThreshold, subordinateData.Coking) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "coking", 1)}, Message: "炼焦数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("炼焦数值*120%应大于等于下级单位相加之和", currentCokingThreshold, subordinateData.Coking)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "coking", 1)}, Message: "炼焦数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentOilRefiningThreshold := s.multiplyFloat64(currentOilRefining, threshold)
 	if s.isIntegerLessThan(currentOilRefiningThreshold, subordinateData.OilRefining) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", 1)}, Message: "炼油及煤制油数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("炼油及煤制油数值*120%应大于等于下级单位相加之和", currentOilRefiningThreshold, subordinateData.OilRefining)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", 1)}, Message: "炼油及煤制油数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentGasProductionThreshold := s.multiplyFloat64(currentGasProduction, threshold)
 	if s.isIntegerLessThan(currentGasProductionThreshold, subordinateData.GasProd) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "gas_production", 1)}, Message: "制气数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("制气数值*120%应大于等于下级单位相加之和", currentGasProductionThreshold, subordinateData.GasProd)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "gas_production", 1)}, Message: "制气数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentIndustryThreshold := s.multiplyFloat64(currentIndustry, threshold)
 	if s.isIntegerLessThan(currentIndustryThreshold, subordinateData.Industry) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "industry", 1)}, Message: "工业数值*120%应大于等于下级单位相加之和"})
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "industry", 1)}, Message: "工业数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentRawMaterialsThreshold := s.multiplyFloat64(currentRawMaterials, threshold)
 	if s.isIntegerLessThan(currentRawMaterialsThreshold, subordinateData.RawMaterials) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", 1)}, Message: "工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和", currentRawMaterialsThreshold, subordinateData.RawMaterials)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", 1)}, Message: "工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentOtherUsesThreshold := s.multiplyFloat64(currentOtherUses, threshold)
 	if s.isIntegerLessThan(currentOtherUsesThreshold, subordinateData.OtherUses) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "other_uses", 1)}, Message: "其他用途数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("其他用途数值*120%应大于等于下级单位相加之和", currentOtherUsesThreshold, subordinateData.OtherUses)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "other_uses", 1)}, Message: "其他用途数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentCokeThreshold := s.multiplyFloat64(currentCoke, threshold)
 	if s.isIntegerLessThan(currentCokeThreshold, subordinateData.Coke) {
-		errors = append(errors, ValidationError{RowNumber: 1, Cells: []string{s.getCellPosition(TableTypeAttachment2, "coke", 1)}, Message: "焦炭数值*120%应大于等于下级单位相加之和"})
+		fmt.Println("焦炭数值*120%应大于等于下级单位相加之和", currentCokeThreshold, subordinateData.Coke)
+		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: []string{s.getCellPosition(TableTypeAttachment2, "coke", 1)}, Message: "焦炭数值*120%应大于等于下级单位相加之和"})
 	}
 
+	fmt.Println("================================================")
+	fmt.Println("currentTotalCoalThreshold", currentTotalCoalThreshold)
+	fmt.Println("subordinateData.TotalCoal", subordinateData.TotalCoal)
+	fmt.Println("currentRawCoalThreshold", currentRawCoalThreshold)
+	fmt.Println("subordinateData.RawCoal", subordinateData.RawCoal)
+	fmt.Println("currentWashedCoalThreshold", currentWashedCoalThreshold)
+	fmt.Println("subordinateData.WashedCoal", subordinateData.WashedCoal)
+	fmt.Println("currentOtherCoalThreshold", currentOtherCoalThreshold)
+	fmt.Println("subordinateData.OtherCoal", subordinateData.OtherCoal)
+	fmt.Println("currentPowerGenerationThreshold", currentPowerGenerationThreshold)
+	fmt.Println("subordinateData.PowerGen", subordinateData.PowerGen)
+	fmt.Println("currentHeatingThreshold", currentHeatingThreshold)
+	fmt.Println("subordinateData.Heating", subordinateData.Heating)
+	fmt.Println("currentCoalWashingThreshold", currentCoalWashingThreshold)
+	fmt.Println("subordinateData.CoalWashing", subordinateData.CoalWashing)
+	fmt.Println("currentCokingThreshold", currentCokingThreshold)
+	fmt.Println("subordinateData.Coking", subordinateData.Coking)
+	fmt.Println("currentOilRefiningThreshold", currentOilRefiningThreshold)
+	fmt.Println("subordinateData.OilRefining", subordinateData.OilRefining)
+	fmt.Println("currentGasProductionThreshold", currentGasProductionThreshold)
+	fmt.Println("subordinateData.GasProd", subordinateData.GasProd)
+	fmt.Println("currentIndustryThreshold", currentIndustryThreshold)
+	fmt.Println("subordinateData.Industry", subordinateData.Industry)
+	fmt.Println("currentRawMaterialsThreshold", currentRawMaterialsThreshold)
+	fmt.Println("subordinateData.RawMaterials", subordinateData.RawMaterials)
+	fmt.Println("currentOtherUsesThreshold", currentOtherUsesThreshold)
+	fmt.Println("subordinateData.OtherUses", subordinateData.OtherUses)
+	fmt.Println("currentCokeThreshold", currentCokeThreshold)
+	fmt.Println("subordinateData.Coke", subordinateData.Coke)
 	return errors
 }
 
 // coverAttachment2Data 覆盖附件2数据
-func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface{}, fileName string) error {
+func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface{}, fileName string, areaConfig *EnhancedAreaConfig) error {
 	if len(mainData) == 0 {
 		return fmt.Errorf("数据为空")
 	}
@@ -739,31 +854,7 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 			}
 		}
 
-		// 获取区域配置并更新优化缓存
-		areaResult := s.app.GetAreaConfig()
-		if areaResult.Ok && areaResult.Data != nil {
-			// 从map[string]interface{}构建EnhancedAreaConfig
-			if areaData, ok := areaResult.Data.(map[string]interface{}); ok {
-				city_name := s.getStringValue(areaData["city_name"])
-				country_name := s.getStringValue(areaData["country_name"])
-				DataLevel := 1
-				if city_name == "" {
-					DataLevel = 1
-				} else if country_name == "" {
-					DataLevel = 2
-				} else {
-					DataLevel = 3
-				}
-				areaConfig := &EnhancedAreaConfig{
-					ObjID:        s.getStringValue(areaData["obj_id"]),
-					ProvinceName: s.getStringValue(areaData["province_name"]),
-					CityName:     city_name,
-					CountryName:  country_name,
-					DataLevel:    DataLevel,
-				}
-				s.UpdateOptimizedCacheAfterUpload(areaConfig, statDate, mainData)
-			}
-		}
+		s.UpdateOptimizedCacheAfterUpload(areaConfig, statDate, mainData)
 	}
 
 	return nil
@@ -1004,7 +1095,7 @@ func (s *DataImportService) saveAttachment2Data(mainData []map[string]interface{
 }
 
 // saveAttachment2DataForModel 模型校验专用保存附件2数据到数据库（只使用INSERT）
-func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]interface{}) error {
+func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig) error {
 	for _, record := range mainData {
 
 		// 直接执行插入操作，不检查数据是否已存在
@@ -1019,30 +1110,7 @@ func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]in
 	// 获取区域配置并更新优化缓存
 	if len(mainData) > 0 {
 		statDate := s.getStringValue(mainData[0]["stat_date"])
-		areaResult := s.app.GetAreaConfig()
-		if areaResult.Ok && areaResult.Data != nil {
-			// 从map[string]interface{}构建EnhancedAreaConfig
-			if areaData, ok := areaResult.Data.(map[string]interface{}); ok {
-				city_name := s.getStringValue(areaData["city_name"])
-				country_name := s.getStringValue(areaData["country_name"])
-				DataLevel := 1
-				if city_name == "" {
-					DataLevel = 1
-				} else if country_name == "" {
-					DataLevel = 2
-				} else {
-					DataLevel = 3
-				}
-				areaConfig := &EnhancedAreaConfig{
-					ObjID:        s.getStringValue(areaData["obj_id"]),
-					ProvinceName: s.getStringValue(areaData["province_name"]),
-					CityName:     city_name,
-					CountryName:  country_name,
-					DataLevel:    DataLevel,
-				}
-				s.UpdateOptimizedCacheAfterUpload(areaConfig, statDate, mainData)
-			}
-		}
+		s.UpdateOptimizedCacheAfterUpload(areaConfig, statDate, mainData)
 	}
 
 	return nil
@@ -1178,104 +1246,6 @@ func (s *DataImportService) encryptAttachment2NumericFields(record map[string]in
 		"coke",
 	}
 	return s.encryptNumericFields(record, numericFields)
-}
-
-// getSubordinateDataWithOptimizedCache 使用优化缓存获取下辖县区的累加数据
-func (s *DataImportService) getSubordinateDataWithOptimizedCache(areaConfig *EnhancedAreaConfig, statDate string, mainData []map[string]interface{}) (*YearlyAggregatedData, error) {
-	// 初始化累加数据
-	subordinateData := &YearlyAggregatedData{
-		StatDate:     statDate,
-		TotalCoal:    0.0,
-		RawCoal:      0.0,
-		WashedCoal:   0.0,
-		OtherCoal:    0.0,
-		PowerGen:     0.0,
-		Heating:      0.0,
-		CoalWashing:  0.0,
-		Coking:       0.0,
-		OilRefining:  0.0,
-		GasProd:      0.0,
-		Industry:     0.0,
-		RawMaterials: 0.0,
-		OtherUses:    0.0,
-		Coke:         0.0,
-	}
-
-	// 1. 从年份累计缓存获取数据（数据库中已存在的下辖县区数据）
-	yearlyData, exists := attachment2CacheManager.GetYearlyAggregatedData(statDate)
-	fmt.Println("从年份累计缓存获取数据（数据库中已存在的下辖县区数据） exists 7", exists)
-	if exists {
-		// 累加年份累计数据
-		subordinateData.TotalCoal = s.addFloat64(subordinateData.TotalCoal, yearlyData.TotalCoal)
-		subordinateData.RawCoal = s.addFloat64(subordinateData.RawCoal, yearlyData.RawCoal)
-		subordinateData.WashedCoal = s.addFloat64(subordinateData.WashedCoal, yearlyData.WashedCoal)
-		subordinateData.OtherCoal = s.addFloat64(subordinateData.OtherCoal, yearlyData.OtherCoal)
-		subordinateData.PowerGen = s.addFloat64(subordinateData.PowerGen, yearlyData.PowerGen)
-		subordinateData.Heating = s.addFloat64(subordinateData.Heating, yearlyData.Heating)
-		subordinateData.CoalWashing = s.addFloat64(subordinateData.CoalWashing, yearlyData.CoalWashing)
-		subordinateData.Coking = s.addFloat64(subordinateData.Coking, yearlyData.Coking)
-		subordinateData.OilRefining = s.addFloat64(subordinateData.OilRefining, yearlyData.OilRefining)
-		subordinateData.GasProd = s.addFloat64(subordinateData.GasProd, yearlyData.GasProd)
-		subordinateData.Industry = s.addFloat64(subordinateData.Industry, yearlyData.Industry)
-		subordinateData.RawMaterials = s.addFloat64(subordinateData.RawMaterials, yearlyData.RawMaterials)
-		subordinateData.OtherUses = s.addFloat64(subordinateData.OtherUses, yearlyData.OtherUses)
-		subordinateData.Coke = s.addFloat64(subordinateData.Coke, yearlyData.Coke)
-	}
-
-	// 2. 累加本次上传的下辖县区数据（countryName不为空的数据）
-	for _, record := range mainData {
-		recordCountryName := s.getStringValue(record["country_name"])
-
-		// 只累加下辖县区数据（countryName不为空）
-		if recordCountryName != "" {
-			totalCoal := s.parseFloat(s.getStringValue(record["total_coal"]))
-			rawCoal := s.parseFloat(s.getStringValue(record["raw_coal"]))
-			washedCoal := s.parseFloat(s.getStringValue(record["washed_coal"]))
-			otherCoal := s.parseFloat(s.getStringValue(record["other_coal"]))
-			powerGeneration := s.parseFloat(s.getStringValue(record["power_generation"]))
-			heating := s.parseFloat(s.getStringValue(record["heating"]))
-			coalWashing := s.parseFloat(s.getStringValue(record["coal_washing"]))
-			coking := s.parseFloat(s.getStringValue(record["coking"]))
-			oilRefining := s.parseFloat(s.getStringValue(record["oil_refining"]))
-			gasProduction := s.parseFloat(s.getStringValue(record["gas_production"]))
-			industry := s.parseFloat(s.getStringValue(record["industry"]))
-			rawMaterials := s.parseFloat(s.getStringValue(record["raw_materials"]))
-			otherUses := s.parseFloat(s.getStringValue(record["other_uses"]))
-			coke := s.parseFloat(s.getStringValue(record["coke"]))
-
-			subordinateData.TotalCoal = s.addFloat64(subordinateData.TotalCoal, totalCoal)
-			subordinateData.RawCoal = s.addFloat64(subordinateData.RawCoal, rawCoal)
-			subordinateData.WashedCoal = s.addFloat64(subordinateData.WashedCoal, washedCoal)
-			subordinateData.OtherCoal = s.addFloat64(subordinateData.OtherCoal, otherCoal)
-			subordinateData.PowerGen = s.addFloat64(subordinateData.PowerGen, powerGeneration)
-			subordinateData.Heating = s.addFloat64(subordinateData.Heating, heating)
-			subordinateData.CoalWashing = s.addFloat64(subordinateData.CoalWashing, coalWashing)
-			subordinateData.Coking = s.addFloat64(subordinateData.Coking, coking)
-			subordinateData.OilRefining = s.addFloat64(subordinateData.OilRefining, oilRefining)
-			subordinateData.GasProd = s.addFloat64(subordinateData.GasProd, gasProduction)
-			subordinateData.Industry = s.addFloat64(subordinateData.Industry, industry)
-			subordinateData.RawMaterials = s.addFloat64(subordinateData.RawMaterials, rawMaterials)
-			subordinateData.OtherUses = s.addFloat64(subordinateData.OtherUses, otherUses)
-			subordinateData.Coke = s.addFloat64(subordinateData.Coke, coke)
-		}
-	}
-
-	return subordinateData, nil
-}
-
-// isSubordinateArea 判断指定区域是否为当前用户的下辖区县
-func (s *DataImportService) isSubordinateArea(areaConfig *EnhancedAreaConfig, provinceName, cityName, countryName string) bool {
-	// 根据用户级别判断
-	switch areaConfig.DataLevel {
-	case 1: // 省级用户：下辖区县是指该省下的市区
-		return (provinceName == areaConfig.ProvinceName && cityName != "" && countryName == "")
-	case 2: // 市级用户：下辖区县是指该市下的县区
-		return (provinceName == areaConfig.ProvinceName && cityName == areaConfig.CityName && countryName != "")
-	case 3: // 县级用户：没有下辖区县
-		return false
-	default:
-		return false
-	}
 }
 
 // UpdateOptimizedCacheAfterUpload 上传成功后更新优化缓存
