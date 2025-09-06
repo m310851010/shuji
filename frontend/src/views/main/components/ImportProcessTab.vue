@@ -4,7 +4,7 @@
       <div style="line-height: 32px" class="result-text">
         <span v-if="tableType === 'table1' || tableType === 'table2'">完成清单导入后，才能查看导入进度</span>
       </div>
-      <a-button type="primary" @click="handleExportClick" v-if="false">导出清单</a-button>
+      <a-button type="primary" @click="handleExportClick">导出清单</a-button>
     </a-flex>
   </div>
 
@@ -42,7 +42,8 @@
     ExportAttachment2ProgressToExcel,
     GetCachePath,
     Removefile,
-    Movefile
+    Movefile,
+    GetAreaConfig
   } from '@wailsjs/go';
   import { db, main } from '@wailsjs/models';
   import { newColumns } from '@/util';

@@ -205,7 +205,7 @@
     },
     handleOk: async () => {
       try {
-        await executeConfirm(props.tableType, objId.value);
+        await executeConfirm(props.tableType, objId.value, 1);
         queryDataByTableType(props.tableType);
       } catch (error) {
         console.error('确认数据失败:', error);
@@ -231,7 +231,7 @@
     }
   }));
 
-  const executeConfirm = async (tableType: string, objIds: string[]) => {
+  const executeConfirm = async (tableType: string, objIds: string[], rowCount: number) => {
     let result;
     let dataTypeName = '';
 
@@ -256,9 +256,8 @@
         throw new Error(`未知的表格类型: ${tableType}`);
     }
 
-    const count = objIds.length;
-    const action = count > 1 ? '批量确认' : '确认';
-    message.success(`已${action} ${count} 条${dataTypeName}`);
+    const action = rowCount > 1 ? '批量确认' : '确认';
+    message.success(`已${action} ${rowCount} 条${dataTypeName}`);
     return result;
   };
 
@@ -274,7 +273,7 @@
     }
 
     try {
-      await executeConfirm(props.tableType, rowKeys);
+      await executeConfirm(props.tableType, rowKeys, selectedRows.value.length);
       selectedRowKeys.value = [];
       queryDataByTableType(props.tableType);
     } catch (error) {

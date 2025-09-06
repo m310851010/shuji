@@ -10354,6 +10354,16 @@
             "children": []
           }
         ]
+      },{
+        "code": "",
+        "name": "宁东能源化工基地",
+        "children": [
+          {
+            "code": "",
+            "name": "宁东能源化工基地",
+            "children": []
+          }
+        ]
       }
     ]
   },
@@ -14955,7 +14965,94 @@
         ]
       }
     ]
-  },
+  },{
+  "code": "",
+  "name": "新疆生产建设兵团",
+  "children": [
+    {
+      "code": "",
+      "name": "第一师阿拉尔市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第二师铁门关市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第三师图木舒克市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第四师克可达拉市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第五师双河市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第六师五家渠市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第七师胡杨河市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第八师石河子市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第九师白杨市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第十师北屯市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第十一师",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第十二师",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第十三师新星市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "第十四师昆玉市",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "漕湖项目区",
+      "children": [
+      ]
+    },{
+      "code": "",
+      "name": "准东产业园",
+      "children": [
+      ]
+    }
+
+  ]
+},
   {
     "code": "53",
     "name": "云南省",

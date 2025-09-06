@@ -17,11 +17,11 @@
             </div>
 
             <div class="divider-line"></div>
- 
+
             <a-menu mode="inline" class="menu" v-model:selectedKeys="selectedKeys">
-              <a-menu-item 
-                v-for="item in menus" 
-                :key="item.path" 
+              <a-menu-item
+                v-for="item in menus"
+                :key="item.path"
                 :disabled="item.disabled"
                 @click="handleMenuClick(item)"
                 :class="{ 'disabled-menu-item': item.disabled }"
@@ -76,7 +76,11 @@
       </div>
 
       <a-layout-content class="content">
-        <RouterView></RouterView>
+        <router-view v-slot="{ Component }">
+          <keep-alive :exclude="['data-export', 'import-process', 'setting']">
+            <component :is="Component" :key="route.path" />
+          </keep-alive>
+        </router-view>
       </a-layout-content>
     </a-layout>
   </Window>
@@ -93,156 +97,158 @@
   import { message } from 'ant-design-vue';
 
   // manifest 状态
-   const manifestState = ref<any>(null);
+  const manifestState = ref<any>(null);
 
-   // 菜单
-   const menus = ref([
-     { name: '清单导入', path: '/main/manifest-import', disabled: false },
-     { name: '数据导入', path: '/main/data-import', disabled: false },
-     { name: '数据校验', path: '/main/data-check', disabled: false },
-     { name: '数据导出', path: '/main/data-export', disabled: false },    
-     { name: '导入进度', path: '/main/import-process', disabled: false }
-     // { name: '数据文件合并', path: '/main/db-merge' }
-   ]);
-
-   /**
-    * 监听 manifestState 的变化，自动更新菜单状态
-    */
-   watch(manifestState, (newValue) => {
-     console.log('监听到 manifest 状态变化:', newValue);
-     
-     if (newValue === 1) {
-       // 状态为 1：禁用清单导入菜单项
-       setMenusDisabledStateByManifest(1);
-     } else if (newValue === 2) {
-       // 状态为 2：禁用除清单导入外的菜单项
-       setMenusDisabledStateByManifest(2);
-     } else if (newValue === 3) {
-       // 状态为 3：解除所有菜单禁用
-       setMenusDisabledStateByManifest(3);
-     }
-   }, { immediate: false });
+  // 菜单
+  const menus = ref([
+    { name: '清单导入', path: '/main/manifest-import', disabled: false },
+    { name: '数据导入', path: '/main/data-import', disabled: false },
+    { name: '数据校验', path: '/main/data-check', disabled: false },
+    { name: '数据导出', path: '/main/data-export', disabled: false },
+    { name: '导入进度', path: '/main/import-process', disabled: false }
+    // { name: '数据文件合并', path: '/main/db-merge' }
+  ]);
 
   /**
-      * 获取 state.json 中的 manifest 状态
-      */
-     const getManifestState = async () => {
-       try {
-         const result = await GetStateManifest();
-         if (result.ok) {
-           manifestState.value = result.data;
-           console.log('获取到的 manifest 值:', result.data);
-           
-           // 根据 manifest 状态值执行不同逻辑
-           if (result.data === null) {
-             // 状态为 null：显示弹框询问用户
-             showManifestDialog();
-           } else if (result.data === 1) {
-             // 状态为 1：禁用清单导入菜单项
-             setMenusDisabledStateByManifest(1);
-           } else if (result.data === 2) {
-             // 状态为 2：禁用除清单导入外的菜单项
-             
-             $router.push('/main/manifest-import');
-             setMenusDisabledStateByManifest(2);
-             console.log('跳转--------------')
-           } else if (result.data === 3) {
-             // 状态为 3：解除所有菜单禁用
-             setMenusDisabledStateByManifest(3);
-           }
-         } else {
-           console.error('获取 manifest 值失败:', result.message);
-           manifestState.value = null;
-           // 获取失败时也显示弹框
-           showManifestDialog();
-         }
-       } catch (error) {
-         console.error('获取 manifest 状态时发生错误:', error);
-         manifestState.value = null;
-         // 发生错误时也显示弹框
-         showManifestDialog();
-       }
-     };
+   * 监听 manifestState 的变化，自动更新菜单状态
+   */
+  watch(
+    manifestState,
+    newValue => {
+      console.log('监听到 manifest 状态变化:', newValue);
 
-     /**
-      * 根据manifest状态设置菜单项的禁用状态
-      * @param {number} manifestValue - manifest状态值（1、2或3）
-      */
-     const setMenusDisabledStateByManifest = (manifestValue: number) => {
-       menus.value.forEach(menu => {
-         if ('disabled' in menu) {
-           if (manifestValue === 1) {
-             // 状态为1：禁用清单导入菜单项
-             menu.disabled = menu.path === '/main/manifest-import';
-           } else if (manifestValue === 2) {
-             // 状态为2：禁用除清单导入外的其他菜单项
-             menu.disabled = menu.path !== '/main/manifest-import';
-           } else if (manifestValue === 3) {
-             // 状态为3：解除所有菜单禁用
-             menu.disabled = false;
-           }
-         }
-       });
-       
-     };
+      if (newValue === 1) {
+        // 状态为 1：禁用清单导入菜单项
+        setMenusDisabledStateByManifest(1);
+      } else if (newValue === 2) {
+        // 状态为 2：禁用除清单导入外的菜单项
+        setMenusDisabledStateByManifest(2);
+      } else if (newValue === 3) {
+        // 状态为 3：解除所有菜单禁用
+        setMenusDisabledStateByManifest(3);
+      }
+    },
+    { immediate: false }
+  );
 
-     /**
-      * 禁用除清单导入外的其他菜单项
-      */
-     const disableMenusExceptManifestImport = () => {
-       menus.value.forEach(menu => {
-         if (menu.path === '/main/manifest-import') {
-           menu.disabled = false;
-         } else {
-           menu.disabled = true;
-         }
-       });
-     };
+  /**
+   * 获取 state.json 中的 manifest 状态
+   */
+  const getManifestState = async () => {
+    try {
+      const result = await GetStateManifest();
+      if (result.ok) {
+        manifestState.value = result.data;
+        console.log('获取到的 manifest 值:', result.data);
 
-   /**
-     * 显示清单上传确认弹框
-     */
-    const showManifestDialog = () => {
-      Modal.confirm({
-        title: '模式选择：',
-        content: ' 请选择数据校验模式，如果掌握清单请优先使用 ” 有清单模式 “ ',
-        okText: '有清单模式',
-        cancelText: '无清单模式',
-        // style: { marginLeft: '30px' },
-        async onOk() {
+        // 根据 manifest 状态值执行不同逻辑
+        if (result.data === null) {
+          // 状态为 null：显示弹框询问用户
+          showManifestDialog();
+        } else if (result.data === 1) {
+          // 状态为 1：禁用清单导入菜单项
+          setMenusDisabledStateByManifest(1);
+        } else if (result.data === 2) {
+          // 状态为 2：禁用除清单导入外的菜单项
 
-          // 禁用除清单导入外的其他菜单项
-          disableMenusExceptManifestImport();
-          // 先跳转到清单导入页面
           $router.push('/main/manifest-import');
-          selectedKeys.value = ['manifest-import'];
-          // 更新 state.json 中的 manifest 字段为 2
-          try {
-            const result = await UpdateStateManifest(2);
-            if (result.ok) {
-              console.log('已将 manifest 状态设置为 2');
-            } else {
-            }
-          } catch (error) {
-            console.error('更新 manifest 状态时发生错误:', error);
-          }
-        },
-        async onCancel() {
-          // 更新 state.json 中的 manifest 字段为 1
-          try {
-            const result = await UpdateStateManifest(1);
-            if (result.ok) {
-              console.log('已将 manifest 状态设置为 1');
-              manifestState.value = 1;
-            } else {
-              console.error('更新 manifest 状态失败:', result.message);
-            }
-          } catch (error) {
-            console.error('更新 manifest 状态时发生错误:', error);
-          }
+          setMenusDisabledStateByManifest(2);
+          console.log('跳转--------------');
+        } else if (result.data === 3) {
+          // 状态为 3：解除所有菜单禁用
+          setMenusDisabledStateByManifest(3);
         }
-      });
-    };
+      } else {
+        console.error('获取 manifest 值失败:', result.message);
+        manifestState.value = null;
+        // 获取失败时也显示弹框
+        showManifestDialog();
+      }
+    } catch (error) {
+      console.error('获取 manifest 状态时发生错误:', error);
+      manifestState.value = null;
+      // 发生错误时也显示弹框
+      showManifestDialog();
+    }
+  };
+
+  /**
+   * 根据manifest状态设置菜单项的禁用状态
+   * @param {number} manifestValue - manifest状态值（1、2或3）
+   */
+  const setMenusDisabledStateByManifest = (manifestValue: number) => {
+    menus.value.forEach(menu => {
+      if ('disabled' in menu) {
+        if (manifestValue === 1) {
+          // 状态为1：禁用清单导入菜单项
+          menu.disabled = menu.path === '/main/manifest-import';
+        } else if (manifestValue === 2) {
+          // 状态为2：禁用除清单导入外的其他菜单项
+          menu.disabled = menu.path !== '/main/manifest-import';
+        } else if (manifestValue === 3) {
+          // 状态为3：解除所有菜单禁用
+          menu.disabled = false;
+        }
+      }
+    });
+  };
+
+  /**
+   * 禁用除清单导入外的其他菜单项
+   */
+  const disableMenusExceptManifestImport = () => {
+    menus.value.forEach(menu => {
+      if (menu.path === '/main/manifest-import') {
+        menu.disabled = false;
+      } else {
+        menu.disabled = true;
+      }
+    });
+  };
+
+  /**
+   * 显示清单上传确认弹框
+   */
+  const showManifestDialog = () => {
+    Modal.confirm({
+      title: '模式选择：',
+      content: ' 请选择数据校验模式，如果掌握清单请优先使用 ” 有清单模式 “ ',
+      okText: '有清单模式',
+      cancelText: '无清单模式',
+      // style: { marginLeft: '30px' },
+      async onOk() {
+        // 禁用除清单导入外的其他菜单项
+        disableMenusExceptManifestImport();
+        // 先跳转到清单导入页面
+        $router.push('/main/manifest-import');
+        selectedKeys.value = ['manifest-import'];
+        // 更新 state.json 中的 manifest 字段为 2
+        try {
+          const result = await UpdateStateManifest(2);
+          if (result.ok) {
+            console.log('已将 manifest 状态设置为 2');
+          } else {
+          }
+        } catch (error) {
+          console.error('更新 manifest 状态时发生错误:', error);
+        }
+      },
+      async onCancel() {
+        // 更新 state.json 中的 manifest 字段为 1
+        try {
+          const result = await UpdateStateManifest(1);
+          if (result.ok) {
+            console.log('已将 manifest 状态设置为 1');
+            manifestState.value = 1;
+          } else {
+            console.error('更新 manifest 状态失败:', result.message);
+          }
+        } catch (error) {
+          console.error('更新 manifest 状态时发生错误:', error);
+        }
+      }
+    });
+  };
 
   /**
    * 处理菜单项点击事件
@@ -251,15 +257,12 @@
   const handleMenuClick = (item: any) => {
     // 如果菜单项被禁用，则显示提示并阻止跳转
     if (item.disabled) {
-      
       message.error('请上传清单后操作！');
       return; // 阻止后续执行
-    } else  {
+    } else {
       // 执行正常的路由跳转
       $router.push(item.path);
     }
-    
-    
   };
 
   // 选中的菜单
@@ -275,7 +278,7 @@
   watchEffect(() => {
     // 查找当前路由对应的菜单项
     const currentMenu = menus.value.find(menu => menu.path === route.path);
-    
+
     // 如果菜单项存在且未被禁用，则更新选中状态
     if (currentMenu && !currentMenu.disabled) {
       selectedKeys.value = [route.path];
@@ -293,8 +296,6 @@
       selectedKeys.value = [route.path];
     }
   });
-
-  
 
   /**
    * 处理设置按钮点击事件
@@ -402,7 +403,7 @@
   const refreshManifestState = async () => {
     await getManifestState();
   };
-  
+
   // 暴露刷新方法给子组件使用
   provide('refreshManifestState', refreshManifestState);
 
@@ -414,7 +415,7 @@
       const data = areaResult.data;
       areas.value = [data.province_name, data.city_name, data.country_name].filter(v => v);
     }
-    
+
     // 初始获取 manifest 状态
     await getManifestState();
   });
@@ -461,20 +462,20 @@
       background-color: #1a5284;
       color: #ffffff;
     }
-    
+
     /* 禁用状态样式 */
     &.disabled-menu-item {
       opacity: 0.5;
       cursor: pointer;
       background-color: #f5f5f5 !important;
-      
+
       &:hover {
         background-color: #f5f5f5 !important;
         color: #999999 !important;
       }
     }
   }
-  
+
   /* 禁用文本样式 */
   .disabled-text {
     color: #999999;

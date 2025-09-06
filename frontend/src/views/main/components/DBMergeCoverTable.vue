@@ -29,7 +29,7 @@
       </template>
 
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key.startsWith('db')">
+        <template v-if="column.key.startsWith('db') && record[column.title]">
           <div class="db-column">
             <a-button type="link" size="small" @click="handleViewDetailData(record, column.key)">查看</a-button>
             <a-checkbox
@@ -39,6 +39,7 @@
             />
           </div>
         </template>
+        <template v-else>无</template>
       </template>
     </a-table>
 
@@ -131,6 +132,7 @@
     hasConflict: boolean;
     selections: Record<string, boolean>; // 动态选择状态
     conflictDetail: ConflictDetail; // 冲突详情
+    [key: string]: any;
   }
 
   interface ConfirmModal {
@@ -326,12 +328,13 @@
       if (conflict.conflict && conflict.conflict.length > 0) {
         // 初始化选择状态，默认只选中第一个文件
         const selections: Record<string, boolean> = {};
-        
+
         // 设置默认选中第一个数据库
         if (props.dbFileNames.length > 0) {
           selections['db0'] = true;
         }
 
+        const key = `conflict_${index}`;
         // 根据表类型设置不同的字段
         const record: ConflictRecord = {
           key: `conflict_${index}`,
@@ -339,6 +342,10 @@
           selections,
           conflictDetail: conflict
         };
+
+        for (const dbFileName of props.dbFileNames) {
+          record[dbFileName] = conflict.conflict.find(source => source.fileName === dbFileName);
+        }
 
         switch (props.tableType) {
           case 'table1':
@@ -440,16 +447,11 @@
   };
 
   const handleViewDetailData = async (record: ConflictRecord, dbKey: string) => {
-    console.log('查看详细数据 - 记录:', record);
     const dbIndex = parseInt(dbKey.replace('db', ''));
     const fileName = props.dbFileNames[dbIndex];
 
     // 根据文件名查找对应的冲突源信息
     const conflictSource = record.conflictDetail.conflict.find(source => source.fileName === fileName);
-
-    console.log('查看详细数据 - 记录:', record);
-    console.log('查看详细数据 - 文件名:', fileName);
-    console.log('查看详细数据 - 冲突源:', conflictSource);
 
     if (conflictSource) {
       try {

@@ -48,6 +48,7 @@
   import { OnFileDrop, OnFileDropOff } from '@wailsapp/runtime';
   import { EXCEL_TYPES } from '@/views/constant';
   import { getFileExtension } from '@/util/utils';
+  import { setFileDropHandler } from '@/hook/useFileDrop';
 
   const props = defineProps({
     // 验证文件是否有效,默认是excel文件
@@ -94,19 +95,33 @@
   const allFiles: { file: File; valid: boolean }[] = [];
 
   onMounted(() => {
-    OnFileDrop(async (x, y, paths) => {
+    setFileDropHandler((dropFiles, x, y) => {
+      console.log(allFiles);
       const files: EnhancedFile[] = [];
+      const validFile = props.validFile;
+      let valid = false;
+      const isFunction = typeof validFile === 'function';
+
       for (let i = 0; i < allFiles.length; i++) {
         const item = allFiles[i];
-        if (item.valid) {
-          const fullPath = paths[i];
-          const fileInfo = await GetFileInfo(fullPath);
-          if (fileInfo.isDirectory) {
-            const _files: EnhancedFile[] = await getFilesDir(fullPath);
-            files.push(..._files);
+        if (!item.valid) {
+          continue;
+        }
+
+        const fileInfo = dropFiles[i];
+        if (!fileInfo.isDirectory) {
+          files.push(fileInfo);
+          continue;
+        }
+
+        for (const fileInDir of fileInfo.files!) {
+          if (isFunction) {
+            valid = validFile(fileInDir, null);
           } else {
-            Object.assign(item.file, { isDirectory: false, isFile: true, fullPath });
-            files.push(item.file as EnhancedFile);
+            valid = validFile.indexOf(fileInDir.ext) >= 0;
+          }
+          if (valid) {
+            files.push(fileInDir);
           }
         }
       }
@@ -115,11 +130,7 @@
         selectedFiles.value = files;
         emit('file-change', selectedFiles.value);
       }
-    }, true);
-  });
-
-  onUnmounted(() => {
-    OnFileDropOff();
+    });
   });
 
   const handleDragEnter = (e: DragEvent) => {
@@ -180,6 +191,7 @@
   const handleDrop = (e: DragEvent) => {
     hasValidFile.value = true;
     isDragging.value = false;
+    allFiles.length = 0; // 存储合法的文件
 
     if (!e.dataTransfer) {
       return;
@@ -189,7 +201,6 @@
       return;
     }
 
-    allFiles.length = 0; // 存储合法的文件
     const validFile = props.validFile;
     let valid = false;
     const isFunction = typeof validFile === 'function';

@@ -327,8 +327,6 @@ func (s *DataImportService) parseTable1EquipSheet(f *excelize.File, sheetName st
 		}
 	}
 
-	fmt.Println("重点耗煤装置equipData", equipData)
-
 	return equipData, nil
 }
 

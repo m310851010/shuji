@@ -23,11 +23,6 @@ func (a *App) openSaveDialogWithRecover(option FileDialogOptions) FileDialogResu
 		}
 	}()
 
-	// DefaultPath 默认值
-	if option.DefaultPath == "" {
-		option.DefaultPath = "."
-	}
-
 	// option.Filters 默认值
 	if len(option.Filters) == 0 {
 		option.Filters = []FileFilter{

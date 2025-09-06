@@ -147,7 +147,6 @@ func (a *App) QueryExportData() db.QueryResult {
 	if table2Result.Ok && table2Result.Data != nil {
 		if data, ok := table2Result.Data.([]map[string]interface{}); ok {
 			for _, row := range data {
-				fmt.Println("row", row)
 				statDate := ""
 				if date, ok := row["stat_date"].(string); ok {
 					statDate = date

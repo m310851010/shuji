@@ -131,7 +131,7 @@
     );
 
     if (res2.canceled) {
-      Removefile(targetDbPath);
+      await Removefile(targetDbPath);
     } else {
       await Movefile(targetDbPath, res2.filePaths[0]);
     }

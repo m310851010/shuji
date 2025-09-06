@@ -20,4 +20,9 @@ declare type EnhancedFile = File & {
   fullPath: string;
   isDirectory: boolean;
   isFile: boolean;
+  ext: string;
+  /**
+   * 如果是目录会读取子文件
+   */
+  files?: EnhancedFile[];
 };

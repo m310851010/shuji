@@ -39,7 +39,7 @@
               </a-tag>
             </template>
             <template v-if="column.key === 'action'">
-              <a-button v-if="record.success" type="link" @click="openFile(record.outputPath)">打开文件</a-button>
+              <a-button v-if="record.success" type="link" @click="saveAsFile(record)">保存文件</a-button>
             </template>
           </template>
         </a-table>
@@ -52,7 +52,8 @@
   import { ref, reactive } from 'vue';
   import { message } from 'ant-design-vue';
   import UploadComponent from './components/Upload.vue';
-  import { DBTranformExcel, OpenFileInExplorer } from '@wailsjs/go';
+  import { DBTranformExcel, Movefile, OpenSaveDialog } from '@wailsjs/go';
+  import { main } from '@wailsjs/models';
 
   // 选中的文件
   const selectedFiles = ref<EnhancedFile[]>([]);
@@ -63,16 +64,17 @@
   const convertStatus = ref<'normal' | 'active' | 'success' | 'exception'>('normal');
   const progressText = ref('');
 
+  interface ResultItem {
+    fileName: string;
+    inputPath: string;
+    outputPath: string;
+    outputFileName: string;
+    success: boolean;
+    message: string;
+  }
+
   // 转换结果
-  const convertResults = ref<
-    Array<{
-      fileName: string;
-      inputPath: string;
-      outputPath: string;
-      success: boolean;
-      message: string;
-    }>
-  >([]);
+  const convertResults = ref<Array<ResultItem>>([]);
 
   // 结果表格列定义
   const resultColumns = [
@@ -110,12 +112,28 @@
 
   /**
    * 处理文件选择更新
-   * @param files 选中的文件列表
+   * @param value 选中的文件列表
    */
-  const handleUpdateModelValue = (files: EnhancedFile[]) => {
-    selectedFiles.value = files;
-    // 清空之前的转换结果
+  const handleUpdateModelValue = (value: EnhancedFile[]) => {
     convertResults.value = [];
+    if (value.length) {
+      // 根据正则过滤掉非法文件, 文件名规则为: export_20250826152020150000_西城区.db
+
+      const regex = /^export_\d{18,20}_[\u4e00-\u9fa5]{2,}\.db$/;
+      const validFiles = value.filter(item => regex.test(item.name));
+      if (validFiles.length !== value.length) {
+        message.warn('请选择正确的数据文件, 文件名规则示例: export_20250826152020150000_西城区.db');
+        selectedFiles.value = validFiles;
+        return;
+      }
+    }
+
+    if (value.length > 4) {
+      message.warn('最多选择4个文件');
+      selectedFiles.value = value.slice(0, 4);
+    } else {
+      selectedFiles.value = value;
+    }
   };
 
   /**
@@ -147,6 +165,7 @@
               fileName: file.name,
               inputPath: file.fullPath,
               outputPath: result.data.outputPath,
+              outputFileName: result.data.fileName,
               success: true,
               message: result.message
             });
@@ -155,6 +174,7 @@
               fileName: file.name,
               inputPath: file.fullPath,
               outputPath: '',
+              outputFileName: '',
               success: false,
               message: result.message || '转换失败'
             });
@@ -165,6 +185,7 @@
             fileName: file.name,
             inputPath: file.fullPath,
             outputPath: '',
+            outputFileName: '',
             success: false,
             message: '转换过程中发生错误'
           });
@@ -196,18 +217,22 @@
   };
 
   /**
-   * 打开文件所在位置
-   * @param filePath 文件路径
+   * 文件另存为
+   * @param record 结果项
    */
-  const openFile = async (filePath: string) => {
-    try {
-      // 这里调用后端函数打开文件
-      await OpenFileInExplorer(filePath);
-      message.success('文件已在资源管理器中打开');
-    } catch (error) {
-      console.error('打开文件失败:', error);
-      message.error('打开文件失败');
+  const saveAsFile = async (record: ResultItem) => {
+    const ret = await OpenSaveDialog(
+      new main.FileDialogOptions({
+        title: '选择导出文件路径',
+        defaultFilename: record.outputFileName
+      })
+    );
+    if (ret.canceled) {
+      return;
     }
+    const filePath = ret.filePaths[0];
+    await Movefile(record.outputFileName, filePath);
+    message.success('保存成功');
   };
 </script>
 

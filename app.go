@@ -237,7 +237,7 @@ func (a *App) GetFileInfo(path string) (*FileInfo, error) {
 	// 获取扩展名（如果是文件）
 	ext := ""
 	if !info.IsDir() {
-		ext = strings.ToLower(filepath.Ext(path))
+		ext = strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))
 	}
 
 	// 构造返回对象
@@ -275,10 +275,10 @@ func (a *App) OpenFileInExplorer(path string) db.QueryResult {
 	case "windows":
 		if !fileInfo.IsDir() {
 			// Windows: 打开文件所在目录并选中文件
-			cmd = exec.Command("cmd", "/c", "start", "explorer", "/select,", fullPath)
+			cmd = CreateSilentCommand("cmd", "/c", "start", "explorer", "/select,", fullPath)
 		} else {
 			// Windows: 直接打开目录
-			cmd = exec.Command("cmd", "/c", "start", "explorer", fullPath)
+			cmd = CreateSilentCommand("cmd", "/c", "start", "explorer", fullPath)
 		}
 	case "darwin":
 		if !fileInfo.IsDir() {
@@ -445,7 +445,7 @@ func (a *App) OpenExternal(path string) error {
 	var cmd *exec.Cmd
 	switch sysruntime.GOOS {
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", "", exePath)
+		cmd = CreateSilentCommand("cmd", "/c", "start", "", exePath)
 	case "darwin":
 		cmd = exec.Command("open", exePath)
 	case "linux":

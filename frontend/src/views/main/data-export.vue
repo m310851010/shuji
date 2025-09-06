@@ -71,14 +71,6 @@
       align: 'center'
     },
     {
-      title: '导入进度',
-      align: 'center',
-      customRender: ({ record }) => {
-        return `${record.is_checked_yes}`;
-        // /${record.count}
-      }
-    },
-    {
       title: '自动校验',
       ellipsis: true,
       align: 'center',
@@ -96,13 +88,6 @@
       }
     }
   ]);
-
-  onMounted(async () => {
-    const areaResult = await GetAreaConfig();
-    if (areaResult.ok && areaResult.data?.country_name) {
-      columns.splice(2, 1);
-    }
-  });
 
   const handleExportClick = async () => {
     let allPass = true;

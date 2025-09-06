@@ -500,7 +500,6 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 	totalConsumption := s.addFloat64(energyConversion, terminalConsumption)
 
 	if s.isIntegerLessThan(totalCoal, totalConsumption) {
-		fmt.Println("煤合计应大于等于能源加工转换+终端消费-工业（#用作原料、材料）", totalCoal, totalConsumption)
 		cells := []string{
 			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
 			s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum),
@@ -566,7 +565,6 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 
 	// 1. 从年份累计缓存获取数据（数据库中已存在的下辖县区数据）
 	yearlyData, exists := attachment2CacheManager.GetYearlyAggregatedData(statDate)
-	fmt.Println("从年份累计缓存获取数据（数据库中已存在的下辖县区数据） exists", exists)
 	if exists {
 		// 累加年份累计数据
 		subordinateData.TotalCoal = yearlyData.TotalCoal
@@ -726,70 +724,60 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 	// 计算 currentTotalCoal * threshold
 	currentTotalCoalThreshold := s.multiplyFloat64(currentTotalCoal, threshold)
 	if s.isIntegerLessThan(currentTotalCoalThreshold, subordinateData.TotalCoal) {
-		fmt.Println("煤合计数值*120%应大于等于下级单位相加之和", currentTotalCoalThreshold, subordinateData.TotalCoal)
 		cells := s.generateAllRelatedCells("total_coal", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "煤合计数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentRawCoalThreshold := s.multiplyFloat64(currentRawCoal, threshold)
 	if s.isIntegerLessThan(currentRawCoalThreshold, subordinateData.RawCoal) {
-		fmt.Println("原煤数值*120%应大于等于下级单位相加之和", currentRawCoalThreshold, subordinateData.RawCoal)
 		cells := s.generateAllRelatedCells("raw_coal", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "原煤数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentWashedCoalThreshold := s.multiplyFloat64(currentWashedCoal, threshold)
 	if s.isIntegerLessThan(currentWashedCoalThreshold, subordinateData.WashedCoal) {
-		fmt.Println("洗精煤数值*120%应大于等于下级单位相加之和", currentWashedCoalThreshold, subordinateData.WashedCoal)
 		cells := s.generateAllRelatedCells("washed_coal", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "洗精煤数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentOtherCoalThreshold := s.multiplyFloat64(currentOtherCoal, threshold)
 	if s.isIntegerLessThan(currentOtherCoalThreshold, subordinateData.OtherCoal) {
-		fmt.Println("其他数值*120%应大于等于下级单位相加之和", currentOtherCoalThreshold, subordinateData.OtherCoal)
 		cells := s.generateAllRelatedCells("other_coal", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "其他数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentPowerGenerationThreshold := s.multiplyFloat64(currentPowerGeneration, threshold)
 	if s.isIntegerLessThan(currentPowerGenerationThreshold, subordinateData.PowerGen) {
-		fmt.Println("火力发电数值*120%应大于等于下级单位相加之和", currentPowerGenerationThreshold, subordinateData.PowerGen)
 		cells := s.generateAllRelatedCells("power_generation", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "火力发电数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentHeatingThreshold := s.multiplyFloat64(currentHeating, threshold)
 	if s.isIntegerLessThan(currentHeatingThreshold, subordinateData.Heating) {
-		fmt.Println("供热数值*120%应大于等于下级单位相加之和", currentHeatingThreshold, subordinateData.Heating)
 		cells := s.generateAllRelatedCells("heating", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "供热数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentCoalWashingThreshold := s.multiplyFloat64(currentCoalWashing, threshold)
 	if s.isIntegerLessThan(currentCoalWashingThreshold, subordinateData.CoalWashing) {
-		fmt.Println("煤炭洗选数值*120%应大于等于下级单位相加之和", currentCoalWashingThreshold, subordinateData.CoalWashing)
 		cells := s.generateAllRelatedCells("coal_washing", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "煤炭洗选数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentCokingThreshold := s.multiplyFloat64(currentCoking, threshold)
 	if s.isIntegerLessThan(currentCokingThreshold, subordinateData.Coking) {
-		fmt.Println("炼焦数值*120%应大于等于下级单位相加之和", currentCokingThreshold, subordinateData.Coking)
 		cells := s.generateAllRelatedCells("coking", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "炼焦数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentOilRefiningThreshold := s.multiplyFloat64(currentOilRefining, threshold)
 	if s.isIntegerLessThan(currentOilRefiningThreshold, subordinateData.OilRefining) {
-		fmt.Println("炼油及煤制油数值*120%应大于等于下级单位相加之和", currentOilRefiningThreshold, subordinateData.OilRefining)
 		cells := s.generateAllRelatedCells("oil_refining", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "炼油及煤制油数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentGasProductionThreshold := s.multiplyFloat64(currentGasProduction, threshold)
 	if s.isIntegerLessThan(currentGasProductionThreshold, subordinateData.GasProd) {
-		fmt.Println("制气数值*120%应大于等于下级单位相加之和", currentGasProductionThreshold, subordinateData.GasProd)
 		cells := s.generateAllRelatedCells("gas_production", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "制气数值*120%应大于等于下级单位相加之和"})
 	}
@@ -802,21 +790,18 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 
 	currentRawMaterialsThreshold := s.multiplyFloat64(currentRawMaterials, threshold)
 	if s.isIntegerLessThan(currentRawMaterialsThreshold, subordinateData.RawMaterials) {
-		fmt.Println("工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和", currentRawMaterialsThreshold, subordinateData.RawMaterials)
 		cells := s.generateAllRelatedCells("raw_materials", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "工业（#用作原料、材料）数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentOtherUsesThreshold := s.multiplyFloat64(currentOtherUses, threshold)
 	if s.isIntegerLessThan(currentOtherUsesThreshold, subordinateData.OtherUses) {
-		fmt.Println("其他用途数值*120%应大于等于下级单位相加之和", currentOtherUsesThreshold, subordinateData.OtherUses)
 		cells := s.generateAllRelatedCells("other_uses", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "其他用途数值*120%应大于等于下级单位相加之和"})
 	}
 
 	currentCokeThreshold := s.multiplyFloat64(currentCoke, threshold)
 	if s.isIntegerLessThan(currentCokeThreshold, subordinateData.Coke) {
-		fmt.Println("焦炭数值*120%应大于等于下级单位相加之和", currentCokeThreshold, subordinateData.Coke)
 		cells := s.generateAllRelatedCells("coke", mainData)
 		errors = append(errors, ValidationError{RowNumber: rowNumber, Cells: cells, Message: "焦炭数值*120%应大于等于下级单位相加之和"})
 	}
