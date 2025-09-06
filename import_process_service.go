@@ -506,6 +506,23 @@ func (a *App) queryTable3CityLevel(targetLocation interface{}) db.QueryResult {
 	// 4. 构建最终结果
 	areaList := make([]map[string]interface{}, 0)
 
+	// 获取当前用户的市名称
+	var currentCityName string
+	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+		if name, exists := targetLocationMap["name"]; exists && name != nil {
+			currentCityName = fmt.Sprintf("%v", name)
+		}
+	}
+
+	// 第一行添加城市名
+	if currentCityName != "" {
+		cityStatus := map[string]interface{}{
+			"area_name": currentCityName,
+			"is_import": importedCounties[currentCityName],
+		}
+		areaList = append(areaList, cityStatus)
+	}
+
 	// 为每个县区创建记录
 	for _, countyName := range countyList {
 		areaStatus := map[string]interface{}{
@@ -585,13 +602,12 @@ func (a *App) queryTable3ProvinceLevel(targetLocation interface{}) db.QueryResul
 
 // queryAndParseTable3Data 查询并解析附表3数据
 func (a *App) queryAndParseTable3Data() (map[string]bool, error) {
-	// 查询附表3数据，按examination_authority分组
+	// 查询附表3数据，按examination_authority分组，查询所有数据
 	table3Query := `
 		SELECT 
 			examination_authority,
 			COUNT(1) as record_count
-		FROM fixed_assets_investment_project 
-		WHERE examination_authority IS NOT NULL AND examination_authority != ''
+		FROM fixed_assets_investment_project
 		GROUP BY examination_authority
 	`
 	table3Result, err := a.db.Query(table3Query)
@@ -714,7 +730,6 @@ func (a *App) queryAttachment2CityLevel(targetLocation interface{}) db.QueryResu
 			stat_date,
 			COUNT(1) as record_count
 		FROM coal_consumption_report 
-		WHERE country_name IS NOT NULL AND country_name != ''
 		GROUP BY country_name, stat_date
 		ORDER BY country_name, stat_date`
 
@@ -728,15 +743,7 @@ func (a *App) queryAttachment2CityLevel(targetLocation interface{}) db.QueryResu
 	// 3. 构建区域记录状态映射和年份集合
 	attachment2DataMap := make(map[string]map[string]bool) // area_name -> stat_date -> hasRecord
 	allYears := make(map[string]bool)
-	areaList := make([]map[string]interface{}, 0, len(countyList))
-
-	// 初始化所有县区的记录
-	for _, countyName := range countyList {
-		areaStatus := map[string]interface{}{
-			"area_name": countyName,
-		}
-		areaList = append(areaList, areaStatus)
-	}
+	areaList := make([]map[string]interface{}, 0, len(countyList)+1) // +1 for city data
 
 	// 处理附件2数据，同时收集年份
 	if attachment2Result.Ok && attachment2Result.Data != nil {
@@ -764,11 +771,41 @@ func (a *App) queryAttachment2CityLevel(targetLocation interface{}) db.QueryResu
 		}
 	}
 
+	// 获取当前用户的市名称
+	var currentCityName string
+	if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+		if name, exists := targetLocationMap["name"]; exists && name != nil {
+			currentCityName = fmt.Sprintf("%v", name)
+		}
+	}
+
+	// 第一行添加城市名
+	if currentCityName != "" {
+		cityStatus := map[string]interface{}{
+			"area_name": currentCityName,
+		}
+		// 使用空字符串作为key来获取市级数据（country_name为空的数据）
+		if statDateMap, exists := attachment2DataMap[""]; exists {
+			for statDate, hasRecord := range statDateMap {
+				cityStatus[statDate] = hasRecord
+			}
+		}
+		areaList = append(areaList, cityStatus)
+	}
+
+	// 初始化所有县区的记录
+	for _, countyName := range countyList {
+		areaStatus := map[string]interface{}{
+			"area_name": countyName,
+		}
+		areaList = append(areaList, areaStatus)
+	}
+
 	// 4. 为每个县区添加年份数据
 	for i, countyName := range countyList {
 		if statDateMap, exists := attachment2DataMap[countyName]; exists {
 			for statDate, hasRecord := range statDateMap {
-				areaList[i][statDate] = hasRecord
+				areaList[i+1][statDate] = hasRecord // +1 because city data is at index 0
 			}
 		}
 	}

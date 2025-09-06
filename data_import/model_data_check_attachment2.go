@@ -168,11 +168,15 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 			}
 
 			// 4. 调用校验函数,对每一行数据验证
-			errors := s.validateAttachment2DataForModel(mainData, areaConfig)
+			errors, hasDBError := s.validateAttachment2DataForModel(mainData, areaConfig)
 
 			if len(errors) > 0 {
+				lastRowNumber := 0
+				if hasDBError && areaConfig.CountryName == "" {
+					lastRowNumber = s.getExcelRowNumber(mainData[len(mainData) - 1]) + 2
+				}
 				// 校验失败，在Excel文件中错误行最后添加错误信息
-				err = s.addValidationErrorsToExcelAttachment2(filePath, errors)
+				err = s.addValidationErrorsToExcelAttachment2(filePath, errors, lastRowNumber)
 
 				if err != nil {
 					msg := err.Error()
@@ -266,7 +270,7 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 }
 
 // validateAttachment2DataForModel 校验附件2数据（模型校验专用）
-func (s *DataImportService) validateAttachment2DataForModel(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig) []ValidationError {
+func (s *DataImportService) validateAttachment2DataForModel(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig)( []ValidationError, bool) {
 	errors := []ValidationError{}
 
 	// 逐行校验数值字段、数据一致性和整体规则（行内字段间逻辑关系）
@@ -287,7 +291,7 @@ func (s *DataImportService) validateAttachment2DataForModel(mainData []map[strin
 	dbErrors := s.validateAttachment2DatabaseRules(mainData, areaConfig)
 	errors = append(errors, dbErrors...)
 
-	return errors
+	return errors, len(dbErrors) > 0
 }
 
 // validateAttachment2NumericFields 校验附件2数值字段
@@ -1171,7 +1175,7 @@ func (s *DataImportService) insertAttachment2Data(record map[string]interface{})
 }
 
 // addValidationErrorsToExcelAttachment2 在附件2Excel文件中添加校验错误信息
-func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath string, errors []ValidationError) error {
+func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath string, errors []ValidationError, lastRowNumber int) error {
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return err
@@ -1214,6 +1218,17 @@ func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath strin
 		}
 	}
 
+
+	style, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
+		Alignment: &excelize.Alignment{
+			Vertical: "center",
+		},
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	// 获取最大列数
 	maxCol := 18
 
@@ -1229,21 +1244,28 @@ func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath strin
 		// 格式化错误信息：每条错误使用序号标识并换行
 		formattedErrorMsg := formatErrorMessages(errorMsg)
 		f.SetCellValue(sheetName, errorCellName, formattedErrorMsg)
-		style, err := f.NewStyle(&excelize.Style{
-			Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
-			Alignment: &excelize.Alignment{
-				Vertical: "center",
-			},
-		})
-		if err != nil {
-			fmt.Println(err)
-		}
+		
 		f.SetCellStyle(sheetName, errorCellName, errorCellName, style)
 		// 设置错误信息列的宽度为50
 		colName, _ := excelize.ColumnNumberToName(errorCol)
 		f.SetColWidth(sheetName, colName, colName, 50)
 	}
 
+	// 在最后一行添加备注
+	if lastRowNumber > 0 {
+		cellName, err := excelize.CoordinatesToCellName(1, lastRowNumber)
+		if err != nil {
+			return err
+		}
+		maxCellName, err := excelize.CoordinatesToCellName(maxCol, lastRowNumber)
+		if err != nil {
+			return err
+		}
+		f.MergeCell(sheetName, cellName, maxCellName)
+		f.SetCellValue(sheetName, cellName, "本错误无法精准定位出数据不合理的区域，建议将全市及各县区数据全部进行再次检查，确认无误后再次整体导入")
+		f.SetCellStyle(sheetName, cellName, cellName, style)
+	}
+		
 	// 保存文件
 	return f.Save()
 }

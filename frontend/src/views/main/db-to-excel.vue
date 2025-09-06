@@ -1,7 +1,7 @@
 <template>
   <div class="wh-100 flex-vertical">
     <div class="page-header">
-      <span class="header-title">DB文件转Excel</span>
+      <span class="header-title">数据文件转Excel</span>
     </div>
     <div class="page-content text-center">
       <UploadComponent
@@ -9,12 +9,12 @@
         v-on:update:model-value="handleUpdateModelValue"
         :accept="() => true"
         :validFile="['db']"
-        filterName="DB文件"
+        filterName="数据文件"
         filterPattern="*.db"
-        title="选择DB文件"
+        title="选择数据文件"
       >
-        <div>只能选择DB文件（.db），支持批量选择</div>
-        <div>支持一次性拖一个或多个DB文件，以及整个文件夹</div>
+        <div>只能选择数据文件（.db），支持批量选择</div>
+        <div>支持一次性拖一个或多个数据文件，以及整个文件夹</div>
         <div>选择文件后，点击下方按钮开始转换为Excel</div>
       </UploadComponent>
 
@@ -81,33 +81,21 @@
     {
       title: '文件名',
       dataIndex: 'fileName',
-      key: 'fileName'
-    },
-    {
-      title: '输入路径',
-      dataIndex: 'inputPath',
-      key: 'inputPath',
-      ellipsis: true
+      key: 'fileName',
+      ellipsis: true,
+      width: 300
     },
     {
       title: '输出路径',
       dataIndex: 'outputPath',
-      key: 'outputPath',
-      ellipsis: true
+      key: 'outputPath'
     },
     {
       title: '状态',
-      key: 'status'
-    },
-    {
-      title: '消息',
-      dataIndex: 'message',
-      key: 'message'
-    },
-    {
-      title: '操作',
-      key: 'action'
+      key: 'status',
+      width: 70
     }
+   
   ];
 
   /**
@@ -137,11 +125,11 @@
   };
 
   /**
-   * 处理DB文件转Excel
+   * 处理数据文件转Excel
    */
   const handleConvert = async () => {
     if (!selectedFiles.value || selectedFiles.value.length === 0) {
-      message.warning('请先选择DB文件');
+      message.warning('请先选择数据文件');
       return;
     }
 

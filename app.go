@@ -73,7 +73,7 @@ func CreateApp(fs embed.FS) *App {
 	dbDst = filepath.Join(Env.BasePath, DATA_DIR_NAME)
 	dbDstPath = filepath.Join(dbDst, DB_FILE_NAME)
 
-	// 保证数据库目录存在，防止抽取数据库文件失败导致后续找不到db文件
+	// 保证数据库目录存在，防止抽取数据库文件失败导致后续找不到数据文件
 	if _, err := os.Stat(dbDst); os.IsNotExist(err) {
 		if err := os.MkdirAll(dbDst, os.ModePerm); err != nil {
 			log.Fatalf("创建数据库目录失败: %v", err)
@@ -81,7 +81,7 @@ func CreateApp(fs embed.FS) *App {
 	}
 	if _, err := os.Stat(dbDstPath); os.IsNotExist(err) {
 		extractEmbeddedFiles(fs)
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	newDb, err := db.NewDatabase(dbDstPath, DB_PASSWORD)
@@ -124,13 +124,30 @@ func createCacheDirs(basePath string) {
 	}
 }
 
+// 抽取嵌入式文件
+// fs: 嵌入式文件系统
+func (a *App) extractEmbeddedFile(sourcePath, destPath string)  {
+	// 保证数据库目录存在，防止抽取数据库文件失败导致后续找不到数据文件
+	dirPath := filepath.Dir(destPath)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
+			log.Fatalf("创建目录失败: %v", err)
+		}
+	}
+	if _, err := os.Stat(destPath); os.IsNotExist(err) {
+		extractFile(a.fs, sourcePath, destPath)
+		time.Sleep(600 * time.Millisecond)
+	}
+}
+
 func extractEmbeddedFiles(fs embed.FS) {
-	dbSrcPath := "frontend/dist/" + DB_FILE_NAME
+	dbSrcPath := FRONTEND_FILE_DIR_NAME + DB_FILE_NAME
 	if _, err := os.Stat(dbDstPath); os.IsNotExist(err) {
 		extractFile(fs, dbSrcPath, dbDstPath)
 	}
 }
 
+// 抽取文件
 func extractFile(fs embed.FS, srcPath, dstPath string) {
 	if _, err := os.Stat(dstPath); os.IsNotExist(err) {
 		log.Printf("抽取文件 [%s]", dstPath)

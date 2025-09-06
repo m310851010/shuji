@@ -29,17 +29,17 @@
       </template>
 
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key.startsWith('db') && record[column.title]">
-          <div class="db-column">
+        <template v-if="column.key.startsWith('db')">
+          <div class="db-column" v-if="record[column.title]">
             <a-button type="link" size="small" @click="handleViewDetailData(record, column.key)">查看</a-button>
             <a-checkbox
               v-model:checked="record.selections[column.key]"
-              :disabled="!record.hasConflict || isCheckboxDisabled(record, column.key)"
+              :disabled="!record.hasConflict"
               @change="() => handleDbSelect(record, column.key)"
             />
           </div>
+          <div class="db-column" v-else>无</div>
         </template>
-        <template v-else>无</template>
       </template>
     </a-table>
 
@@ -165,6 +165,23 @@
     }
   });
 
+  // 计算有冲突的文件名
+  const conflictFileNames = computed(() => {
+    const fileNamesWithConflict = new Set<string>();
+    
+    // 遍历所有冲突记录，收集有冲突的文件名
+    props.conflictList.forEach(conflict => {
+      if (conflict.conflict && conflict.conflict.length > 0) {
+        conflict.conflict.forEach(conflictSource => {
+          fileNamesWithConflict.add(conflictSource.fileName);
+        });
+      }
+    });
+    
+    // 返回有冲突的文件名数组，保持原始顺序
+    return props.dbFileNames.filter(fileName => fileNamesWithConflict.has(fileName));
+  });
+
   const columns = computed((): TableColumnType[] => {
     let baseColumns: TableColumnType[] = [];
 
@@ -249,7 +266,8 @@
         break;
     }
 
-    props.dbFileNames.forEach((fileName, index) => {
+    // 只添加有冲突的文件列
+    conflictFileNames.value.forEach((fileName, index) => {
       baseColumns.push({
         title: fileName,
         key: `db${index}`,
@@ -266,12 +284,21 @@
 
   const allSelectedStates = ref<boolean[]>([]);
 
+  // 创建文件名到列索引的映射
+  const fileNameToColumnIndex = computed(() => {
+    const mapping = new Map<string, number>();
+    conflictFileNames.value.forEach((fileName, index) => {
+      mapping.set(fileName, index);
+    });
+    return mapping;
+  });
+
   // 初始化全选状态
   watch(
-    () => props.dbFileNames,
-    newDbFileNames => {
-      if (newDbFileNames && newDbFileNames.length > 0) {
-        allSelectedStates.value = newDbFileNames.map((_, index) => index === 0); // 默认只选中第一个
+    () => conflictFileNames.value,
+    newConflictFileNames => {
+      if (newConflictFileNames && newConflictFileNames.length > 0) {
+        allSelectedStates.value = newConflictFileNames.map((_, index) => index === 0); // 默认只选中第一个
       } else {
         allSelectedStates.value = [];
       }
@@ -281,19 +308,27 @@
 
   // 更新全选状态的computed
   const updateAllSelectedStates = () => {
-    props.dbFileNames.forEach((_, index) => {
-      const conflictItems = conflictData.value.filter(item => item.hasConflict);
-      if (conflictItems.length > 0) {
-        // 检查当前列是否在所有冲突记录中都被选中
-        allSelectedStates.value[index] = conflictItems.every(item => item.selections[`db${index}`]);
+    conflictFileNames.value.forEach((fileName, index) => {
+      // 只考虑有冲突且有数据的行
+      const conflictItemsWithData = conflictData.value.filter(item => 
+        item.hasConflict && item[fileName]
+      );
+      if (conflictItemsWithData.length > 0) {
+        // 检查当前列是否在所有有数据的冲突记录中都被选中
+        allSelectedStates.value[index] = conflictItemsWithData.every(item => item.selections[`db${index}`]);
+      } else {
+        allSelectedStates.value[index] = false;
       }
     });
   };
 
   const indeterminateStates = computed(() => {
-    return props.dbFileNames.map((_, index) => {
-      const conflictItems = conflictData.value.filter(item => item.hasConflict);
-      const selectedCount = conflictItems.filter(item => item.selections[`db${index}`]).length;
+    return conflictFileNames.value.map((fileName, index) => {
+      // 只考虑有冲突且有数据的行
+      const conflictItemsWithData = conflictData.value.filter(item => 
+        item.hasConflict && item[fileName]
+      );
+      const selectedCount = conflictItemsWithData.filter(item => item.selections[`db${index}`]).length;
       // 由于每条记录只能选择一个文件，所以indeterminate状态应该始终为false
       return false;
     });
@@ -303,7 +338,7 @@
   const getDbIndex = (columnKey: string): number => {
     const index = parseInt(columnKey.replace('db', ''));
     // 确保索引在有效范围内
-    if (index >= 0 && index < allSelectedStates.value.length) {
+    if (index >= 0 && index < conflictFileNames.value.length) {
       return index;
     }
     return 0; // 默认返回0
@@ -324,14 +359,34 @@
   const processConflictData = (conflicts: ConflictDetail[]) => {
     const processedData: ConflictRecord[] = [];
 
+    // 首先收集所有有冲突的文件名
+    const fileNamesWithConflict = new Set<string>();
+    conflicts.forEach(conflict => {
+      if (conflict.conflict && conflict.conflict.length > 0) {
+        conflict.conflict.forEach(conflictSource => {
+          fileNamesWithConflict.add(conflictSource.fileName);
+        });
+      }
+    });
+
+    // 获取有冲突的文件名数组，保持原始顺序
+    const conflictFileNamesList = props.dbFileNames.filter(fileName => fileNamesWithConflict.has(fileName));
+
     conflicts.forEach((conflict, index) => {
       if (conflict.conflict && conflict.conflict.length > 0) {
-        // 初始化选择状态，默认只选中第一个文件
+        // 初始化选择状态，确保每一行都有一列被选中
         const selections: Record<string, boolean> = {};
 
-        // 设置默认选中第一个数据库
-        if (props.dbFileNames.length > 0) {
-          selections['db0'] = true;
+        // 找到第一个有数据的列并选中
+        let selectedColumnIndex = -1;
+        for (let i = 0; i < conflictFileNamesList.length; i++) {
+          const fileName = conflictFileNamesList[i];
+          const hasData = conflict.conflict.some(source => source.fileName === fileName);
+          if (hasData) {
+            selections[`db${i}`] = true;
+            selectedColumnIndex = i;
+            break;
+          }
         }
 
         const key = `conflict_${index}`;
@@ -343,7 +398,8 @@
           conflictDetail: conflict
         };
 
-        for (const dbFileName of props.dbFileNames) {
+        // 只为有冲突的文件设置数据
+        for (const dbFileName of conflictFileNamesList) {
           record[dbFileName] = conflict.conflict.find(source => source.fileName === dbFileName);
         }
 
@@ -385,32 +441,75 @@
 
   const handleSelectAllDb = (dbIndex: number, checked: boolean) => {
     const dbKey = `db${dbIndex}`;
+    const fileName = conflictFileNames.value[dbIndex];
 
     if (checked) {
-      // 如果选中当前列，需要先取消其他列的选择
+      // 如果选中当前列，只处理当前列有数据的行
       conflictData.value.forEach(item => {
         if (item.hasConflict) {
-          // 先取消所有选择
-          Object.keys(item.selections).forEach(key => {
-            item.selections[key] = false;
-          });
-          // 然后选中当前列
+          // 只有当该行在当前列有数据时才处理
+          if (item[fileName]) {
+            // 先取消该行的所有选择
+            Object.keys(item.selections).forEach(key => {
+              item.selections[key] = false;
+            });
+            // 然后选中当前列
+            item.selections[dbKey] = true;
+          }
+          // 如果该行在当前列没有数据，不做任何处理，保持原有选择状态
+        }
+      });
+
+      // 检查当前列是否所有有数据的行都处于选中状态
+      const allRowsInCurrentColumn = conflictData.value.filter(item => 
+        item.hasConflict && item[fileName]
+      );
+      const allRowsSelected = allRowsInCurrentColumn.length > 0 && 
+        allRowsInCurrentColumn.every(item => item.selections[dbKey]);
+
+      // 如果当前列全选成功，检查是否需要取消其他列的全选
+      if (allRowsSelected) {
+        // 获取当前列有数据的行索引
+        const currentColumnRowIndices = new Set(
+          conflictData.value
+            .map((item, index) => item.hasConflict && item[fileName] ? index : -1)
+            .filter(index => index !== -1)
+        );
+
+        conflictFileNames.value.forEach((otherFileName, otherIndex) => {
+          if (otherIndex !== dbIndex) {
+            // 获取其他列有数据的行索引
+            const otherColumnRowIndices = new Set(
+              conflictData.value
+                .map((item, index) => item.hasConflict && item[otherFileName] ? index : -1)
+                .filter(index => index !== -1)
+            );
+
+            // 检查是否有重叠的行
+            const hasOverlap = [...currentColumnRowIndices].some(index => 
+              otherColumnRowIndices.has(index)
+            );
+
+            // 如果有重叠的行，则取消其他列的全选状态
+            if (hasOverlap) {
+              allSelectedStates.value[otherIndex] = false;
+            }
+          }
+        });
+      }
+    } else {
+      // 如果用户试图取消选中当前列，则重新选中当前列
+      conflictData.value.forEach(item => {
+        if (item.hasConflict && item[fileName]) {
+          // 重新选中当前列（只对有数据的行）
           item.selections[dbKey] = true;
         }
       });
-
-      props.dbFileNames.forEach((_, index) => {
-        if (index !== dbIndex) {
-          allSelectedStates.value[index] = false;
-        }
-      });
-    } else {
-      // 如果取消选中当前列，取消该列的所有选择
-      conflictData.value.forEach(item => {
-        if (item.hasConflict) {
-          item.selections[dbKey] = false;
-        }
-      });
+      
+      // 保持当前列的全选状态为true
+      allSelectedStates.value[dbIndex] = true;
+      emitSelectionChange();
+      return;
     }
 
     allSelectedStates.value[dbIndex] = checked;
@@ -418,6 +517,14 @@
   };
 
   const handleDbSelect = (record: ConflictRecord, dbKey: string) => {
+    const dbIndex = parseInt(dbKey.replace('db', ''));
+    const fileName = conflictFileNames.value[dbIndex];
+    
+    // 如果该行在当前列没有数据，不允许选中
+    if (!record[fileName]) {
+      return;
+    }
+
     // 如果当前复选框被选中，则取消其他所有复选框的选中状态
     if (record.selections[dbKey]) {
       Object.keys(record.selections).forEach(key => {
@@ -425,6 +532,9 @@
           record.selections[key] = false;
         }
       });
+    } else {
+      // 如果用户试图取消选中，则重新选中当前复选框
+      record.selections[dbKey] = true;
     }
 
     // 更新全选状态
@@ -432,23 +542,10 @@
     emitSelectionChange();
   };
 
-  // 判断复选框是否应该被禁用
-  const isCheckboxDisabled = (record: ConflictRecord, dbKey: string): boolean => {
-    // 如果当前复选框已选中，则不禁用
-    if (record.selections[dbKey]) {
-      return false;
-    }
-
-    // 检查是否有其他复选框被选中
-    const hasOtherSelected = Object.keys(record.selections).some(key => key !== dbKey && record.selections[key]);
-
-    // 如果有其他复选框被选中，则禁用当前复选框
-    return hasOtherSelected;
-  };
 
   const handleViewDetailData = async (record: ConflictRecord, dbKey: string) => {
     const dbIndex = parseInt(dbKey.replace('db', ''));
-    const fileName = props.dbFileNames[dbIndex];
+    const fileName = conflictFileNames.value[dbIndex];
 
     // 根据文件名查找对应的冲突源信息
     const conflictSource = record.conflictDetail.conflict.find(source => source.fileName === fileName);
@@ -519,23 +616,24 @@
     // 构建符合新的 MergeConflictData 函数参数要求的数据结构
     const selectedConflictData: ConflictData[] = [];
 
-    // 按表类型分组选中的冲突数据
-    props.dbFileNames.forEach((fileName, dbIndex) => {
-      const dbKey = `db${dbIndex}`;
-      const selectedItems = conflictData.value.filter(item => item.hasConflict && item.selections[dbKey]);
+    // 按文件路径分组收集所有选中的冲突数据
+    const fileDataMap = new Map<string, Condition[]>();
 
-      if (selectedItems.length > 0) {
-        // 收集该文件中所有选中的冲突源信息
-        selectedItems.forEach(item => {
-          const conflictSource = item.conflictDetail.conflict.find(source => source.fileName === fileName);
-          if (conflictSource) {
-            // 检查是否已经存在相同的文件路径
-            const existingIndex = selectedConflictData.findIndex(existing => existing.filePath === conflictSource.filePath);
-            if (existingIndex >= 0) {
-              // 添加新的冲突条件
+    // 遍历所有冲突行，获取每行选中的数据
+    conflictData.value.forEach(item => {
+      if (item.hasConflict) {
+        // 找到该行被选中的列
+        const selectedColumnKey = Object.keys(item.selections).find(key => item.selections[key]);
+        if (selectedColumnKey) {
+          const dbIndex = parseInt(selectedColumnKey.replace('db', ''));
+          const fileName = conflictFileNames.value[dbIndex];
+          
+          // 确保该行在该列有数据（不是"无"）
+          if (item[fileName]) {
+            const conflictSource = item.conflictDetail.conflict.find(source => source.fileName === fileName);
+            if (conflictSource) {
+              // 创建条件对象
               const condition: Condition = {};
-
-              // 根据表类型设置相应的条件字段
               switch (props.tableType) {
                 case TableType.table1:
                 case TableType.table2:
@@ -554,39 +652,24 @@
                   break;
               }
 
-              selectedConflictData[existingIndex].conditions.push(condition);
-            } else {
-              // 创建新的冲突数据
-              const condition: Condition = {};
-
-              // 根据表类型设置相应的条件字段
-              switch (props.tableType) {
-                case TableType.table1:
-                case TableType.table2:
-                  condition.credit_code = item.creditCode;
-                  condition.stat_date = item.statDate;
-                  break;
-                case TableType.table3:
-                  condition.project_code = item.projectCode;
-                  condition.document_number = item.reviewNumber;
-                  break;
-                case TableType.attachment2:
-                  condition.province_name = item.provinceName;
-                  condition.city_name = item.cityName;
-                  condition.country_name = item.countryName;
-                  condition.stat_date = item.statDate;
-                  break;
+              // 按文件路径分组
+              if (!fileDataMap.has(conflictSource.filePath)) {
+                fileDataMap.set(conflictSource.filePath, []);
               }
-
-              selectedConflictData.push({
-                filePath: conflictSource.filePath,
-                tableType: props.tableType,
-                conditions: [condition]
-              });
+              fileDataMap.get(conflictSource.filePath)!.push(condition);
             }
           }
-        });
+        }
       }
+    });
+
+    // 构建最终结果：每种tableType最多只有一个ConflictData
+    fileDataMap.forEach((conditions, filePath) => {
+      selectedConflictData.push({
+        filePath: filePath,
+        tableType: props.tableType,
+        conditions: conditions
+      });
     });
 
     emit('selectionChange', selectedConflictData);
@@ -598,23 +681,24 @@
       // 构建符合新的 MergeConflictData 函数参数要求的数据结构
       const selectedConflictData: ConflictData[] = [];
 
-      // 按表类型分组选中的冲突数据
-      props.dbFileNames.forEach((fileName, dbIndex) => {
-        const dbKey = `db${dbIndex}`;
-        const selectedItems = conflictData.value.filter(item => item.hasConflict && item.selections[dbKey]);
+      // 按文件路径分组收集所有选中的冲突数据
+      const fileDataMap = new Map<string, Condition[]>();
 
-        if (selectedItems.length > 0) {
-          // 收集该文件中所有选中的冲突源信息
-          selectedItems.forEach(item => {
-            const conflictSource = item.conflictDetail.conflict.find(source => source.fileName === fileName);
-            if (conflictSource) {
-              // 检查是否已经存在相同的文件路径
-              const existingIndex = selectedConflictData.findIndex(existing => existing.filePath === conflictSource.filePath);
-              if (existingIndex >= 0) {
-                // 添加新的冲突条件
+      // 遍历所有冲突行，获取每行选中的数据
+      conflictData.value.forEach(item => {
+        if (item.hasConflict) {
+          // 找到该行被选中的列
+          const selectedColumnKey = Object.keys(item.selections).find(key => item.selections[key]);
+          if (selectedColumnKey) {
+            const dbIndex = parseInt(selectedColumnKey.replace('db', ''));
+            const fileName = conflictFileNames.value[dbIndex];
+            
+            // 确保该行在该列有数据（不是"无"）
+            if (item[fileName]) {
+              const conflictSource = item.conflictDetail.conflict.find(source => source.fileName === fileName);
+              if (conflictSource) {
+                // 创建条件对象
                 const condition: Condition = {};
-
-                // 根据表类型设置相应的条件字段
                 switch (props.tableType) {
                   case TableType.table1:
                   case TableType.table2:
@@ -633,51 +717,48 @@
                     break;
                 }
 
-                selectedConflictData[existingIndex].conditions.push(condition);
-              } else {
-                // 创建新的冲突数据
-                const condition: Condition = {};
-
-                // 根据表类型设置相应的条件字段
-                switch (props.tableType) {
-                  case TableType.table1:
-                  case TableType.table2:
-                    condition.credit_code = item.creditCode;
-                    condition.stat_date = item.statDate;
-                    break;
-                  case TableType.table3:
-                    condition.project_code = item.projectCode;
-                    condition.document_number = item.reviewNumber;
-                    break;
-                  case TableType.attachment2:
-                    condition.province_name = item.provinceName;
-                    condition.city_name = item.cityName;
-                    condition.country_name = item.countryName;
-                    condition.stat_date = item.statDate;
-                    break;
+                // 按文件路径分组
+                if (!fileDataMap.has(conflictSource.filePath)) {
+                  fileDataMap.set(conflictSource.filePath, []);
                 }
-
-                selectedConflictData.push({
-                  filePath: conflictSource.filePath,
-                  tableType: props.tableType,
-                  conditions: [condition]
-                });
+                fileDataMap.get(conflictSource.filePath)!.push(condition);
               }
             }
-          });
+          }
         }
+      });
+
+      // 构建最终结果：每种tableType最多只有一个ConflictData
+      fileDataMap.forEach((conditions, filePath) => {
+        selectedConflictData.push({
+          filePath: filePath,
+          tableType: props.tableType,
+          conditions: conditions
+        });
       });
 
       return selectedConflictData;
     },
     clearSelection: () => {
+      // 不能完全清空选择，每行必须至少有一个选择
+      // 这里重置为默认选择第一个有数据的数据库
       conflictData.value.forEach(item => {
         Object.keys(item.selections).forEach(key => {
           item.selections[key] = false;
         });
+        
+        // 找到第一个有数据的列并选中
+        for (let i = 0; i < conflictFileNames.value.length; i++) {
+          const fileName = conflictFileNames.value[i];
+          if (item[fileName]) {
+            item.selections[`db${i}`] = true;
+            break;
+          }
+        }
       });
-      // 重置全选状态
-      allSelectedStates.value = allSelectedStates.value.map(() => false);
+      
+      // 重置全选状态，只选中第一个
+      allSelectedStates.value = allSelectedStates.value.map((_, index) => index === 0);
       emitSelectionChange();
     }
   });

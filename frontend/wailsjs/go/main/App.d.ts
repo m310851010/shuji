@@ -22,6 +22,8 @@ export function CopySystemDb(arg1:string):Promise<db.Database>;
 
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
 
+export function CreateNewDatabase(arg1:string):Promise<db.Database>;
+
 export function DBTranformExcel(arg1:string):Promise<db.QueryResult>;
 
 export function ExitApp():Promise<void>;

@@ -38,6 +38,10 @@ export function Copyfile(arg1, arg2) {
   return window['go']['main']['App']['Copyfile'](arg1, arg2);
 }
 
+export function CreateNewDatabase(arg1) {
+  return window['go']['main']['App']['CreateNewDatabase'](arg1);
+}
+
 export function DBTranformExcel(arg1) {
   return window['go']['main']['App']['DBTranformExcel'](arg1);
 }

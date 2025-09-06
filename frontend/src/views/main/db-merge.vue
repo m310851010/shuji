@@ -3,7 +3,7 @@
     <div class="page-header">
       <span class="header-title">数据文件合并</span>
     </div>
-    <div class="page-content text-center">
+    <div class="page-content">
       <UploadComponent
         v-model="selectedFiles"
         v-on:update:model-value="handleUpdateModelValue"
@@ -67,7 +67,6 @@
     :bodyStyle="{ paddingTop: 0 }"
     class="full-screen-modal button-middle"
     :title="modal.title"
-    :cancel-button-props="{ style: 'display: none' }"
     @cancel="modal.handleCancel"
     @ok="modal.handleOk"
     ok-text="确认数据覆盖"
@@ -106,7 +105,7 @@
 
   const selectedFiles = ref<EnhancedFile[]>([]);
 
-  //保存合并后的DB文件到指定位置
+  //保存合并后的数据文件到指定位置
   async function saveMergeDB(targetDbPath: string) {
     message.success('合并成功, 正在保存到指定位置');
     //弹出保存文件对话框选择保存路径把目标合并的db保存到指定位置
@@ -152,7 +151,8 @@
       modal.show = false;
       modal.tableList = [];
       modal.tableRefs = [];
-      await saveMergeDB(modal.targetDbPath);
+      message.success('取消合并');
+      await Removefile(modal.targetDbPath);
     },
     handleOk: async () => {
       try {
@@ -182,6 +182,12 @@
   const handleMerge = () => {
     if (!selectedFiles.value.length) {
       message.error('请先选择数据文件');
+      return;
+    }
+
+    if (selectedFiles.value.length < 2) {
+      message.error('请先选择至少2个数据文件');
+      return;
     }
 
     formRef.value

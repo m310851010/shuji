@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"shuji/db"
 	"strings"
+	"strconv"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -95,21 +96,20 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 		}
 	}()
 
-	result := db.QueryResult{}
-
-	// 1. 验证区域一致性
-	areaValidation := a.validateAreaConsistency(province, city, country)
-	if !areaValidation.Ok {
-		result.Ok = false
-		result.Message = areaValidation.Message
-		return result
+	areaConfig := AreaConfig{
+		ProvinceName: province,
+		CityName: city,
+		CountryName: country,
 	}
 
-	// 2. 复制系统数据库到临时文件并打开数据库连接
-	newDb, dbTempPath, err := a.CopySystemDb("merge_")
+	result := db.QueryResult{
+		Ok: false,
+	}
+
+	// 2. 创建新的空数据库并初始化表结构
+	newDb, dbTempPath, err := a.CreateNewDatabase("merge_")
 	if err != nil {
-		result.Ok = false
-		result.Message = "复制数据库文件失败: " + err.Error()
+		result.Message = "创建新数据库失败: " + err.Error()
 		return result
 	}
 	defer newDb.Close()
@@ -120,9 +120,9 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 	var originalSourcePaths []string
 	var failedFiles []string
 
-	for _, sourceDbPath := range sourceDbPath {
-		fileName := filepath.Base(sourceDbPath)
-		dbDstPath := GetPath(filepath.Join(DATA_DIR_NAME, time.Now().Format("20060102150405")+"_"+fileName))
+	now := time.Now().Unix()
+	for i, sourceDbPath := range sourceDbPath {
+		dbDstPath := GetPath(filepath.Join(DATA_DIR_NAME,  strconv.FormatInt(now + int64(i), 16)))
 		copyResult := a.Copyfile(sourceDbPath, dbDstPath)
 		if !copyResult.Ok {
 			failedFiles = append(failedFiles, sourceDbPath)
@@ -143,7 +143,6 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 
 	// 如果没有成功打开任何数据库文件，则返回错误
 	if len(sourceDbs) == 0 {
-		result.Ok = false
 		result.Message = fmt.Sprintf("所有数据库文件打开失败: %v", failedFiles)
 		// 删除所有数据库文件
 		a.Removefile(dbTempPath)
@@ -153,21 +152,33 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 		return result
 	}
 
-	// 4. 检查数据冲突
+	// 4. 检查数据冲突（只在上传文件之间检查冲突）
 	// 检查表1冲突（规上企业煤炭消费信息主表）
-	table1Conflicts, table1NonConflictData := a.checkTable1Conflicts(newDb, sourceDbs, sourceDbPaths, originalSourcePaths)
+	table1Conflicts, table1NonConflictData, err := a.checkTable1Conflicts(sourceDbs, originalSourcePaths, areaConfig)
+	if err != nil {
+		result.Message = err.Error()
+		return result
+	}
 	table1ConflictCount := len(table1Conflicts.Conflicts)
 
 	// 检查表2冲突（重点耗煤装置煤炭消耗信息表）
-	table2Conflicts, table2NonConflictData := a.checkTable2Conflicts(newDb, sourceDbs, sourceDbPaths, originalSourcePaths)
+	table2Conflicts, table2NonConflictData, err := a.checkTable2Conflicts(sourceDbs, originalSourcePaths, areaConfig)
+	if err != nil {
+		result.Message = err.Error()
+		return result
+	}
 	table2ConflictCount := len(table2Conflicts.Conflicts)
 
 	// 检查表3冲突（固定资产投资项目节能审查煤炭消费情况汇总表）
-	table3Conflicts, table3NonConflictData := a.checkTable3Conflicts(newDb, sourceDbs, sourceDbPaths, originalSourcePaths)
+	table3Conflicts, table3NonConflictData := a.checkTable3Conflicts(sourceDbs, originalSourcePaths)
 	table3ConflictCount := len(table3Conflicts.Conflicts)
 
 	// 检查附件2冲突（煤炭消费状况表）
-	attachment2Conflicts, attachment2NonConflictData := a.checkAttachment2Conflicts(newDb, sourceDbs, sourceDbPaths, originalSourcePaths)
+	attachment2Conflicts, attachment2NonConflictData, err := a.checkAttachment2Conflicts(sourceDbs, originalSourcePaths, areaConfig)
+	if err != nil {
+		result.Message = err.Error()
+		return result
+	}
 	attachment2ConflictCount := len(attachment2Conflicts.Conflicts)
 
 	totalConflictCount := table1ConflictCount + table2ConflictCount + table3ConflictCount + attachment2ConflictCount
@@ -208,7 +219,6 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 	// 开始事务
 	tx, err := newDb.Begin()
 	if err != nil {
-		result.Ok = false
 		result.Message = "开始事务失败: " + err.Error()
 		// 先关闭所有源数据库连接
 		for i, sourceDb := range sourceDbs {
@@ -248,7 +258,8 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 	// 统计实际冲突数量
 	actualConflictCount := 0
 
-	// 合并所有表的数据（使用已获取的非冲突数据）
+	// 合并所有表的数据（现在只在上传文件之间检查冲突，所有数据都可以合并）
+	// 对于有文件间冲突的数据，我们需要处理冲突，这里先合并非冲突数据
 	table1Result := a.mergeTable1DataWithTx(tx, table1NonConflictData, sourceDbs, originalSourcePaths)
 	if table1Result.Ok {
 		successCount += table1Result.SuccessCount
@@ -284,7 +295,6 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 	// 提交事务
 	txErr = tx.Commit()
 	if txErr != nil {
-		result.Ok = false
 		result.Message = "提交事务失败: " + txErr.Error()
 		// 先关闭所有源数据库连接
 		for i, sourceDb := range sourceDbs {
@@ -346,79 +356,64 @@ func (a *App) mergeDatabaseWithRecover(province string, city string, country str
 }
 
 // validateAreaConsistency 验证区域一致性
-func (a *App) validateAreaConsistency(province, city, country string) db.QueryResult {
-	// 获取当前系统配置的区域信息
-	areaConfigResult := a.GetAreaConfig()
-	if !areaConfigResult.Ok {
-		return db.QueryResult{Ok: false, Message: "获取区域配置失败: " + areaConfigResult.Message}
-	}
+func (a *App) validateAreaConsistency( expectedProvince string,  expectedCity string,  expectedCountry string, areaConfig AreaConfig) error {
 
-	// 从返回结果中提取区域信息
-	areaConfigData, ok := areaConfigResult.Data.(map[string]interface{})
-	if !ok {
-		return db.QueryResult{Ok: false, Message: "区域配置数据格式错误"}
-	}
-
-	configProvince := fmt.Sprintf("%v", areaConfigData["province_name"])
-	configCity := fmt.Sprintf("%v", areaConfigData["city_name"])
-	configCountry := fmt.Sprintf("%v", areaConfigData["country_name"])
-
-	// 根据传入参数进行区域一致性验证
+	err := fmt.Errorf("待合并数据文件区域与所选区域不一致，请检查")
 	// 如果country有值就比较country
-	if country != "" {
-		if configCountry != country {
-			return db.QueryResult{Ok: false, Message: "待合并数据文件区域与所选区域不符合，请检查"}
+	if areaConfig.CountryName != "" {
+		if areaConfig.CountryName != expectedCountry {
+			return err	
 		}
 	}
 
 	// 如果city有值就比较city
-	if city != "" {
-		if configCity != city {
-			return db.QueryResult{Ok: false, Message: "待合并数据文件区域与所选区域不符合，请检查"}
+	if areaConfig.CityName != "" {
+		if areaConfig.CityName != expectedCity {
+			return err
 		}
 	}
 
 	// 如果province有值就比较province
-	if province != "" {
-		if configProvince != province {
-			return db.QueryResult{Ok: false, Message: "待合并数据文件区域与所选区域不符合，请检查"}
+	if areaConfig.ProvinceName != "" {
+		if areaConfig.ProvinceName != expectedProvince {
+			return err
 		}
 	}
 
-	return db.QueryResult{Ok: true, Message: "区域一致性验证通过"}
+	return nil
 }
 
-// checkTable1Conflicts 检查表1冲突（统一信用代码+年份）
-func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Database, sourceDbPaths []string, originalSourcePaths []string) (TableConflictInfo, []map[string]interface{}) {
+// CreateNewDatabase 创建新的空数据库并初始化表结构
+func (a *App) CreateNewDatabase(prefix string) (*db.Database, string, error) {
+	// 生成新的数据库文件路径
+	timestamp := time.Now().Unix()
+	dbFileName := fmt.Sprintf("%s%d.db", prefix, timestamp)
+	dbTempPath := GetPath(filepath.Join(DATA_DIR_NAME, dbFileName))
+
+	fmt.Printf("创建新的数据库文件路径: %s\n", dbTempPath)
+	fmt.Printf("创建新的数据库文件路径: %s\n", FRONTEND_FILE_DIR_NAME + DB_FILE_NAME)
+	// 抽取数据库文件
+	a.extractEmbeddedFile(FRONTEND_FILE_DIR_NAME + DB_FILE_NAME, dbTempPath)
+
+	// 创建新的数据库连接
+	newDb, err := db.NewDatabase(dbTempPath, DB_PASSWORD)
+	if err != nil {
+		return nil, "", fmt.Errorf("创建数据库连接失败: %v", err)
+	}
+
+	return newDb, dbTempPath, nil
+}
+
+// checkTable1Conflicts 检查表1冲突（统一信用代码+年份）- 只在上传文件之间检查冲突
+func (a *App) checkTable1Conflicts(sourceDbs []*db.Database, originalSourcePaths []string, areaConfig AreaConfig) (TableConflictInfo, []map[string]interface{}, error) {
 	conflictInfo := TableConflictInfo{}
 	var nonConflictData []map[string]interface{}
 
-	// 获取目标数据库中的表1数据
-	targetQuery := `SELECT obj_id, credit_code, stat_date, unit_name 
-					FROM enterprise_coal_consumption_main`
-	targetResult, err := targetDb.Query(targetQuery)
-	if err != nil {
-		return conflictInfo, nonConflictData
-	}
-
-	// 构建目标数据映射，用于快速查找
-	targetDataMap := make(map[string]map[string]interface{})
-	if targetResult.Ok && targetResult.Data != nil {
-		if data, ok := targetResult.Data.([]map[string]interface{}); ok {
-			for _, targetRow := range data {
-				key := fmt.Sprintf("%v_%v", targetRow["credit_code"], targetRow["stat_date"])
-				targetDataMap[key] = targetRow
-			}
-		}
-	}
-
-	// 2. 遍历每个源数据库，查询源数据并检查冲突
+	// 存储所有源数据，用于文件间冲突检查
+	allSourceData := make(map[string][]map[string]interface{}) // key: filePath, value: source data
 	fileNamesSet := make(map[string]bool)
-	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
-	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo)
-	// 存储每个文件的源数据，避免重复查询
-	fileSourceDataMap := make(map[string][]map[string]interface{}) // key: filePath, value: source data
-
+	
+	// 1. 收集所有源数据
 	for i, sourceDb := range sourceDbs {
 		sourceQuery := `SELECT * FROM enterprise_coal_consumption_main`
 		sourceResult, err := sourceDb.Query(sourceQuery)
@@ -431,38 +426,73 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 				filePath := originalSourcePaths[i]
 				sourceFileName := filepath.Base(filePath)
 				fileNamesSet[sourceFileName] = true
+				allSourceData[filePath] = data
+			}
+		}
+	}
 
-				// 保存源数据，避免重复查询
-				fileSourceDataMap[filePath] = data
+	// 2. 检查文件间冲突
+	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo) // key: conflictKey, value: map[filePath]ConflictSourceInfo
+	
+	// 首先收集所有可能的冲突键
+	allKeys := make(map[string][]string) // key: conflictKey, value: []filePath
+	for filePath, data := range allSourceData {
+		for _, row := range data {
+			key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
+			if allKeys[key] == nil {
+				allKeys[key] = []string{}
+			}
+			allKeys[key] = append(allKeys[key], filePath)
 
-				// 遍历源数据，检查与目标数据库的冲突
+			areaValidation := a.validateAreaConsistency(getStringValue(row["province_name"]), getStringValue(row["city_name"]), getStringValue(row["country_name"]), areaConfig)
+			if areaValidation != nil {
+				return conflictInfo, nonConflictData, areaValidation
+			}
+		}
+	}
+	
+	// 然后处理真正的冲突（同一个键出现在多个文件中）
+	for conflictKey, filePaths := range allKeys {
+		// 去重文件路径
+		uniqueFilePaths := make(map[string]bool)
+		for _, filePath := range filePaths {
+			uniqueFilePaths[filePath] = true
+		}
+		
+		// 只有当同一个键出现在多个文件中时才算冲突
+		if len(uniqueFilePaths) > 1 {
+			// 创建冲突映射
+			conflictKeyMap[conflictKey] = make(map[string]ConflictSourceInfo)
+			
+			// 为每个包含此冲突键的文件创建冲突记录
+			for filePath := range uniqueFilePaths {
+				fileName := filepath.Base(filePath)
+				var objIds []string
+				
+				// 收集该文件中所有匹配此冲突键的obj_id
+				if data, exists := allSourceData[filePath]; exists {
+					for _, row := range data {
+						key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
+						if key == conflictKey {
+							objIds = append(objIds, fmt.Sprintf("%v", row["obj_id"]))
+						}
+					}
+				}
+				
+				conflictKeyMap[conflictKey][filePath] = ConflictSourceInfo{
+					FilePath:  filePath,
+					FileName:  fileName,
+					TableType: "table1",
+					ObjIds:    objIds,
+				}
+			}
+		} else {
+			// 没有冲突，添加到非冲突数据
+			filePath := filePaths[0] // 只有一个文件包含此键
+			if data, exists := allSourceData[filePath]; exists {
 				for _, row := range data {
 					key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
-					objId := fmt.Sprintf("%v", row["obj_id"])
-
-					// 检查是否与目标数据冲突
-					if _, exists := targetDataMap[key]; exists {
-						// 如果冲突键不存在，创建新的映射
-						if _, exists := conflictKeyMap[key]; !exists {
-							conflictKeyMap[key] = make(map[string]ConflictSourceInfo)
-						}
-
-						// 检查该文件是否已经为这个冲突键创建了记录
-						if existingConflict, exists := conflictKeyMap[key][filePath]; exists {
-							// 如果文件已存在，添加新的obj_id
-							existingConflict.ObjIds = append(existingConflict.ObjIds, objId)
-							conflictKeyMap[key][filePath] = existingConflict
-						} else {
-							// 创建新的冲突源信息
-							conflictKeyMap[key][filePath] = ConflictSourceInfo{
-								FilePath:  filePath,
-								FileName:  sourceFileName,
-								TableType: "table1",
-								ObjIds:    []string{objId},
-							}
-						}
-					} else {
-						// 没有冲突，直接添加到非冲突数据
+					if key == conflictKey {
 						nonConflictData = append(nonConflictData, row)
 					}
 				}
@@ -478,24 +508,30 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 			continue
 		}
 
-		// 查找对应的目标数据
-		if targetRow, exists := targetDataMap[conflictKey]; exists {
-			// 创建冲突详情
-			conflictDetail := ConflictDetail{
-				ObjId:      fmt.Sprintf("%v", targetRow["obj_id"]),
-				CreditCode: fmt.Sprintf("%v", targetRow["credit_code"]),
-				StatDate:   fmt.Sprintf("%v", targetRow["stat_date"]),
-				UnitName:   fmt.Sprintf("%v", targetRow["unit_name"]),
-				Conflict:   make([]ConflictSourceInfo, 0, len(fileConflicts)),
-			}
-
-			// 将文件冲突信息添加到冲突详情中
-			for _, fileConflict := range fileConflicts {
-				conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
-			}
-
-			conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
+		// 创建冲突详情（不再依赖目标数据库）
+		conflictDetail := ConflictDetail{
+			ObjId:      "", // 不再使用目标数据库的obj_id
+			CreditCode: parts[0],
+			StatDate:   parts[1],
+			UnitName:   "", // 从冲突的文件中获取
+			Conflict:   make([]ConflictSourceInfo, 0, len(fileConflicts)),
 		}
+
+		// 从冲突的文件中获取unit_name
+		for _, fileConflict := range fileConflicts {
+			if data, exists := allSourceData[fileConflict.FilePath]; exists {
+				for _, row := range data {
+					key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
+					if key == conflictKey {
+						conflictDetail.UnitName = fmt.Sprintf("%v", row["unit_name"])
+						break
+					}
+				}
+			}
+			conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
+		}
+
+		conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
 	}
 
 	// 设置文件名列表
@@ -507,40 +543,19 @@ func (a *App) checkTable1Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 	conflictInfo.ConflictCount = len(conflictInfo.Conflicts)
 	conflictInfo.HasConflict = conflictInfo.ConflictCount > 0
 
-	return conflictInfo, nonConflictData
+	return conflictInfo, nonConflictData, nil
 }
 
-// checkTable2Conflicts 检查表2冲突（统一信用代码+年份）
-func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Database, sourceDbPaths []string, originalSourcePaths []string) (TableConflictInfo, []map[string]interface{}) {
+// checkTable2Conflicts 检查表2冲突（统一信用代码+年份）- 只在上传文件之间检查冲突
+func (a *App) checkTable2Conflicts(sourceDbs []*db.Database, originalSourcePaths []string, areaConfig AreaConfig) (TableConflictInfo, []map[string]interface{}, error) {
 	conflictInfo := TableConflictInfo{}
 	var nonConflictData []map[string]interface{}
 
-	// 获取目标数据库中的表2数据
-	targetQuery := `SELECT obj_id, credit_code, stat_date, unit_name 
-					FROM critical_coal_equipment_consumption`
-	targetResult, err := targetDb.Query(targetQuery)
-	if err != nil {
-		return conflictInfo, nonConflictData
-	}
-
-	// 构建目标数据映射，用于快速查找
-	targetDataMap := make(map[string]map[string]interface{})
-	if targetResult.Ok && targetResult.Data != nil {
-		if data, ok := targetResult.Data.([]map[string]interface{}); ok {
-			for _, targetRow := range data {
-				key := fmt.Sprintf("%v_%v", targetRow["credit_code"], targetRow["stat_date"])
-				targetDataMap[key] = targetRow
-			}
-		}
-	}
-
-	// 2. 遍历每个源数据库，查询源数据并检查冲突
+	// 存储所有源数据，用于文件间冲突检查
+	allSourceData := make(map[string][]map[string]interface{}) // key: filePath, value: source data
 	fileNamesSet := make(map[string]bool)
-	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
-	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo)
-	// 存储每个文件的源数据，避免重复查询
-	fileSourceDataMap := make(map[string][]map[string]interface{}) // key: filePath, value: source data
-
+	
+	// 1. 收集所有源数据
 	for i, sourceDb := range sourceDbs {
 		sourceQuery := `SELECT * FROM critical_coal_equipment_consumption`
 		sourceResult, err := sourceDb.Query(sourceQuery)
@@ -553,38 +568,73 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 				filePath := originalSourcePaths[i]
 				sourceFileName := filepath.Base(filePath)
 				fileNamesSet[sourceFileName] = true
+				allSourceData[filePath] = data
+			}
+		}
+	}
 
-				// 保存源数据，避免重复查询
-				fileSourceDataMap[filePath] = data
+	// 2. 检查文件间冲突
+	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo) // key: conflictKey, value: map[filePath]ConflictSourceInfo
+	
+	// 首先收集所有可能的冲突键
+	allKeys := make(map[string][]string) // key: conflictKey, value: []filePath
+	for filePath, data := range allSourceData {
+		for _, row := range data {
+			key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
+			if allKeys[key] == nil {
+				allKeys[key] = []string{}
+			}
+			allKeys[key] = append(allKeys[key], filePath)
 
-				// 遍历源数据，检查与目标数据库的冲突
+			areaValidation := a.validateAreaConsistency(getStringValue(row["province_name"]), getStringValue(row["city_name"]), getStringValue(row["country_name"]), areaConfig)
+			if areaValidation != nil {
+				return conflictInfo, nonConflictData, areaValidation
+			}
+		}
+	}
+	
+	// 然后处理真正的冲突（同一个键出现在多个文件中）
+	for conflictKey, filePaths := range allKeys {
+		// 去重文件路径
+		uniqueFilePaths := make(map[string]bool)
+		for _, filePath := range filePaths {
+			uniqueFilePaths[filePath] = true
+		}
+		
+		// 只有当同一个键出现在多个文件中时才算冲突
+		if len(uniqueFilePaths) > 1 {
+			// 创建冲突映射
+			conflictKeyMap[conflictKey] = make(map[string]ConflictSourceInfo)
+			
+			// 为每个包含此冲突键的文件创建冲突记录
+			for filePath := range uniqueFilePaths {
+				fileName := filepath.Base(filePath)
+				var objIds []string
+				
+				// 收集该文件中所有匹配此冲突键的obj_id
+				if data, exists := allSourceData[filePath]; exists {
+					for _, row := range data {
+						key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
+						if key == conflictKey {
+							objIds = append(objIds, fmt.Sprintf("%v", row["obj_id"]))
+						}
+					}
+				}
+				
+				conflictKeyMap[conflictKey][filePath] = ConflictSourceInfo{
+					FilePath:  filePath,
+					FileName:  fileName,
+					TableType: "table2",
+					ObjIds:    objIds,
+				}
+			}
+		} else {
+			// 没有冲突，添加到非冲突数据
+			filePath := filePaths[0] // 只有一个文件包含此键
+			if data, exists := allSourceData[filePath]; exists {
 				for _, row := range data {
 					key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
-					objId := fmt.Sprintf("%v", row["obj_id"])
-
-					// 检查是否与目标数据冲突
-					if _, exists := targetDataMap[key]; exists {
-						// 如果冲突键不存在，创建新的映射
-						if _, exists := conflictKeyMap[key]; !exists {
-							conflictKeyMap[key] = make(map[string]ConflictSourceInfo)
-						}
-
-						// 检查该文件是否已经为这个冲突键创建了记录
-						if existingConflict, exists := conflictKeyMap[key][filePath]; exists {
-							// 如果文件已存在，添加新的obj_id
-							existingConflict.ObjIds = append(existingConflict.ObjIds, objId)
-							conflictKeyMap[key][filePath] = existingConflict
-						} else {
-							// 创建新的冲突源信息
-							conflictKeyMap[key][filePath] = ConflictSourceInfo{
-								FilePath:  filePath,
-								FileName:  sourceFileName,
-								TableType: "table2",
-								ObjIds:    []string{objId},
-							}
-						}
-					} else {
-						// 没有冲突，直接添加到非冲突数据
+					if key == conflictKey {
 						nonConflictData = append(nonConflictData, row)
 					}
 				}
@@ -600,24 +650,30 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 			continue
 		}
 
-		// 查找对应的目标数据
-		if targetRow, exists := targetDataMap[conflictKey]; exists {
-			// 创建冲突详情
-			conflictDetail := ConflictDetail{
-				ObjId:      fmt.Sprintf("%v", targetRow["obj_id"]),
-				CreditCode: fmt.Sprintf("%v", targetRow["credit_code"]),
-				StatDate:   fmt.Sprintf("%v", targetRow["stat_date"]),
-				UnitName:   fmt.Sprintf("%v", targetRow["unit_name"]),
-				Conflict:   make([]ConflictSourceInfo, 0, len(fileConflicts)),
-			}
-
-			// 将文件冲突信息添加到冲突详情中
-			for _, fileConflict := range fileConflicts {
-				conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
-			}
-
-			conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
+		// 创建冲突详情（不再依赖目标数据库）
+		conflictDetail := ConflictDetail{
+			ObjId:      "", // 不再使用目标数据库的obj_id
+			CreditCode: parts[0],
+			StatDate:   parts[1],
+			UnitName:   "", // 从冲突的文件中获取
+			Conflict:   make([]ConflictSourceInfo, 0, len(fileConflicts)),
 		}
+
+		// 从冲突的文件中获取unit_name
+		for _, fileConflict := range fileConflicts {
+			if data, exists := allSourceData[fileConflict.FilePath]; exists {
+				for _, row := range data {
+					key := fmt.Sprintf("%v_%v", row["credit_code"], row["stat_date"])
+					if key == conflictKey {
+						conflictDetail.UnitName = fmt.Sprintf("%v", row["unit_name"])
+						break
+					}
+				}
+			}
+			conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
+		}
+
+		conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
 	}
 
 	// 设置文件名列表
@@ -629,41 +685,19 @@ func (a *App) checkTable2Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 	conflictInfo.ConflictCount = len(conflictInfo.Conflicts)
 	conflictInfo.HasConflict = conflictInfo.ConflictCount > 0
 
-	return conflictInfo, nonConflictData
+	return conflictInfo, nonConflictData, nil
 }
 
-// checkTable3Conflicts 检查表3冲突（项目代码+审查意见文号）
-func (a *App) checkTable3Conflicts(targetDb *db.Database, sourceDbs []*db.Database, sourceDbPaths []string, originalSourcePaths []string) (TableConflictInfo, []map[string]interface{}) {
+// checkTable3Conflicts 检查表3冲突（项目代码+审查意见文号）- 只在上传文件之间检查冲突
+func (a *App) checkTable3Conflicts(sourceDbs []*db.Database, originalSourcePaths []string) (TableConflictInfo, []map[string]interface{}) {
 	conflictInfo := TableConflictInfo{}
 	var nonConflictData []map[string]interface{}
 
-	// 获取目标数据库中的表3数据
-	targetQuery := `SELECT obj_id, project_code, document_number, project_name
-					FROM fixed_assets_investment_project`
-	targetResult, err := targetDb.Query(targetQuery)
-	if err != nil {
-		return conflictInfo, nonConflictData
-	}
-
-	// 构建目标数据映射，用于快速查找
-	targetDataMap := make(map[string]map[string]interface{})
-	if targetResult.Ok && targetResult.Data != nil {
-		if data, ok := targetResult.Data.([]map[string]interface{}); ok {
-			for _, targetRow := range data {
-				key := fmt.Sprintf("%v_%v", targetRow["project_code"], targetRow["document_number"])
-				targetDataMap[key] = targetRow
-			}
-		}
-	}
-
-	// 2. 遍历每个源数据库，查询源数据并检查冲突
+	// 存储所有源数据，用于文件间冲突检查
+	allSourceData := make(map[string][]map[string]interface{}) // key: filePath, value: source data
 	fileNamesSet := make(map[string]bool)
-	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
-	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo)
-	// 存储每个文件的源数据，避免重复查询
-	fileSourceDataMap := make(map[string][]map[string]interface{}) // key: filePath, value: source data
-
-	// 遍历每个源数据库，获取所有源数据
+	
+	// 1. 收集所有源数据
 	for i, sourceDb := range sourceDbs {
 		sourceQuery := `SELECT * FROM fixed_assets_investment_project`
 		sourceResult, err := sourceDb.Query(sourceQuery)
@@ -676,38 +710,68 @@ func (a *App) checkTable3Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 				filePath := originalSourcePaths[i]
 				sourceFileName := filepath.Base(filePath)
 				fileNamesSet[sourceFileName] = true
+				allSourceData[filePath] = data
+			}
+		}
+	}
 
-				// 保存源数据，避免重复查询
-				fileSourceDataMap[filePath] = data
-
-				// 遍历源数据，检查与目标数据库的冲突
+	// 2. 检查文件间冲突
+	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo) // key: conflictKey, value: map[filePath]ConflictSourceInfo
+	
+	// 首先收集所有可能的冲突键
+	allKeys := make(map[string][]string) // key: conflictKey, value: []filePath
+	for filePath, data := range allSourceData {
+		for _, row := range data {
+			key := fmt.Sprintf("%v_%v", row["project_code"], row["document_number"])
+			if allKeys[key] == nil {
+				allKeys[key] = []string{}
+			}
+			allKeys[key] = append(allKeys[key], filePath)
+		}
+	}
+	
+	// 然后处理真正的冲突（同一个键出现在多个文件中）
+	for conflictKey, filePaths := range allKeys {
+		// 去重文件路径
+		uniqueFilePaths := make(map[string]bool)
+		for _, filePath := range filePaths {
+			uniqueFilePaths[filePath] = true
+		}
+		
+		// 只有当同一个键出现在多个文件中时才算冲突
+		if len(uniqueFilePaths) > 1 {
+			// 创建冲突映射
+			conflictKeyMap[conflictKey] = make(map[string]ConflictSourceInfo)
+			
+			// 为每个包含此冲突键的文件创建冲突记录
+			for filePath := range uniqueFilePaths {
+				fileName := filepath.Base(filePath)
+				var objIds []string
+				
+				// 收集该文件中所有匹配此冲突键的obj_id
+				if data, exists := allSourceData[filePath]; exists {
+					for _, row := range data {
+						key := fmt.Sprintf("%v_%v", row["project_code"], row["document_number"])
+						if key == conflictKey {
+							objIds = append(objIds, fmt.Sprintf("%v", row["obj_id"]))
+						}
+					}
+				}
+				
+				conflictKeyMap[conflictKey][filePath] = ConflictSourceInfo{
+					FilePath:  filePath,
+					FileName:  fileName,
+					TableType: "table3",
+					ObjIds:    objIds,
+				}
+			}
+		} else {
+			// 没有冲突，添加到非冲突数据
+			filePath := filePaths[0] // 只有一个文件包含此键
+			if data, exists := allSourceData[filePath]; exists {
 				for _, row := range data {
 					key := fmt.Sprintf("%v_%v", row["project_code"], row["document_number"])
-					objId := fmt.Sprintf("%v", row["obj_id"])
-
-					// 检查是否与目标数据冲突
-					if _, exists := targetDataMap[key]; exists {
-						// 如果冲突键不存在，创建新的映射
-						if _, exists := conflictKeyMap[key]; !exists {
-							conflictKeyMap[key] = make(map[string]ConflictSourceInfo)
-						}
-
-						// 检查该文件是否已经为这个冲突键创建了记录
-						if existingConflict, exists := conflictKeyMap[key][filePath]; exists {
-							// 如果文件已存在，添加新的obj_id
-							existingConflict.ObjIds = append(existingConflict.ObjIds, objId)
-							conflictKeyMap[key][filePath] = existingConflict
-						} else {
-							// 创建新的冲突源信息
-							conflictKeyMap[key][filePath] = ConflictSourceInfo{
-								FilePath:  filePath,
-								FileName:  sourceFileName,
-								TableType: "table3",
-								ObjIds:    []string{objId},
-							}
-						}
-					} else {
-						// 没有冲突，直接添加到非冲突数据
+					if key == conflictKey {
 						nonConflictData = append(nonConflictData, row)
 					}
 				}
@@ -715,31 +779,38 @@ func (a *App) checkTable3Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 		}
 	}
 
-	// 构建冲突详情，按文件分组，使用已保存的源数据
+	// 3. 构建冲突详情，按冲突键分组
 	for conflictKey, fileConflicts := range conflictKeyMap {
 		// 解析冲突键
 		parts := strings.Split(conflictKey, "_")
 		if len(parts) != 2 {
 			continue
 		}
-		// 查找对应的目标数据
-		if targetRow, exists := targetDataMap[conflictKey]; exists {
-			// 创建冲突详情
-			conflictDetail := ConflictDetail{
-				ObjId:          fmt.Sprintf("%v", targetRow["obj_id"]),
-				ProjectName:    fmt.Sprintf("%v", targetRow["project_name"]),
-				ProjectCode:    fmt.Sprintf("%v", targetRow["project_code"]),
-				DocumentNumber: fmt.Sprintf("%v", targetRow["document_number"]),
-				Conflict:       make([]ConflictSourceInfo, 0, len(fileConflicts)),
-			}
 
-			// 将文件冲突信息添加到冲突详情中
-			for _, fileConflict := range fileConflicts {
-				conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
-			}
-
-			conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
+		// 创建冲突详情（不再依赖目标数据库）
+		conflictDetail := ConflictDetail{
+			ObjId:          "", // 不再使用目标数据库的obj_id
+			ProjectCode:    parts[0],
+			DocumentNumber: parts[1],
+			ProjectName:    "", // 从冲突的文件中获取
+			Conflict:       make([]ConflictSourceInfo, 0, len(fileConflicts)),
 		}
+
+		// 从冲突的文件中获取project_name
+		for _, fileConflict := range fileConflicts {
+			if data, exists := allSourceData[fileConflict.FilePath]; exists {
+				for _, row := range data {
+					key := fmt.Sprintf("%v_%v", row["project_code"], row["document_number"])
+					if key == conflictKey {
+						conflictDetail.ProjectName = fmt.Sprintf("%v", row["project_name"])
+						break
+					}
+				}
+			}
+			conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
+		}
+
+		conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
 	}
 
 	// 设置文件名列表
@@ -760,38 +831,16 @@ func (a *App) checkTable3Conflicts(targetDb *db.Database, sourceDbs []*db.Databa
 	return conflictInfo, nonConflictData
 }
 
-// checkAttachment2Conflicts 检查附件2冲突（省+市+县+年份）
-func (a *App) checkAttachment2Conflicts(targetDb *db.Database, sourceDbs []*db.Database, sourceDbPaths []string, originalSourcePaths []string) (TableConflictInfo, []map[string]interface{}) {
+// checkAttachment2Conflicts 检查附件2冲突（省+市+县+年份）- 只在上传文件之间检查冲突
+func (a *App) checkAttachment2Conflicts(sourceDbs []*db.Database, originalSourcePaths []string, areaConfig AreaConfig) (TableConflictInfo, []map[string]interface{}, error) {
 	conflictInfo := TableConflictInfo{}
 	var nonConflictData []map[string]interface{}
 
-	// 获取目标数据库中的附件2数据
-	targetQuery := `SELECT obj_id, province_name, city_name, country_name, stat_date
-					FROM coal_consumption_report`
-	targetResult, err := targetDb.Query(targetQuery)
-	if err != nil {
-		return conflictInfo, nonConflictData
-	}
-
-	// 构建目标数据映射，用于快速查找
-	targetDataMap := make(map[string]map[string]interface{})
-	if targetResult.Ok && targetResult.Data != nil {
-		if data, ok := targetResult.Data.([]map[string]interface{}); ok {
-			for _, targetRow := range data {
-				key := fmt.Sprintf("%v_%v_%v_%v", targetRow["province_name"], targetRow["city_name"], targetRow["country_name"], targetRow["stat_date"])
-				targetDataMap[key] = targetRow
-			}
-		}
-	}
-
-	// 2. 遍历每个源数据库，查询源数据并检查冲突
+	// 存储所有源数据，用于文件间冲突检查
+	allSourceData := make(map[string][]map[string]interface{}) // key: filePath, value: source data
 	fileNamesSet := make(map[string]bool)
-	// 按冲突键分组存储冲突信息，key: conflictKey, value: map[filePath]ConflictSourceInfo
-	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo)
-	// 存储每个文件的源数据，避免重复查询
-	fileSourceDataMap := make(map[string][]map[string]interface{}) // key: filePath, value: source data
-
-	// 遍历每个源数据库，获取所有源数据
+	
+	// 1. 收集所有源数据
 	for i, sourceDb := range sourceDbs {
 		sourceQuery := `SELECT * FROM coal_consumption_report`
 		sourceResult, err := sourceDb.Query(sourceQuery)
@@ -804,38 +853,73 @@ func (a *App) checkAttachment2Conflicts(targetDb *db.Database, sourceDbs []*db.D
 				filePath := originalSourcePaths[i]
 				sourceFileName := filepath.Base(filePath)
 				fileNamesSet[sourceFileName] = true
+				allSourceData[filePath] = data
+			}
+		}
+	}
 
-				// 保存源数据，避免重复查询
-				fileSourceDataMap[filePath] = data
+	// 2. 检查文件间冲突
+	conflictKeyMap := make(map[string]map[string]ConflictSourceInfo) // key: conflictKey, value: map[filePath]ConflictSourceInfo
+	
+	// 首先收集所有可能的冲突键
+	allKeys := make(map[string][]string) // key: conflictKey, value: []filePath
+	for filePath, data := range allSourceData {
+		for _, row := range data {
+			key := fmt.Sprintf("%v_%v_%v_%v", row["province_name"], row["city_name"], row["country_name"], row["stat_date"])
+			if allKeys[key] == nil {
+				allKeys[key] = []string{}
+			}
+			allKeys[key] = append(allKeys[key], filePath)
 
-				// 遍历源数据，检查与目标数据库的冲突
+			areaValidation := a.validateAreaConsistency(getStringValue(row["province_name"]), getStringValue(row["city_name"]), getStringValue(row["country_name"]), areaConfig)
+			if areaValidation != nil {
+				return conflictInfo, nonConflictData, areaValidation
+			}
+		}
+	}
+	
+	// 然后处理真正的冲突（同一个键出现在多个文件中）
+	for conflictKey, filePaths := range allKeys {
+		// 去重文件路径
+		uniqueFilePaths := make(map[string]bool)
+		for _, filePath := range filePaths {
+			uniqueFilePaths[filePath] = true
+		}
+		
+		// 只有当同一个键出现在多个文件中时才算冲突
+		if len(uniqueFilePaths) > 1 {
+			// 创建冲突映射
+			conflictKeyMap[conflictKey] = make(map[string]ConflictSourceInfo)
+			
+			// 为每个包含此冲突键的文件创建冲突记录
+			for filePath := range uniqueFilePaths {
+				fileName := filepath.Base(filePath)
+				var objIds []string
+				
+				// 收集该文件中所有匹配此冲突键的obj_id
+				if data, exists := allSourceData[filePath]; exists {
+					for _, row := range data {
+						key := fmt.Sprintf("%v_%v_%v_%v", row["province_name"], row["city_name"], row["country_name"], row["stat_date"])
+						if key == conflictKey {
+							objIds = append(objIds, fmt.Sprintf("%v", row["obj_id"]))
+						}
+					}
+				}
+				
+				conflictKeyMap[conflictKey][filePath] = ConflictSourceInfo{
+					FilePath:  filePath,
+					FileName:  fileName,
+					TableType: "attachment2",
+					ObjIds:    objIds,
+				}
+			}
+		} else {
+			// 没有冲突，添加到非冲突数据
+			filePath := filePaths[0] // 只有一个文件包含此键
+			if data, exists := allSourceData[filePath]; exists {
 				for _, row := range data {
 					key := fmt.Sprintf("%v_%v_%v_%v", row["province_name"], row["city_name"], row["country_name"], row["stat_date"])
-					objId := fmt.Sprintf("%v", row["obj_id"])
-
-					// 检查是否与目标数据冲突
-					if _, exists := targetDataMap[key]; exists {
-						// 如果冲突键不存在，创建新的映射
-						if _, exists := conflictKeyMap[key]; !exists {
-							conflictKeyMap[key] = make(map[string]ConflictSourceInfo)
-						}
-
-						// 检查该文件是否已经为这个冲突键创建了记录
-						if existingConflict, exists := conflictKeyMap[key][filePath]; exists {
-							// 如果文件已存在，添加新的obj_id
-							existingConflict.ObjIds = append(existingConflict.ObjIds, objId)
-							conflictKeyMap[key][filePath] = existingConflict
-						} else {
-							// 创建新的冲突源信息
-							conflictKeyMap[key][filePath] = ConflictSourceInfo{
-								FilePath:  filePath,
-								FileName:  sourceFileName,
-								TableType: "attachment2",
-								ObjIds:    []string{objId},
-							}
-						}
-					} else {
-						// 没有冲突，直接添加到非冲突数据
+					if key == conflictKey {
 						nonConflictData = append(nonConflictData, row)
 					}
 				}
@@ -850,25 +934,23 @@ func (a *App) checkAttachment2Conflicts(targetDb *db.Database, sourceDbs []*db.D
 		if len(parts) != 4 {
 			continue
 		}
-		// 查找对应的目标数据
-		if targetRow, exists := targetDataMap[conflictKey]; exists {
-			// 创建冲突详情
-			conflictDetail := ConflictDetail{
-				ObjId:        fmt.Sprintf("%v", targetRow["obj_id"]),
-				ProvinceName: fmt.Sprintf("%v", targetRow["province_name"]),
-				CityName:     fmt.Sprintf("%v", targetRow["city_name"]),
-				CountryName:  fmt.Sprintf("%v", targetRow["country_name"]),
-				StatDate:     fmt.Sprintf("%v", targetRow["stat_date"]),
-				Conflict:     make([]ConflictSourceInfo, 0, len(fileConflicts)),
-			}
 
-			// 将文件冲突信息添加到冲突详情中
-			for _, fileConflict := range fileConflicts {
-				conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
-			}
-
-			conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
+		// 创建冲突详情（不再依赖目标数据库）
+		conflictDetail := ConflictDetail{
+			ObjId:        "", // 不再使用目标数据库的obj_id
+			ProvinceName: parts[0],
+			CityName:     parts[1],
+			CountryName:  parts[2],
+			StatDate:     parts[3],
+			Conflict:     make([]ConflictSourceInfo, 0, len(fileConflicts)),
 		}
+
+		// 将文件冲突信息添加到冲突详情中
+		for _, fileConflict := range fileConflicts {
+			conflictDetail.Conflict = append(conflictDetail.Conflict, fileConflict)
+		}
+
+		conflictInfo.Conflicts = append(conflictInfo.Conflicts, conflictDetail)
 	}
 
 	// 设置文件名列表
@@ -880,7 +962,7 @@ func (a *App) checkAttachment2Conflicts(targetDb *db.Database, sourceDbs []*db.D
 	conflictInfo.ConflictCount = len(conflictInfo.Conflicts)
 	conflictInfo.HasConflict = conflictInfo.ConflictCount > 0
 
-	return conflictInfo, nonConflictData
+	return conflictInfo, nonConflictData, nil
 }
 
 // mergeTable1DataWithTx 使用事务合并表1数据
@@ -902,7 +984,7 @@ func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]int
 		annual_other_coal_consumption, annual_coke_consumption, is_confirm, is_check, create_time, create_user
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	for i, row := range nonConflictData {
+	for _, row := range nonConflictData {
 		// 使用源数据的obj_id、create_time、create_user，不生成新的
 
 		// 插入数据
@@ -920,7 +1002,6 @@ func (a *App) mergeTable1DataWithTx(tx *sql.Tx, nonConflictData []map[string]int
 			fmt.Printf("表1主表插入失败: %v\n", err)
 		} else {
 			result.SuccessCount++
-			fmt.Printf("表1主表插入成功: 第 %d 条\n", i+1)
 		}
 	}
 
@@ -1097,7 +1178,7 @@ func (a *App) mergeAttachment2DataWithTx(tx *sql.Tx, nonConflictData []map[strin
 		oil_refining, gas_production, industry, raw_materials, other_uses, coke, create_user, create_time, is_confirm, is_check
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	for i, row := range nonConflictData {
+	for _, row := range nonConflictData {
 		// 使用源数据的obj_id、create_time、create_user，不生成新的
 		// 插入数据
 		_, err := tx.Exec(insertQuery,
@@ -1113,7 +1194,6 @@ func (a *App) mergeAttachment2DataWithTx(tx *sql.Tx, nonConflictData []map[strin
 			fmt.Printf("附件2插入失败: %v\n", err)
 		} else {
 			result.SuccessCount++
-			fmt.Printf("附件2插入成功: 第 %d 条\n", i+1)
 		}
 	}
 

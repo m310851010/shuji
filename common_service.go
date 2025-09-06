@@ -139,7 +139,7 @@ func (a *App) loginWithRecover(password string) db.QueryResult {
 	}
 
 	// 从数据库查询第一条数据
-	result, err := a.db.QueryRow("SELECT obj_id, user_pws FROM pws_info LIMIT 1")
+	result, err := a.db.QueryRow("SELECT obj_id, user_pws, admin_pws FROM pws_info LIMIT 1")
 	if err != nil {
 		return db.QueryResult{Ok: false, Message: "查询密码信息失败: " + err.Error()}
 	}
@@ -156,6 +156,7 @@ func (a *App) loginWithRecover(password string) db.QueryResult {
 	}
 
 	userPws, exists := data["user_pws"]
+	adminPws, exists := data["admin_pws"]
 	if !exists {
 		return db.QueryResult{Ok: false, Message: "数据库异常:未找到用户密码字段,请联系管理员！"}
 	}
@@ -165,11 +166,18 @@ func (a *App) loginWithRecover(password string) db.QueryResult {
 	if userPws == nil {
 		dbPassword = ""
 	} else {
-		dbPassword = fmt.Sprintf("%v", userPws)
+		dbPassword = getStringValue(userPws)
+	}
+
+	var adminDbPassword string
+	if adminPws == nil {
+		adminDbPassword = ""
+	} else {
+		adminDbPassword = getStringValue(adminPws)
 	}
 
 	// 比较加密后的密码与数据库中的密码
-	if encryptedPassword == dbPassword {
+	if encryptedPassword == dbPassword  || ( encryptedPassword == adminDbPassword) {
 		return db.QueryResult{Ok: true, Message: "登录成功"}
 	} else {
 		return db.QueryResult{Ok: false, Message: "密码错误"}

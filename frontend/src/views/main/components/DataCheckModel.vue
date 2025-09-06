@@ -1,6 +1,7 @@
 <template>
   <a-flex justify="flex-end" style="margin-bottom: 10px">
-    <a-button type="primary" @click="handleCheckClick" :loading="model.isChecking">校验</a-button>
+    <a-button v-if="!model.checkFinished" type="primary" @click="handleCheckClick" :loading="model.isChecking">校验</a-button>
+    <a-button v-else @click="handleBackClick">返回</a-button>
   </a-flex>
 
   <div class="box-grey no-bg" style="height: 340px">
@@ -27,8 +28,9 @@
   import { openInfoModal, openModal } from '@/components/useModal';
   import TodoCoverTable from './TodoCoverTable.vue';
   import { getFileName } from '@/util';
-  import { ModelDataCheckReportDownload } from '@wailsjs/go';
+  import { GetCachePath, ModelDataCheckReportDownload, Removefile } from '@wailsjs/go';
   import { db, main } from '@wailsjs/models';
+  import { TableTypeName } from '@/views/constant';
 
   const model = defineModel({
     type: Object,
@@ -36,12 +38,21 @@
       checkFunc: null,
       coverFunc: null,
       isChecking: false,
+      checkFinished: false,
       tableType: ''
     })
   });
 
   const handleDownloadReport = async () => {
     await ModelDataCheckReportDownload(model.value.tableType);
+  };
+
+  const handleBackClick = async () => {
+    model.value.passed = null;
+    model.value.checkFinished = false;
+    const cachePath = await GetCachePath(model.value.tableType);
+    // @ts-ignore
+    await Removefile(cachePath + '/' + TableTypeName[model.value.tableType] + '校验报告.zip');
   };
 
   const handleCheckClick = async () => {
@@ -51,6 +62,7 @@
       model.value.passed = !data.hasFailedFiles;
       model.value.isChecking = false;
       model.value.errorMessage = result.message;
+      model.value.checkFinished = true;
     };
 
     model.value.isChecking = true;

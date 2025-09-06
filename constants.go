@@ -24,10 +24,10 @@ const (
 	DB_PASSWORD = "shuji"
 
 	// 前端文件目录名称
-	FRONTEND_FILE_DIR_NAME = "frontend"
+	FRONTEND_FILE_DIR_NAME = "frontend/dist/"
 
 	// 前端文件路径
-	CHINA_AREA_FILE_PATH = FRONTEND_FILE_DIR_NAME + "/dist/China.json"
+	CHINA_AREA_FILE_PATH = FRONTEND_FILE_DIR_NAME + "China.json"
 )
 
 // 加密算法相关常量

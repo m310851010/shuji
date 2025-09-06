@@ -280,6 +280,54 @@ func (a *App) importEnterpriseListWithRecover(filePath string) db.QueryResult {
 		return result
 	}
 
+
+	provinceName := ""
+	cityName := ""
+	countryName := ""
+
+	areaConfigResult := a.GetAreaConfig()
+	if areaConfigResult.Ok {
+		areaConfigData, ok := areaConfigResult.Data.(map[string]interface{})
+		if ok {
+			provinceName = getStringValue(areaConfigData["province_name"])
+			cityName = getStringValue(areaConfigData["city_name"])
+			countryName = getStringValue(areaConfigData["country_name"])
+		}
+	}
+	
+	countyNameMap := make(map[string]bool, 0)
+
+	if countryName == "" {
+		targetLocation, _, _, err := a.getCurrentUserLocationData()
+		if err != nil {
+			result.Ok = false
+			result.Message = "获取区域信息失败: " + err.Error()
+			return result
+		}
+	
+		if targetLocation == nil {
+			result.Ok = false
+			result.Message = "未找到对应的区域信息"
+			return result
+		}
+		if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+			if children, exists := targetLocationMap["children"]; exists && children != nil {
+				if childrenList, ok := children.([]interface{}); ok {
+					for _, county := range childrenList {
+						if countyMap, ok := county.(map[string]interface{}); ok {
+							if name, exists := countyMap["name"]; exists && name != nil {
+								countyNameMap[fmt.Sprintf("%v", name)] = true
+							}
+						}
+					}
+				}
+			}
+		}
+	} else {
+		countyNameMap[countryName] = true
+	}
+
+
 	count := 0
 
 	// 处理数据行
@@ -292,6 +340,19 @@ func (a *App) importEnterpriseListWithRecover(filePath string) db.QueryResult {
 			CountryName:  strings.TrimSpace(row[2]),
 			UnitName:     strings.TrimSpace(row[3]),
 			CreditCode:   strings.TrimSpace(row[4]),
+		}
+
+		if data.ProvinceName != provinceName {
+			result.Message = fmt.Sprintf("第%d行：企业清单区域和当前区域不一致", i+2)
+			return result
+		}
+		if data.CityName != cityName {
+			result.Message = fmt.Sprintf("第%d行：企业清单区域和当前区域不一致", i+2)
+			return result
+		}
+		if !countyNameMap[data.CountryName] {
+			result.Message = fmt.Sprintf("第%d行：企业清单区域和当前区域不一致", i+2)
+			return result
 		}
 
 		// 全量数据导入：直接插入数据
@@ -373,6 +434,55 @@ func (a *App) importKeyEquipmentListWithRecover(filePath string) db.QueryResult 
 		return result
 	}
 
+
+	provinceName := ""
+	cityName := ""
+	countryName := ""
+
+	areaConfigResult := a.GetAreaConfig()
+	if areaConfigResult.Ok {
+		areaConfigData, ok := areaConfigResult.Data.(map[string]interface{})
+		if ok {
+			provinceName = getStringValue(areaConfigData["province_name"])
+			cityName = getStringValue(areaConfigData["city_name"])
+			countryName = getStringValue(areaConfigData["country_name"])
+		}
+	}
+	
+	countyNameMap := make(map[string]bool, 0)
+
+	if countryName == "" {
+		targetLocation, _, _, err := a.getCurrentUserLocationData()
+		if err != nil {
+			result.Ok = false
+			result.Message = "获取区域信息失败: " + err.Error()
+			return result
+		}
+	
+		if targetLocation == nil {
+			result.Ok = false
+			result.Message = "未找到对应的区域信息"
+			return result
+		}
+
+		if targetLocationMap, ok := targetLocation.(map[string]interface{}); ok {
+			if children, exists := targetLocationMap["children"]; exists && children != nil {
+				if childrenList, ok := children.([]interface{}); ok {
+					for _, county := range childrenList {
+						if countyMap, ok := county.(map[string]interface{}); ok {
+							if name, exists := countyMap["name"]; exists && name != nil {
+								countyNameMap[fmt.Sprintf("%v", name)] = true
+							}
+						}
+					}
+				}
+			}
+		}
+	} else {
+		countyNameMap[countryName] = true
+	}
+
+
 	count := 0
 
 	// 处理数据行
@@ -388,6 +498,20 @@ func (a *App) importKeyEquipmentListWithRecover(filePath string) db.QueryResult 
 			EquipModelNumber: strings.TrimSpace(row[6]),
 			EquipNo:          strings.TrimSpace(row[7]),
 		}
+
+		if data.ProvinceName != provinceName {
+			result.Message = fmt.Sprintf("第%d行：装置清单区域和当前区域不一致", i+2)
+			return result
+		}
+		if data.CityName != cityName {
+			result.Message = fmt.Sprintf("第%d行：装置清单区域和当前区域不一致", i+2)
+			return result
+		}
+		if !countyNameMap[data.CountryName] {
+			result.Message = fmt.Sprintf("第%d行：装置清单区域和当前区域不一致", i+2)
+			return result
+		}
+		
 
 		// 全量数据导入：直接插入数据
 		objID := uuid.New().String()
