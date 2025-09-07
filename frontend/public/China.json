@@ -10355,11 +10355,11 @@
           }
         ]
       },{
-        "code": "",
+        "code": "6406",
         "name": "宁东能源化工基地",
         "children": [
           {
-            "code": "",
+            "code": "640600",
             "name": "宁东能源化工基地",
             "children": []
           }
@@ -14386,72 +14386,6 @@
         ]
       },
       {
-        "code": "6590",
-        "name": "阿拉尔市",
-        "children": [
-          {
-            "code": "659002",
-            "name": "阿拉尔市",
-            "children": []
-          },
-          {
-            "code": "659012",
-            "name": "白杨市",
-            "children": []
-          },
-          {
-            "code": "659005",
-            "name": "北屯市",
-            "children": []
-          },
-          {
-            "code": "659010",
-            "name": "胡杨河市",
-            "children": []
-          },
-          {
-            "code": "659008",
-            "name": "可克达拉市",
-            "children": []
-          },
-          {
-            "code": "659009",
-            "name": "昆玉市",
-            "children": []
-          },
-          {
-            "code": "659001",
-            "name": "石河子市",
-            "children": []
-          },
-          {
-            "code": "659007",
-            "name": "双河市",
-            "children": []
-          },
-          {
-            "code": "659006",
-            "name": "铁门关市",
-            "children": []
-          },
-          {
-            "code": "659003",
-            "name": "图木舒克市",
-            "children": []
-          },
-          {
-            "code": "659004",
-            "name": "五家渠市",
-            "children": []
-          },
-          {
-            "code": "659011",
-            "name": "新星市",
-            "children": []
-          }
-        ]
-      },
-      {
         "code": "6543",
         "name": "阿勒泰地区",
         "children": [
@@ -14966,93 +14900,93 @@
       }
     ]
   },{
-  "code": "",
-  "name": "新疆生产建设兵团",
-  "children": [
-    {
-      "code": "",
-      "name": "第一师阿拉尔市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第二师铁门关市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第三师图木舒克市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第四师克可达拉市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第五师双河市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第六师五家渠市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第七师胡杨河市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第八师石河子市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第九师白杨市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第十师北屯市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第十一师",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第十二师",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第十三师新星市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "第十四师昆玉市",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "漕湖项目区",
-      "children": [
-      ]
-    },{
-      "code": "",
-      "name": "准东产业园",
-      "children": [
-      ]
-    }
-
-  ]
-},
+    "code": "66",
+    "name": "新疆生产建设兵团",
+    "children": [
+      {
+        "code": "659002",
+        "name": "第一师阿拉尔市",
+        "children": [
+        ]
+      },{
+        "code": "659006",
+        "name": "第二师铁门关市",
+        "children": [
+        ]
+      },{
+        "code": "659003",
+        "name": "第三师图木舒克市",
+        "children": [
+        ]
+      },{
+        "code": "659008",
+        "name": "第四师克可达拉市",
+        "children": [
+        ]
+      },{
+        "code": "659007",
+        "name": "第五师双河市",
+        "children": [
+        ]
+      },{
+        "code": "659004",
+        "name": "第六师五家渠市",
+        "children": [
+        ]
+      },{
+        "code": "659010",
+        "name": "第七师胡杨河市",
+        "children": [
+        ]
+      },{
+        "code": "659001",
+        "name": "第八师石河子市",
+        "children": [
+        ]
+      },{
+        "code": "659012",
+        "name": "第九师白杨市",
+        "children": [
+        ]
+      },{
+        "code": "659005",
+        "name": "第十师北屯市",
+        "children": [
+        ]
+      },{
+        "code": "659050",
+        "name": "第十一师",
+        "children": [
+        ]
+      },{
+        "code": "659051",
+        "name": "第十二师",
+        "children": [
+        ]
+      },{
+        "code": "659011",
+        "name": "第十三师新星市",
+        "children": [
+        ]
+      },{
+        "code": "659009",
+        "name": "第十四师昆玉市",
+        "children": [
+        ]
+      },{
+        "code": "659052",
+        "name": "草湖项目区",
+        "children": [
+        ]
+      },{
+        "code": "659053",
+        "name": "准东产业园",
+        "children": [
+        ]
+      }
+      
+    ]
+  },
   {
     "code": "53",
     "name": "云南省",
@@ -15997,7 +15931,7 @@
             "children": []
           },
           {
-            "code": "",
+            "code": "330728",
             "name": "金华开发区",
             "children": []
           }
@@ -16109,7 +16043,7 @@
             "children": []
           },
           {
-            "code": "",
+            "code": "330236",
             "name": "前湾新区",
             "children": []
           }
@@ -16328,27 +16262,27 @@
             "name": "嵊泗县",
             "children": []
           },{
-            "code": "",
+            "code": "330923",
             "name": "高新区管委会",
             "children": []
           },{
-            "code": "",
+            "code": "330924",
             "name": "新城管委会",
             "children": []
           },{
-            "code": "",
+            "code": "330925",
             "name": "普朱管委会",
             "children": []
           },{
-            "code": "",
+            "code": "330926",
             "name": "金塘管委会",
             "children": []
           },{
-            "code": "",
+            "code": "330927",
             "name": "六横管委会",
             "children": []
           },{
-            "code": "",
+            "code": "330928",
             "name": "绿色石化基地管委会",
             "children": []
           }

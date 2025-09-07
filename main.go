@@ -6,6 +6,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 )
 
 //go:embed all:frontend/dist
@@ -29,6 +30,9 @@ func main() {
 		Windows: &windows.Options{
         			IsZoomControlEnabled: false, // 页面缩放比例
         		},
+		Linux: &linux.Options{
+			WebviewGpuPolicy: linux.WebviewGpuPolicyNever, // or OnDemand/Always
+		},
         DragAndDrop: &options.DragAndDrop{
           EnableFileDrop:       true,
           DisableWebViewDrop:   true,

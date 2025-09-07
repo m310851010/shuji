@@ -19,7 +19,7 @@
         <slot></slot>
         <div v-if="!$slots.default">
           <div>只能选择Excel文件（.xlsx/.xls），支持批量选择</div>
-          <div>支持一次性拖一个或多个文件Excel文件，以及整个文件夹</div>
+          <div>支持一次性拖多个Excel文件，以及整个文件夹</div>
           <div>选择文件后，点击上方按钮开始导入</div>
         </div>
       </template>

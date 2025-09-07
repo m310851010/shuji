@@ -1,0 +1,20 @@
+[Desktop Entry]
+Comment=数据处理软件
+Comment[zh_CN]=数据处理软件
+Exec=/usr/bin/shuji
+GenericName=煤炭摸底数据校验软件
+GenericName[zh_CN]=煤炭摸底数据校验软件
+Name=煤炭摸底数据校验软件
+Name[zh_CN]=煤炭摸底数据校验软件
+StartupNotify=false
+Terminal=false
+Type=Application
+Categories=Tools;
+Keywords=国产系统;校验软件;煤炭摸底;
+X-DBUS-ServiceName=
+X-DBUS-StartupType=
+X-KDE-SubstituteUID=false
+X-KDE-Username=
+Icon=/usr/share/icons/shuji/appicon.png
+Description=煤炭摸底数据校验软件
+StartupWMClass=shuji

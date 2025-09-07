@@ -1,0 +1,9 @@
+Package: shuji
+Version: 1.0
+Architecture: amd64
+Maintainer: 北京<service@qq.com>
+Provides: shuji
+Description: 煤炭摸底数据校验软件
+Vendor: 北京<service@qq.com>
+Priority: optional
+Section: utils

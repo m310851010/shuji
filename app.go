@@ -56,7 +56,13 @@ func CreateApp(fs embed.FS) *App {
 	}
 
 	Env.ExePath = exePath
-	Env.BasePath = filepath.Dir(exePath)
+	homeDir, err := os.UserHomeDir()
+    if err != nil {
+        fmt.Println("获取主目录失败:", err)
+    }
+    fmt.Println("主目录路径:", homeDir)
+
+	Env.BasePath = homeDir + "/shuji/"
 	Env.AppName = APP_NAME
 	Env.AppFileName = filepath.Base(exePath)
 	Env.AssetsDir = "frontend/dist"

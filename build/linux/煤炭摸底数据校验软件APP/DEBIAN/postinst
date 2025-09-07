@@ -1,0 +1,77 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    configure)
+        # 更新桌面数据库
+        update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+        
+        # 更新图标缓存
+        gtk-update-icon-cache -f /usr/share/icons/hicolor >/dev/null 2>&1 || true
+        
+        # 为所有用户创建桌面快捷方式（兼容中英文环境）
+        for home_dir in /home/*; do
+            if [ -d "$home_dir" ] && [ "$(basename "$home_dir")" != "lost+found" ]; then
+                username=$(basename "$home_dir")
+                
+                # 确定桌面路径（兼容中英文）
+                desktop_dir=""
+                if [ -d "$home_dir/Desktop" ]; then
+                    desktop_dir="$home_dir/Desktop"
+                elif [ -d "$home_dir/桌面" ]; then
+                    desktop_dir="$home_dir/桌面"
+                else
+                    # 如果桌面目录不存在，创建它
+                    desktop_dir="$home_dir/Desktop"
+                    mkdir -p "$desktop_dir"
+                    chown "$username:$username" "$desktop_dir"
+                fi
+                
+                # 创建桌面快捷方式
+                desktop_file="$desktop_dir/煤炭摸底数据校验软件.desktop"
+                
+                cat > "$desktop_file" << EOF
+[Desktop Entry]
+Comment=数据处理软件
+Comment[zh_CN]=数据处理软件
+Exec=/usr/local/bin/shuji
+GenericName=煤炭摸底数据校验软件
+GenericName[zh_CN]=煤炭摸底数据校验软件
+Name=煤炭摸底数据校验软件
+Name[zh_CN]=煤炭摸底数据校验软件
+StartupNotify=false
+Terminal=false
+Type=Application
+Categories=Tools;
+Keywords=国产系统;校验软件;煤炭摸底;
+X-DBUS-ServiceName=
+X-DBUS-StartupType=
+X-KDE-SubstituteUID=false
+X-KDE-Username=
+Icon=/usr/share/icons/shuji/appicon.png
+Description=煤炭摸底数据校验软件
+StartupWMClass=shuji
+EOF
+                
+                # 设置正确的权限
+                chown "$username:$username" "$desktop_file"
+                chmod 755 "$desktop_file"
+                
+                # 对于统信系统，可能需要额外设置
+                if [ -f /etc/os-release ] && grep -q "UOS" /etc/os-release; then
+                    # 统信系统可能需要额外的处理
+                    echo "检测到统信系统，已创建桌面快捷方式"
+                fi
+                
+                # 对于麒麟系统
+                if [ -f /etc/kylin-release ]; then
+                    # 麒麟系统可能需要额外的处理
+                    echo "检测到麒麟系统，已创建桌面快捷方式"
+                fi
+            fi
+        done
+        ;;
+esac
+
+exit 0

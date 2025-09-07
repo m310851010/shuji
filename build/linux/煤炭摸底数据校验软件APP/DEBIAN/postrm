@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    purge|remove)
+        # 删除所有用户的桌面快捷方式（兼容中英文环境）
+        for home_dir in /home/*; do
+            if [ -d "$home_dir" ] && [ "$(basename "$home_dir")" != "lost+found" ]; then
+                # 删除英文桌面路径的快捷方式
+                if [ -f "$home_dir/Desktop/煤炭摸底数据校验软件.desktop" ]; then
+                    rm -f "$home_dir/Desktop/煤炭摸底数据校验软件.desktop"
+                fi
+                
+                # 删除中文桌面路径的快捷方式
+                if [ -f "$home_dir/桌面/煤炭摸底数据校验软件.desktop" ]; then
+                    rm -f "$home_dir/桌面/煤炭摸底数据校验软件.desktop"
+                fi
+            fi
+        done
+        
+        # 更新桌面数据库
+        update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+        ;;
+esac
+
+exit 0
