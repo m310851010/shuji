@@ -170,7 +170,7 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 					msg := err.Error()
 					// 如果错误是文件名长度超出限制，则跳过
 					if err == excelize.ErrMaxFilePathLength {
-						msg = "文件存放的路径过长，建议将软件放在磁盘一级目录再操作。"
+						msg = "文件存放的路径过长，建议将文件放在磁盘一级目录再操作。"
 					}
 					systemErrors = append(systemErrors, ValidationError{RowNumber: 0, Message: fmt.Sprintf("文件 %s 添加错误信息失败: %s", file.Name(), msg)})
 					continue
