@@ -552,6 +552,10 @@
   .area-tag {
     margin: 4px 8px !important;
   }
+
+  :deep(.ant-menu-inline) .ant-menu-item-selected::after{
+    content: none;
+  }
 </style>
 <style>
   .ant-btn-primary {

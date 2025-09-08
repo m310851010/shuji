@@ -7,7 +7,6 @@ import legacy from '@vitejs/plugin-legacy';
 import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { AntDesignVueResolver } from 'unplugin-vue-components/resolvers';
-import { theme } from 'ant-design-vue';
 
 export const r = (...args: any[]) => resolve(__dirname, '.', ...args);
 
@@ -16,9 +15,6 @@ export default defineConfig(env => {
   const root = process.cwd();
   const envPrefix = 'M_';
   const envConfig = loadEnv(env.mode, root, envPrefix);
-
-  const { defaultAlgorithm, defaultSeed } = theme;
-  const mapToken = defaultAlgorithm(defaultSeed);
 
   return {
     base: envConfig.M_PUBLIC_PATH,
@@ -35,10 +31,12 @@ export default defineConfig(env => {
     css: {
       preprocessorOptions: {
         less: {
-          modifyVars: { ...mapToken, 'primary-color': '#1DA57A' },
-          javascriptEnabled: true
+          modifyVars: {
+            'border-radius-base': '2px',
+          },
+          javascriptEnabled: true,
         }
-      }
+      },
     },
     plugins: [
       vue(),
@@ -50,9 +48,7 @@ export default defineConfig(env => {
       Components({
         resolvers: [
           AntDesignVueResolver({
-            importStyle: false,
-            // importStyle: 'less', // 不需要，v4 默认使用 CSS-in-JS
-            resolveIcons: true // 如果使用图标
+            importStyle: false
           })
         ]
       }),

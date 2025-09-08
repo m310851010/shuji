@@ -28,7 +28,7 @@
 
   <div v-if="selectedFiles && selectedFiles.length" class="selected-files">
     <p class="files-title">已选择 {{ selectedFiles.length }} 个文件：</p>
-    <a-flex justify="space-between" class="box-grey small no-bg" v-for="(file, index) in selectedFiles" :key="index">
+    <a-row type="flex" justify="space-between" class="box-grey small no-bg" v-for="(file, index) in selectedFiles" :key="index">
       <div
         style="line-height: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer"
         @click="handleOpenFile(file)"
@@ -37,7 +37,7 @@
         <span style="margin-left: 5px">{{ file.name }}</span>
       </div>
       <a-button type="text" danger @click.stop="removeFile(index)" size="small">移除</a-button>
-    </a-flex>
+    </a-row>
   </div>
 </template>
 

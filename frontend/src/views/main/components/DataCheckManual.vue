@@ -1,8 +1,8 @@
 <template>
   <div class="wh-100 flex-vertical">
-    <a-flex justify="flex-end" style="margin-bottom: 10px">
+    <a-row type="flex" justify="end" style="margin-bottom: 10px">
       <a-button type="primary" @click="handleBatchConfirm">批量确认</a-button>
-    </a-flex>
+    </a-row>
     <div class="flex-main relative" ref="tableBoxRef">
       <div class="abs" style="overflow: auto">
         <a-table
@@ -20,7 +20,7 @@
   </div>
 
   <a-modal
-    v-model:open="modal.show"
+    v-model:visible="modal.show"
     :bodyStyle="{ paddingTop: 0 }"
     class="full-screen-modal button-middle"
     :title="modal.title"

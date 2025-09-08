@@ -63,7 +63,7 @@
   </div>
 
   <a-modal
-    v-model:open="modal.show"
+    v-model:visible="modal.show"
     :bodyStyle="{ paddingTop: 0 }"
     class="full-screen-modal button-middle"
     :title="modal.title"

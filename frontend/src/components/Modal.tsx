@@ -22,10 +22,10 @@ export default defineComponent({
     title: { type: [String, Function], required: false, default: '提示' },
     content: { type: [String, Function], required: false },
     buttons: { type: [Array, Function], required: false },
-    openState: { type: Object as PropType<Ref<boolean>> }
+    visibleState: { type: Object as PropType<Ref<boolean>> }
   },
 
-  emits: ['update:open', 'ok', 'cancel'],
+  emits: ['update:visible', 'ok', 'cancel'],
   setup(props, { emit, slots, attrs }) {
     // 拖拽标题栏的 Ref
     const modalTitleRef = ref<HTMLElement>(null!);
@@ -59,8 +59,8 @@ export default defineComponent({
         const result = await props.onOk();
 
         if (result !== false) {
-          open.value = false;
-          emit('update:open', false);
+          visible.value = false;
+          emit('update:visible', false);
           emit('ok');
           return;
         }
@@ -68,8 +68,8 @@ export default defineComponent({
       }
 
       // 关闭对话框并同步状态
-      open.value = false;
-      emit('update:open', false);
+      visible.value = false;
+      emit('update:visible', false);
       emit('ok');
     };
 
@@ -77,8 +77,8 @@ export default defineComponent({
       if (props.onCancel) {
         props.onCancel();
       }
-      open.value = false;
-      emit('update:open', false);
+      visible.value = false;
+      emit('update:visible', false);
       emit('cancel');
     };
 
@@ -101,11 +101,9 @@ export default defineComponent({
     const newProps = computed(() =>
       omit(props, [
         'title',
-        'open',
-        'openState',
-        'onUpdate:open',
-        'onUpdate:visible',
         'visible',
+        'visibleState',
+        'onUpdate:visible',
         'onOk',
         'onCancel',
         'cancelButtonProps',
@@ -118,7 +116,7 @@ export default defineComponent({
       ])
     );
 
-    const open = toRef(props.openState);
+    const visible = toRef(props.visibleState);
 
     const footer = computed(() => {
       if (props.footer) {
@@ -147,7 +145,7 @@ export default defineComponent({
     return () => (
       <AntModal
         {...newProps.value}
-        v-model:open={open.value}
+        v-model:visible={visible.value}
         onOk={handleOk}
         onCancel={handleCancel}
         title={

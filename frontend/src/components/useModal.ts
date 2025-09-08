@@ -66,8 +66,8 @@ export function useModal(config: UseModalProps): UseModalReturn {
 
     vnode = createVNode(ModalComponent, {
       ...config,
-      openState: visible,
-      'onUpdate:open': (val: boolean) => {
+      visibleState: visible,
+      'onUpdate:visible': (val: boolean) => {
         visible.value = val;
         if (!val && closeFn) {
           closeFn();

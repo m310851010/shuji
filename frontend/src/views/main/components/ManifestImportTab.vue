@@ -96,14 +96,14 @@
             }
             
             notification.success({
-              placement: 'top',
+              placement: 'topRight',
               message: '导入成功',
               description: importResult.message,
               duration: 5
             });
           } else {
             notification.info({
-              placement: 'top',
+              placement: 'topRight',
               message: '导入失败',
               description: importResult.message,
               duration: 5
@@ -133,7 +133,7 @@
           }
         } else {
           notification.error({
-            placement: 'top',
+            placement: 'topRight',
             message: '校验失败',
             description: checkResult.message,
             duration: 5

@@ -1,15 +1,15 @@
 <template>
-  <a-flex justify="flex-end" style="margin-bottom: 10px">
+  <a-row type="flex"  justify="end" style="margin-bottom: 10px">
     <a-button v-if="!model.checkFinished" type="primary" @click="handleCheckClick" :loading="model.isChecking">校验</a-button>
     <a-button v-else @click="handleBackClick">返回</a-button>
-  </a-flex>
+  </a-row>
 
   <div class="box-grey no-bg" style="height: 340px">
     <div v-if="model.passed == null">
       <h1 style="text-align: center; margin-top: 100px; color: #999">点击上面“校验”按钮开始自动校验</h1>
     </div>
 
-    <a-flex v-else align="center" justify="space-between" :vertical="true" class="h-100">
+    <a-row type="flex" v-else align="center" justify="space-between" :vertical="true" class="h-100">
       <div></div>
       <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">
         数据{{ model.passed ? '已' : '未' }}通过自动校验
@@ -20,7 +20,7 @@
       <div>
         <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">导出校验报告</a-button>
       </div>
-    </a-flex>
+    </a-row>
   </div>
 </template>
 

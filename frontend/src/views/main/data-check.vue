@@ -1,7 +1,7 @@
 <template>
   <!-- 头部区域 -->
   <div class="page-header">
-    <a-flex justify="space-between" style="width: 100%">
+    <a-row type="flex" justify="space-between" style="width: 100%">
       <div class="span-line">
         <a-radio-group v-model:value="checkTab" @change="handleCheckTabChange">
           <a-radio-button v-for="item in CheckTypeOptions" :key="item.value" :value="item.value" class="tab-button-check">
@@ -15,7 +15,7 @@
           {{ item.label }}
         </a-radio-button>
       </a-radio-group>
-    </a-flex>
+    </a-row>
   </div>
 
   <transition :name="transitionName" mode="out-in" :css="true">

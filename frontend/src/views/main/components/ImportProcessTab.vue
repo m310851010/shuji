@@ -1,11 +1,11 @@
 <template>
   <div class="box-grey">
-    <a-flex justify="space-between">
+    <a-row type="flex" justify="space-between">
       <div style="line-height: 32px" class="result-text">
         <span v-if="tableType === 'table1' || tableType === 'table2'">完成清单导入后，才能查看导入进度</span>
       </div>
       <a-button type="primary" @click="handleExportClick">导出清单</a-button>
-    </a-flex>
+    </a-row>
   </div>
 
   <div class="box-grey flex-main flex-vertical">

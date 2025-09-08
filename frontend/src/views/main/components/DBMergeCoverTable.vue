@@ -45,7 +45,7 @@
 
     <!-- 查看详细数据模态框 -->
     <a-modal
-      v-model:open="confirmModal.visible"
+      v-model:visible="confirmModal.visible"
       :bodyStyle="{ paddingTop: 0 }"
       class="full-screen-modal button-middle"
       :title="confirmModal.title"
