@@ -605,10 +605,6 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheckForModel(mainDa
 		// 校验基本信息表格的数值字段
 		valueErrors := s.validateTable1MainNumericFields(data, excelRowNum)
 		errors = append(errors, valueErrors...)
-
-		// 校验综合能源消费量与煤炭消费量间的关系
-		relationErrors := s.validateTable1EnergyCoalRelation(data, excelRowNum)
-		errors = append(errors, relationErrors...)
 	}
 
 	// 校验用途数据
@@ -801,31 +797,6 @@ func (s *DataImportService) validateTable1MainNumericFields(data map[string]inte
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
 			Message:   "耗煤总量（实物量）应等于原煤消费+洗精煤消费+其他煤炭消费",
-			Cells:     cells,
-		})
-	}
-
-	return errors
-}
-
-// validateTable1EnergyCoalRelation 校验附表1综合能源消费量与煤炭消费量间的关系
-func (s *DataImportService) validateTable1EnergyCoalRelation(data map[string]interface{}, rowNum int) []ValidationError {
-	errors := []ValidationError{}
-
-	// 获取相关数值
-	annualEnergyEquivalentValue := s.parseFloat(s.getStringValue(data["annual_energy_equivalent_value"]))
-	annualTotalCoalProducts := s.parseFloat(s.getStringValue(data["annual_total_coal_products"]))
-
-	// 年综合能耗当量值≧耗煤总量（标准量）
-	if s.isIntegerLessThan(annualEnergyEquivalentValue, annualTotalCoalProducts) {
-		// 获取涉及到的单元格位置
-		cells := []string{
-			s.getCellPosition(TableType1, "annual_energy_equivalent_value", rowNum),
-			s.getCellPosition(TableType1, "annual_total_coal_products", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "年综合能耗当量值应大于等于耗煤总量（标准量）",
 			Cells:     cells,
 		})
 	}

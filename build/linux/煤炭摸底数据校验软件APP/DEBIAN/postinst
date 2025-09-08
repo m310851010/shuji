@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set +e
 
 case "$1" in
     configure)
@@ -57,21 +57,66 @@ EOF
                 # 设置正确的权限
                 chown "$username:$username" "$desktop_file"
                 chmod 755 "$desktop_file"
-                
-                # 对于统信系统，可能需要额外设置
-                if [ -f /etc/os-release ] && grep -q "UOS" /etc/os-release; then
-                    # 统信系统可能需要额外的处理
-                    echo "检测到统信系统，已创建桌面快捷方式"
-                fi
-                
-                # 对于麒麟系统
-                if [ -f /etc/kylin-release ]; then
-                    # 麒麟系统可能需要额外的处理
-                    echo "检测到麒麟系统，已创建桌面快捷方式"
-                fi
             fi
         done
         ;;
 esac
+
+
+# 检查并更新 WebKitGTK
+PACKAGE="libwebkit2gtk-4.0-37:amd64"
+LOG_FILE="/var/log/${PACKAGE%-*}-upgrade.log"
+
+log() {
+    logger -t "shuji-postinst" "$*" >> "$LOG_FILE" 2>&1 || true
+}
+
+log "开始检查 WebKitGTK 依赖..."
+
+# 获取已安装版本
+INSTALLED_VERSION=$(dpkg -l | grep "^ii" | grep -w "$PACKAGE" | awk '{print $3}' | head -n1)
+
+if [ -z "$INSTALLED_VERSION" ]; then
+    log "$PACKAGE 未安装，跳过升级。"
+    exit 0
+fi
+
+log "当前版本: $INSTALLED_VERSION"
+
+log "尝试从本地缓存获取最新版本..."
+CANDIDATE_VERSION=$(apt-cache policy "$PACKAGE" | grep "Candidate" | awk '{print $2}' | head -n1)
+
+if [ -z "$CANDIDATE_VERSION" ] || [ "$CANDIDATE_VERSION" = "(none)" ]; then
+    log "本地缓存无可用版本，尝试更新 APT 索引..."
+
+    # 静默更新 APT 缓存（可能因网络或权限失败，但不影响）
+    apt-get update -qq >/dev/null 2>&1 || log "APT 更新失败，跳过升级。"
+
+    # 再次尝试获取最新版本
+    CANDIDATE_VERSION=$(apt-cache policy "$PACKAGE" | grep "Candidate" | awk '{print $2}' | head -n1)
+fi
+
+if [ -z "$CANDIDATE_VERSION" ] || [ "$CANDIDATE_VERSION" = "(none)" ]; then
+    log "无法获取最新版本信息，跳过升级。"
+    exit 0
+fi
+
+log "最新版本: $CANDIDATE_VERSION"
+
+# 比较版本
+if dpkg --compare-versions "$CANDIDATE_VERSION" gt "$INSTALLED_VERSION"; then
+    log "正在静默升级 $PACKAGE 到 $CANDIDATE_VERSION..."
+
+    # 静默安装最新版本
+    apt-get install -y --no-install-recommends "$PACKAGE=$CANDIDATE_VERSION" > /dev/null 2>&1
+
+    if [ $? -eq 0 ]; then
+        log "升级成功"
+    else
+        log "升级失败（可能网络或权限问题），继续安装主程序。"
+    fi
+else
+    log "已是最新版本，无需升级。"
+fi
 
 exit 0

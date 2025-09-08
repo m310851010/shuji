@@ -56,13 +56,18 @@ func CreateApp(fs embed.FS) *App {
 	}
 
 	Env.ExePath = exePath
-	homeDir, err := os.UserHomeDir()
-    if err != nil {
-        fmt.Println("获取主目录失败:", err)
-    }
-    fmt.Println("主目录路径:", homeDir)
 
-	Env.BasePath = homeDir + "/shuji/"
+	if Env.OS == "windows" {
+	   Env.BasePath = filepath.Dir(exePath) + "\\"
+	} else {
+        homeDir, err := os.UserHomeDir()
+        if err != nil {
+            fmt.Println("获取主目录失败:", err)
+        }
+	    Env.BasePath = homeDir + "/coal_analysis/"
+	}
+
+    fmt.Println("主目录路径:", Env.BasePath)
 	Env.AppName = APP_NAME
 	Env.AppFileName = filepath.Base(exePath)
 	Env.AssetsDir = "frontend/dist"
@@ -298,10 +303,10 @@ func (a *App) OpenFileInExplorer(path string) db.QueryResult {
 	case "windows":
 		if !fileInfo.IsDir() {
 			// Windows: 打开文件所在目录并选中文件
-			cmd = CreateSilentCommand("cmd", "/c", "start", "explorer", "/select,", fullPath)
+			cmd = exec.Command("cmd", "/c", "start", "explorer", "/select,", fullPath)
 		} else {
 			// Windows: 直接打开目录
-			cmd = CreateSilentCommand("cmd", "/c", "start", "explorer", fullPath)
+			cmd = exec.Command("cmd", "/c", "start", "explorer", fullPath)
 		}
 	case "darwin":
 		if !fileInfo.IsDir() {
@@ -468,7 +473,7 @@ func (a *App) OpenExternal(path string) error {
 	var cmd *exec.Cmd
 	switch sysruntime.GOOS {
 	case "windows":
-		cmd = CreateSilentCommand("cmd", "/c", "start", "", exePath)
+		cmd = exec.Command("cmd", "/c", "start", "", exePath)
 	case "darwin":
 		cmd = exec.Command("open", exePath)
 	case "linux":

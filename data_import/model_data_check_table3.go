@@ -511,25 +511,10 @@ func (s *DataImportService) validateTable3OverallRulesForRow(data map[string]int
 	errors := []ValidationError{}
 
 	// 获取当前行的数值
-	equivalentValue := s.parseFloat(s.getStringValue(data["equivalent_value"]))
 	sceTotalCoalConsumption := s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
 	pqTotalCoalConsumption := s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
 	pqAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
 	sceAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
-
-	// ①年综合能源消费量与年煤品消费量（折标量）的逻辑关系
-	// 年综合能源消费量（当量值）≧年煤品消费量（折标量）
-	if s.isIntegerLessThan(equivalentValue, sceTotalCoalConsumption) {
-		cells := []string{
-			s.getCellPosition(TableType3, "equivalent_value", rowNum),
-			s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "年综合能源消费量（当量值）应大于等于年煤品消费量（折标量）",
-			Cells:     cells,
-		})
-	}
 
 	// ②年煤品消费量与原料用煤情况的逻辑关系
 	// 煤品消费总量（实物量）≧年原料用煤量（实物量）

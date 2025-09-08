@@ -6,23 +6,15 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strconv"
-	sysruntime "runtime"
-	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/tjfoc/gmsm/sm4"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// Windows常量定义
-const (
-	CREATE_NO_WINDOW  = 0x08000000
-	DETACHED_PROCESS  = 0x00000008
-)
 
 func GetPath(path string) string {
 	if !filepath.IsAbs(path) {
@@ -214,22 +206,4 @@ func addFloat64(a, b float64) float64 {
 	intB := int64(b * 1000)
 	result := intA + intB
 	return float64(result) / 1000
-}
-
-// CreateSilentCommand 创建一个静默执行的命令（Windows专用）
-// 使用最彻底的隐藏方法，适用于Windows 11等新版本系统
-func CreateSilentCommand(name string, arg ...string) *exec.Cmd {
-	cmd := exec.Command(name, arg...)
-	// 在Windows系统上设置静默执行属性
-	if sysruntime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			HideWindow: true,
-			CreationFlags: CREATE_NO_WINDOW,
-		}
-		// 重定向标准输出和错误输出到空设备
-		cmd.Stdout = nil
-		cmd.Stderr = nil
-		cmd.Stdin = nil
-	}
-	return cmd
 }
