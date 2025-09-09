@@ -2454,6 +2454,26 @@
             "children": []
           }
         ]
+      },{
+        "code": "4419",
+        "name": "东莞市",
+        "children": [
+          {
+            "code": "441900",
+            "name": "东莞市",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4420",
+        "name": "中山市",
+        "children": [
+          {
+            "code": "442000",
+            "name": "中山市",
+            "children": []
+          }
+        ]
       }
     ]
   },
@@ -3617,87 +3637,6 @@
     "name": "海南省",
     "children": [
       {
-        "code": "4690",
-        "name": "白沙黎族自治县",
-        "children": [
-          {
-            "code": "469025",
-            "name": "白沙黎族自治县",
-            "children": []
-          },
-          {
-            "code": "469029",
-            "name": "保亭黎族苗族自治县",
-            "children": []
-          },
-          {
-            "code": "469026",
-            "name": "昌江黎族自治县",
-            "children": []
-          },
-          {
-            "code": "469023",
-            "name": "澄迈县",
-            "children": []
-          },
-          {
-            "code": "469021",
-            "name": "定安县",
-            "children": []
-          },
-          {
-            "code": "469007",
-            "name": "东方市",
-            "children": []
-          },
-          {
-            "code": "469027",
-            "name": "乐东黎族自治县",
-            "children": []
-          },
-          {
-            "code": "469024",
-            "name": "临高县",
-            "children": []
-          },
-          {
-            "code": "469028",
-            "name": "陵水黎族自治县",
-            "children": []
-          },
-          {
-            "code": "469002",
-            "name": "琼海市",
-            "children": []
-          },
-          {
-            "code": "469030",
-            "name": "琼中黎族苗族自治县",
-            "children": []
-          },
-          {
-            "code": "469022",
-            "name": "屯昌县",
-            "children": []
-          },
-          {
-            "code": "469006",
-            "name": "万宁市",
-            "children": []
-          },
-          {
-            "code": "469005",
-            "name": "文昌市",
-            "children": []
-          },
-          {
-            "code": "469001",
-            "name": "五指山市",
-            "children": []
-          }
-        ]
-      },
-      {
         "code": "4601",
         "name": "海口市",
         "children": [
@@ -3761,6 +3700,166 @@
           {
             "code": "460202",
             "name": "海棠区",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4604",
+        "name": "儋州市",
+        "children": [
+          {
+            "code": "460400",
+            "name": "儋州市",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4684",
+        "name": "五指山市",
+        "children": [
+          {
+            "code": "469001",
+            "name": "五指山市",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4685",
+        "name": "琼海市",
+        "children": [
+          {
+            "code": "469002",
+            "name": "琼海市",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4686",
+        "name": "文昌市",
+        "children": [
+          {
+            "code": "469005",
+            "name": "文昌市",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4687",
+        "name": "万宁市",
+        "children": [
+          {
+            "code": "469006",
+            "name": "万宁市",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4689",
+        "name": "东方市",
+        "children": [
+          {
+            "code": "469007",
+            "name": "东方市",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4690",
+        "name": "定安县",
+        "children": [
+          {
+            "code": "469021",
+            "name": "定安县",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4691",
+        "name": "屯昌县",
+        "children": [
+          {
+            "code": "469022",
+            "name": "屯昌县",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4692",
+        "name": "澄迈县",
+        "children": [
+          {
+            "code": "469023",
+            "name": "澄迈县",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4693",
+        "name": "临高县",
+        "children": [
+          {
+            "code": "469024",
+            "name": "临高县",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4694",
+        "name": "白沙黎族自治县",
+        "children": [
+          {
+            "code": "469025",
+            "name": "白沙黎族自治县",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4695",
+        "name": "昌江黎族自治县",
+        "children": [
+          {
+            "code": "469026",
+            "name": "昌江黎族自治县",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4696",
+        "name": "乐东黎族自治县",
+        "children": [
+          {
+            "code": "469027",
+            "name": "乐东黎族自治县",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4697",
+        "name": "陵水黎族自治县",
+        "children": [
+          {
+            "code": "469028",
+            "name": "陵水黎族自治县",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4698",
+        "name": "保亭黎族苗族自治县",
+        "children": [
+          {
+            "code": "469029",
+            "name": "保亭黎族苗族自治县",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4699",
+        "name": "琼中黎族苗族自治县",
+        "children": [
+          {
+            "code": "469030",
+            "name": "琼中黎族苗族自治县",
             "children": []
           }
         ]
@@ -9722,6 +9821,16 @@
             "children": []
           }
         ]
+      },{
+        "code": "2178",
+        "name": "沈抚改革创新示范区",
+        "children": [
+          {
+            "code": "217800",
+            "name": "沈抚改革创新示范区",
+            "children": []
+          }
+        ]
       }
     ]
   },
@@ -15050,7 +15159,7 @@
       ]
     },{
       "code": "6594",
-      "name": "第四师克可达拉市",
+      "name": "第四师可克达拉市",
       "children": [
         {
           "code": "659401",

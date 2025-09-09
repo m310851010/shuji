@@ -426,39 +426,6 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 		})
 	}
 
-	// ⑥煤品消费总量（实物量）=煤炭消费量（实物量）+焦炭消费量（实物量）+兰炭消费量（实物量）
-	expectedPqTotal := s.sumFloat64(pqCoalConsumption, pqCokeConsumption, pqBlueCokeConsumption)
-	if !s.isIntegerEqual(pqTotalCoalConsumption, expectedPqTotal) {
-		cells := []string{
-			s.getCellPosition(TableType3, "pq_total_coal_consumption", rowNum),
-			s.getCellPosition(TableType3, "pq_coal_consumption", rowNum),
-			s.getCellPosition(TableType3, "pq_coke_consumption", rowNum),
-			s.getCellPosition(TableType3, "pq_blue_coke_consumption", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "煤品消费总量（实物量）应等于煤炭消费量+焦炭消费量+兰炭消费量",
-			Cells:     cells,
-		})
-	}
-
-	// ⑦煤品消费总量（折标量）=煤炭消费量（折标量）+焦炭消费量（折标量）+兰炭消费量（折标量）
-	expectedSceTotal := s.sumFloat64(sceCoalConsumption, sceCokeConsumption, sceBlueCokeConsumption)
-	// 使用基于整数计算的精度安全比较
-	if !s.isIntegerEqual(sceTotalCoalConsumption, expectedSceTotal) {
-		cells := []string{
-			s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum),
-			s.getCellPosition(TableType3, "sce_coal_consumption", rowNum),
-			s.getCellPosition(TableType3, "sce_coke_consumption", rowNum),
-			s.getCellPosition(TableType3, "sce_blue_coke_consumption", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "煤品消费总量（折标量）应等于煤炭消费量+焦炭消费量+兰炭消费量",
-			Cells:     cells,
-		})
-	}
-
 	// 3. 煤炭消费替代情况部分校验
 	// 煤炭消费替代量（实物量）规则：①≧0；②≦100000
 	substitutionQuantity := s.parseFloat(s.getStringValue(data["substitution_quantity"]))

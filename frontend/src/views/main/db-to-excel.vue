@@ -14,7 +14,7 @@
         title="选择数据文件"
       >
         <div>只能选择数据文件（.db），支持批量选择（(最多4个)）</div>
-        <div>支持一次性拖多个数据文件，以及整个文件夹</div>
+        <div v-if="env.os === 'windows'">支持一次性拖多个数据文件，以及整个文件夹</div>
         <div>选择文件后，点击下方按钮开始转换为Excel</div>
       </UploadComponent>
 
@@ -49,14 +49,16 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, reactive } from 'vue';
+  import { ref } from 'vue';
   import { message } from 'ant-design-vue';
   import UploadComponent from './components/Upload.vue';
   import { DBTranformExcel, Movefile, OpenSaveDialog } from '@wailsjs/go';
   import { main } from '@wailsjs/models';
+  import { useEnv } from "@/hook/useEnv";
 
   // 选中的文件
   const selectedFiles = ref<EnhancedFile[]>([]);
+  const env = useEnv();
 
   // 转换状态
   const isConverting = ref(false);

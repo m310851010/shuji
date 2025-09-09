@@ -449,27 +449,6 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 func (s *DataImportService) validateAttachment2DataConsistency(data map[string]interface{}, rowNum int) []ValidationError {
 	errors := []ValidationError{}
 
-	// 1. 分品种煤炭消费摸底部分
-	// ③煤合计=原煤+洗精煤+其他
-	totalCoal := s.parseFloat(s.getStringValue(data["total_coal"]))
-	rawCoal := s.parseFloat(s.getStringValue(data["raw_coal"]))
-	washedCoal := s.parseFloat(s.getStringValue(data["washed_coal"]))
-	otherCoal := s.parseFloat(s.getStringValue(data["other_coal"]))
-
-	// 使用精度安全的浮点运算
-	expectedTotal := s.sumFloat64(rawCoal, washedCoal, otherCoal)
-
-	if !s.isIntegerEqual(totalCoal, expectedTotal) {
-		cells := []string{
-			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum),
-		}
-
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应等于原煤+洗精煤+其他", Cells: cells})
-	}
-
 	// 2. 分用途煤炭消费摸底部分
 	// ③工业≧工业（#用作原料、材料）
 	industry := s.parseFloat(s.getStringValue(data["industry"]))
@@ -481,42 +460,6 @@ func (s *DataImportService) validateAttachment2DataConsistency(data map[string]i
 			s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum),
 		}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业应大于等于工业（#用作原料、材料）", Cells: cells})
-	}
-
-	// 3. 文件内整体校验
-	// ①分品种煤炭消费摸底与分用途煤炭消费摸底
-	// 煤合计≧能源加工转换+终端消费
-	powerGeneration := s.parseFloat(s.getStringValue(data["power_generation"]))
-	heating := s.parseFloat(s.getStringValue(data["heating"]))
-	coalWashing := s.parseFloat(s.getStringValue(data["coal_washing"]))
-	coking := s.parseFloat(s.getStringValue(data["coking"]))
-	oilRefining := s.parseFloat(s.getStringValue(data["oil_refining"]))
-	gasProduction := s.parseFloat(s.getStringValue(data["gas_production"]))
-	otherUses := s.parseFloat(s.getStringValue(data["other_uses"]))
-
-	// 能源加工转换 = 火力发电 + 供热 + 煤炭洗选 + 炼焦 + 炼油及煤制油 + 制气
-	energyConversion := s.sumFloat64(powerGeneration, heating, coalWashing, coking, oilRefining, gasProduction)
-
-	// 终端消费 = 工业 + 其他用途
-	terminalConsumption := s.addFloat64(industry, otherUses)
-
-	// 计算能源加工转换+终端消费(不包含 工业（#用作原料、材料）)
-	totalConsumption := s.addFloat64(energyConversion, terminalConsumption)
-
-	if s.isIntegerLessThan(totalCoal, totalConsumption) {
-		cells := []string{
-			s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "heating", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "coking", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "industry", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum),
-			s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum),
-		}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应大于等于能源加工转换+终端消费-工业（#用作原料、材料）", Cells: cells})
 	}
 
 	return errors

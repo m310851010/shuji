@@ -782,25 +782,6 @@ func (s *DataImportService) validateTable1MainNumericFields(data map[string]inte
 		})
 	}
 
-	// ⑤耗煤总量（实物量）=原煤消费（实物量）+洗精煤消费（实物量）+其他煤炭消费（实物量）
-	// 使用精度安全的浮点运算
-	expectedTotal := s.sumFloat64(annualRawCoalConsumption, annualCleanCoalConsumption, annualOtherCoalConsumption)
-
-	if !s.isIntegerEqual(annualTotalCoalConsumption, expectedTotal) {
-		// 获取涉及到的单元格位置
-		cells := []string{
-			s.getCellPosition(TableType1, "annual_total_coal_consumption", rowNum),
-			s.getCellPosition(TableType1, "annual_raw_coal_consumption", rowNum),
-			s.getCellPosition(TableType1, "annual_clean_coal_consumption", rowNum),
-			s.getCellPosition(TableType1, "annual_other_coal_consumption", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "耗煤总量（实物量）应等于原煤消费+洗精煤消费+其他煤炭消费",
-			Cells:     cells,
-		})
-	}
-
 	return errors
 }
 

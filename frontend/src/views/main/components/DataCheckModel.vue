@@ -9,17 +9,18 @@
       <h1 style="text-align: center; margin-top: 100px; color: #999">点击上面“校验”按钮开始自动校验</h1>
     </div>
 
-    <a-row type="flex" v-else align="center" justify="space-between" :vertical="true" class="h-100">
-      <div></div>
-      <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">
-        数据{{ model.passed ? '已' : '未' }}通过自动校验
-      </div>
-      <div v-if="model.errorMessage" style="max-height: 255px; overflow: auto">
-        <pre style="white-space: break-spaces; line-height: 25px">{{ model.errorMessage }}</pre>
-      </div>
-      <div>
-        <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">导出校验报告</a-button>
-      </div>
+    <a-row type="flex" v-else align="middle" justify="space-between" style="flex-direction: column;" class="h-100">
+        <div></div>
+        <div style="font-size: 24px" :style="{ color: model.passed ? '#52c41a' : '#ff4d4f' }">
+          数据{{ model.passed ? '已' : '未' }}通过自动校验
+        </div>
+
+        <div v-if="model.errorMessage" style="max-height: 255px; overflow: auto">
+          <pre style="white-space: break-spaces; line-height: 25px">{{ model.errorMessage }}</pre>
+        </div>
+        <div>
+          <a-button type="primary" v-if="model.canDownloadReport" @click="handleDownloadReport">导出校验报告</a-button>
+        </div>
     </a-row>
   </div>
 </template>

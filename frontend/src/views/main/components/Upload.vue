@@ -9,7 +9,7 @@
   >
     <CloudUploadOutlined style="font-size: 40px; color: #9ca3af" />
     <p class="drop-text">
-      将文件拖到此处，或
+      <span v-if="env.os === 'windows'">将文件拖到此处，或</span>
       <a @click="onOpenFileDialog">点击选择文件</a>
       或
       <a @click="onOpenFolderDialog">点击选择文件夹</a>
@@ -19,7 +19,7 @@
         <slot></slot>
         <div v-if="!$slots.default">
           <div>只能选择Excel文件（.xlsx/.xls），支持批量选择</div>
-          <div>支持一次性拖多个Excel文件，以及整个文件夹</div>
+          <div v-if="env.os === 'windows'">支持一次性拖多个Excel文件，以及整个文件夹</div>
           <div>选择文件后，点击上方按钮开始导入</div>
         </div>
       </template>
@@ -43,12 +43,12 @@
 
 <script setup lang="ts">
   import { CloudUploadOutlined, PaperClipOutlined } from '@ant-design/icons-vue';
-  import { OpenFileDialog, OpenExternal, GetFileInfo, Readdir } from '@wailsjs/go';
+  import {OpenFileDialog, OpenExternal, GetFileInfo, Readdir} from '@wailsjs/go';
   import { main } from '@wailsjs/models';
-  import { OnFileDrop, OnFileDropOff } from '@wailsapp/runtime';
   import { EXCEL_TYPES } from '@/views/constant';
   import { getFileExtension } from '@/util/utils';
   import { setFileDropHandler } from '@/hook/useFileDrop';
+  import { useEnv } from "@/hook/useEnv";
 
   const props = defineProps({
     // 验证文件是否有效,默认是excel文件
@@ -91,10 +91,11 @@
 
   const isDragging = ref(false);
   const hasValidFile = ref(true);
+  const env = useEnv();
 
   const allFiles: { file: File; valid: boolean }[] = [];
 
-  onMounted(() => {
+  onMounted(async () => {
     setFileDropHandler((dropFiles, x, y) => {
       console.log(allFiles);
       const files: EnhancedFile[] = [];
