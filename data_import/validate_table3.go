@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"shuji/db"
 	"strings"
+	"slices"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -130,6 +131,13 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 		"pq_annual_coal_quantity",
 		"sce_annual_coal_quantity",
 	}
+	
+	// 时间字段
+	timeFields := []string{
+		"examination_approval_time",
+		"scheduled_time",
+		"actual_time",
+	}
 
 	// 解析数据行（跳过表头下的第一行）
 	for i := startRow + 2; i < len(rows); i++ {
@@ -144,8 +152,12 @@ func (s *DataImportService) parseTable3MainSheet(f *excelize.File, sheetName str
 		for j, cell := range row {
 			if j < len(headerArr) && headerArr[j] != "" {
 				fieldName := headerArr[j]
-				cleanedValue := s.cleanCellValue(cell)
-				dataRow[fieldName] = cleanedValue
+				if slices.Contains(timeFields, fieldName) {
+					dataRow[fieldName] =s.parseDateValueToString(cell, "")
+					fmt.Println(fieldName, dataRow[fieldName])
+				} else {
+					dataRow[fieldName] = s.cleanCellValue(cell)
+				}
 				hasData = true
 			}
 		}

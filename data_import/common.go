@@ -10,6 +10,7 @@ import (
 	"shuji/db"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
@@ -442,6 +443,30 @@ var (
 func (s *DataImportService) generateUUID() string {
 	return uuid.New().String()
 }
+
+// parseDateValue 解析日期值
+func (s *DataImportService) parseDateValue(excelDate string) (time.Time, error) {
+	baseDate:= time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
+	days, err := strconv.Atoi(excelDate)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return baseDate.Add(time.Second * time.Duration(days * 24*60*60)), nil
+}
+
+// parseDateValueToString 解析日期值为字符串
+func (s *DataImportService) parseDateValueToString(excelDate string, format string) string {
+	date, err := s.parseDateValue(excelDate)
+	if err != nil {
+		return excelDate
+	}
+
+	if format == "" ||  format == "2006-01-02" {
+		return date.Format("2006-01-02")
+	}
+	return date.Format(format)
+}
+
 
 // parseFloat 解析浮点数
 func (s *DataImportService) parseFloat(value string) float64 {
