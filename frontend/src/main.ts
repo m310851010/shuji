@@ -1,10 +1,8 @@
 import { createApp } from 'vue';
-// import Antd from 'ant-design-vue';
 import App from './App.vue';
 import './style.less';
 import router from './router';
 import { ComponentPlugin } from '@/components';
-import { setupDuplicateData } from './hook/useDuplicateData';
 import 'ant-design-vue/dist/antd.less';
 
 const app = createApp(App);
@@ -12,12 +10,6 @@ app.use(router);
 // app.use(Antd);
 app.use(ComponentPlugin);
 app.mount('#app');
-
-setupDuplicateData();
-
-// OnFileDrop((x, y, paths) => {
-//   console.log(x, y, paths);
-// }, true);
 
 setTimeout(() => {
   // @ts-ignore

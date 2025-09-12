@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"shuji/db"
 	"strings"
-	"slices"
+	"shuji/slices"
 
 	"github.com/xuri/excelize/v2"
 )

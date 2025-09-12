@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"shuji/db"
-	"slices"
+	"shuji/slices"
 	"strings"
 	"time"
 
@@ -51,7 +51,7 @@ func (s *DataImportService) modelDataCoverTable3WithRecover(filePaths []string) 
 
 	for _, file := range files {
 		// 检查是否xlsx或者xls文件
-		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+		if !file.IsDir() && s.isExcelFile(file.Name()) {
 			filePath := filepath.Join(cacheDir, file.Name())
 			if !slices.Contains(filePaths, filePath) {
 				// 删除该Excel文件
@@ -140,7 +140,7 @@ func (s *DataImportService) modelDataCheckTable3WithRecover() db.QueryResult {
 	// 2. 循环调用对应的解析Excel函数
 	for _, file := range files {
 		// 检查是否xlsx或者xls文件
-		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+		if !file.IsDir() && s.isExcelFile(file.Name()) {
 			hasExcelFile = true
 			filePath := filepath.Join(cacheDir, file.Name())
 
@@ -387,45 +387,6 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（折标量）不能大于100000", Cells: cells})
 	}
 
-	// ③煤炭消费量（实物量）≧煤炭消费量（折标量）
-	if s.isIntegerLessThan(pqCoalConsumption, sceCoalConsumption) {
-		cells := []string{
-			s.getCellPosition(TableType3, "pq_coal_consumption", rowNum),
-			s.getCellPosition(TableType3, "sce_coal_consumption", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "煤炭消费量（实物量）应大于等于煤炭消费量（折标量）",
-			Cells:     cells,
-		})
-	}
-
-	// ④焦炭消费量（实物量）≧焦炭消费量（折标量）
-	if s.isIntegerLessThan(pqCokeConsumption, sceCokeConsumption) {
-		cells := []string{
-			s.getCellPosition(TableType3, "pq_coke_consumption", rowNum),
-			s.getCellPosition(TableType3, "sce_coke_consumption", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "焦炭消费量（实物量）应大于等于焦炭消费量（折标量）",
-			Cells:     cells,
-		})
-	}
-
-	// ⑤兰炭消费量（实物量）≧兰炭消费量（折标量）
-	if s.isIntegerLessThan(pqBlueCokeConsumption, sceBlueCokeConsumption) {
-		cells := []string{
-			s.getCellPosition(TableType3, "pq_blue_coke_consumption", rowNum),
-			s.getCellPosition(TableType3, "sce_blue_coke_consumption", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "兰炭消费量（实物量）应大于等于兰炭消费量（折标量）",
-			Cells:     cells,
-		})
-	}
-
 	// 3. 煤炭消费替代情况部分校验
 	// 煤炭消费替代量（实物量）规则：①≧0；②≦100000
 	substitutionQuantity := s.parseFloat(s.getStringValue(data["substitution_quantity"]))
@@ -440,7 +401,7 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	}
 
 	// 4. 原料用煤部分校验
-	// 年原料用煤量（实物量）、年原料用煤量（折标量）规则：①≧0；②≦100000；③年原料用煤量（实物量）≧年原料用煤量（折标量）
+	// 年原料用煤量（实物量）、年原料用煤量（折标量）规则：①≧0；②≦100000；
 	pqAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
 	sceAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
 

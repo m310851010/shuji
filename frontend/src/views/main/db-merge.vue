@@ -14,7 +14,7 @@
         title="选择数据文件"
       >
         <div>只能选择数据文件（.db），支持批量选择(最多4个)</div>
-        <div v-if="env.os === 'windows'">支持一次性拖多个数据文件，以及整个文件夹</div>
+        <div v-if="isSupportedDrop">支持一次性拖多个数据文件，以及整个文件夹</div>
         <div>选择文件后，点击下方按钮开始合并</div>
       </UploadComponent>
 
@@ -101,11 +101,11 @@
   import { GetChinaAreaStr, MergeDatabase, MergeConflictData, OpenSaveDialog, Movefile, Removefile } from '@wailsjs/go';
   import { TableType, TableTypeName } from '../constant';
   import { main } from '@wailsjs/models';
-  import { useEnv } from "@/hook/useEnv";
+  import { useSupportFileDrop } from '@/hook/useFileDrop';
   import dayjs from 'dayjs';
 
   const selectedFiles = ref<EnhancedFile[]>([]);
-  const env = useEnv();
+  const isSupportedDrop = useSupportFileDrop();
 
   //保存合并后的数据文件到指定位置
   async function saveMergeDB(targetDbPath: string) {

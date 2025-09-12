@@ -876,3 +876,9 @@ func (s *DataImportService) UnprotecFile(filePath string) error {
 	fmt.Printf("成功解除文件 %s 的保护并保存\n", filePath)
 	return nil
 }
+
+// isExcelFile 判断文件是否为Excel文件
+func (s *DataImportService) isExcelFile(fileName string) bool {
+	nameLower := strings.ToLower(fileName)
+	return strings.HasSuffix(nameLower, ".xlsx") || strings.HasSuffix(nameLower, ".xls")	
+}

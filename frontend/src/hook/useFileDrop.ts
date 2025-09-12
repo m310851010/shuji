@@ -1,31 +1,68 @@
-import { OnFileDrop } from '@wailsapp/runtime';
+import { OnFileDrop, OnFileDropOff } from '@wailsapp/runtime';
 import { GetFileInfo, Readdir } from '@wailsjs/go';
 import { main } from '@wailsjs/models';
+import { useEnv } from '@/hook/useEnv';
 
 // 当前文件拖放处理函数
 let currentFileDropHandler: ((files: EnhancedFile[], x: number, y: number) => void)[] = [];
+
+let supportFileDrop = ref<boolean>(true);
+
+/**
+ * 检查文件拖拽是否支持
+ * @returns 文件拖拽是否支持
+ */
+export function useSupportFileDrop() {
+  const env = useEnv();
+  return computed(() => {
+    console.log(env.value.os);
+    console.log(supportFileDrop.value);
+    return env.value.os === 'windows' && supportFileDrop.value;
+  });
+}
 
 /**
  * 使用文件拖拽处理函数
  */
 export function useFileDrop() {
-  OnFileDrop(async (x, y, paths) => {
-    const files: EnhancedFile[] = [];
-    for (let i = 0; i < paths.length; i++) {
-      const fullPath = paths[i];
-      const fileInfo = await GetFileInfo(fullPath);
-      if (fileInfo.isDirectory) {
-        const _fileInfo: EnhancedFile = await getFilesDir(fileInfo);
-        files.push(_fileInfo);
-      } else {
-        files.push(fileInfo as unknown as EnhancedFile);
+  onMounted(() => {
+    try {
+      if (!supportFileDrop.value) {
+        return;
       }
-    }
+      OnFileDrop(async (x, y, paths) => {
+        console.log('OnFileDrop', x, y, paths);
+        const files: EnhancedFile[] = [];
+        for (let i = 0; i < paths.length; i++) {
+          const fullPath = paths[i];
+          const fileInfo = await GetFileInfo(fullPath);
+          if (fileInfo.isDirectory) {
+            const _fileInfo: EnhancedFile = await getFilesDir(fileInfo);
+            files.push(_fileInfo);
+          } else {
+            files.push(fileInfo as unknown as EnhancedFile);
+          }
+        }
 
-    if (currentFileDropHandler.length) {
-      currentFileDropHandler.forEach(fn => fn(files, x, y));
+        if (currentFileDropHandler.length) {
+          currentFileDropHandler.forEach(fn => fn(files, x, y));
+        }
+      }, true);
+    } catch (e) {
+      supportFileDrop.value = false;
     }
-  }, true);
+  });
+
+  onUnmounted(() => {
+    try {
+      if (!supportFileDrop.value) {
+        return;
+      }
+      OnFileDropOff();
+    } catch (e) {
+      supportFileDrop.value = false;
+    }
+  });
 }
 
 /**

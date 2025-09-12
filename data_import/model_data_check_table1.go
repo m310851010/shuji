@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"shuji/db"
-	"slices"
+	"shuji/slices"
 	"strings"
 	"time"
 
@@ -146,7 +146,7 @@ func (s *DataImportService) modelDataCoverTable1WithRecover(filePaths []string) 
 
 	for _, file := range files {
 		// 检查是否xlsx或者xls文件
-		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+		if !file.IsDir() && s.isExcelFile(file.Name()) {
 			filePath := filepath.Join(cacheDir, file.Name())
 			if !slices.Contains(filePaths, filePath) {
 				// 删除该Excel文件
@@ -234,7 +234,7 @@ func (s *DataImportService) modelDataCheckTable1WithRecover() db.QueryResult {
 	// 2. 循环调用对应的解析Excel函数
 	for _, file := range files {
 		// 检查是否xlsx或者xls文件
-		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+		if !file.IsDir() && s.isExcelFile(file.Name()) {
 			hasExcelFile = true
 			filePath := filepath.Join(cacheDir, file.Name())
 
@@ -752,34 +752,6 @@ func (s *DataImportService) validateTable1MainNumericFields(data map[string]inte
 	if s.isIntegerGreaterThan(annualCokeConsumption, 100000) {
 		cells := []string{s.getCellPosition(TableType1, "annual_coke_consumption", rowNum)}
 		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费（实物量）不能大于100000", Cells: cells})
-	}
-
-	// ③耗煤总量（实物量）≧耗煤总量（标准量）
-	if s.isIntegerLessThan(annualTotalCoalConsumption, annualTotalCoalProducts) {
-		// 获取涉及到的单元格位置
-		cells := []string{
-			s.getCellPosition(TableType1, "annual_total_coal_consumption", rowNum),
-			s.getCellPosition(TableType1, "annual_total_coal_products", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "耗煤总量（实物量）不能小于耗煤总量（标准量）",
-			Cells:     cells,
-		})
-	}
-
-	// ④耗煤总量（实物量）≧原料用煤（实物量）
-	if s.isIntegerLessThan(annualTotalCoalConsumption, annualRawCoal) {
-		// 获取涉及到的单元格位置
-		cells := []string{
-			s.getCellPosition(TableType1, "annual_total_coal_consumption", rowNum),
-			s.getCellPosition(TableType1, "annual_raw_coal", rowNum),
-		}
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "耗煤总量（实物量）不能小于原料用煤（实物量）",
-			Cells:     cells,
-		})
 	}
 
 	return errors

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"shuji/db"
-	"slices"
+	"shuji/slices"
 	"strings"
 	"time"
 
@@ -50,7 +50,7 @@ func (s *DataImportService) modelDataCoverTable2WithRecover(filePaths []string) 
 
 	for _, file := range files {
 		// 检查是否xlsx或者xls文件
-		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+		if !file.IsDir() && s.isExcelFile(file.Name()) {
 			filePath := filepath.Join(cacheDir, file.Name())
 			if !slices.Contains(filePaths, filePath) {
 				// 删除该Excel文件
@@ -139,7 +139,7 @@ func (s *DataImportService) modelDataCheckTable2WithRecover() db.QueryResult {
 	// 2. 循环调用对应的解析Excel函数
 	for _, file := range files {
 		// 检查是否xlsx或者xls文件
-		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".xlsx") || strings.HasSuffix(file.Name(), ".xls")) {
+		if !file.IsDir() && s.isExcelFile(file.Name()) {
 			hasExcelFile = true
 			filePath := filepath.Join(cacheDir, file.Name())
 
