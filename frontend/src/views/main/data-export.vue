@@ -91,6 +91,12 @@
 
   const handleExportClick = async () => {
     let allPass = true;
+    let hasChecked = dataSource.value.some(item => item.is_checked_yes > 0);
+    if (!hasChecked) {
+      message.warning('请先完成模型校验和人工校验再导出');
+      return;
+    }
+
     for (const item of dataSource.value) {
       if (item.is_confirm_no > 0 || item.is_checked_no !== item.is_confirm_no) {
         allPass = false;
@@ -99,7 +105,7 @@
     }
 
     if (!allPass) {
-      message.error('存在自动校验、人工校验未通过的数据，不能导出');
+      message.error('存在模型校验、人工校验未通过的数据，不能导出');
       return;
     }
 
