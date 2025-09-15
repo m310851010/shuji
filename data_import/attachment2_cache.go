@@ -54,11 +54,11 @@ type Attachment2CacheManager struct {
 
 // 全局缓存变量
 var (
-	// 优化缓存
+	// 缓存
 	yearlyAggregatedCache     map[string]*YearlyAggregatedData // 年份累计数据缓存 key: statDate (下辖县区数据累加)
 	cityDataCache             map[string]*CityData             // 当前市数据缓存 key: province_city_statDate (本市数据)
 	importedDataCache         map[string]*YearlyAggregatedData // 已导入数据缓存 key: province_city_country_statDate，值为各项指标数据
-	optimizedCacheInitialized bool                             // 优化缓存是否已初始化
+	optimizedCacheInitialized bool                             // 缓存是否已初始化
 )
 
 // NewAttachment2CacheManager 创建附件2缓存管理器
@@ -68,7 +68,7 @@ func NewAttachment2CacheManager(service *DataImportService) *Attachment2CacheMan
 	}
 }
 
-// InitOptimizedCache 初始化优化缓存（只初始化一次）
+// InitOptimizedCache 初始化缓存
 func (m *Attachment2CacheManager) InitOptimizedCache() {
 	if !optimizedCacheInitialized {
 		yearlyAggregatedCache = make(map[string]*YearlyAggregatedData)
@@ -155,13 +155,13 @@ func (m *Attachment2CacheManager) UpdateYearlyAggregatedData(statDate string, da
 	existing.Coke = m.service.addFloat64(existing.Coke, data.Coke)
 }
 
-// IsDataExistsInOptimizedCache 检查数据是否存在于优化缓存中
+// IsDataExistsInOptimizedCache 检查数据是否存在于缓存中
 func (m *Attachment2CacheManager) IsDataExistsInOptimizedCache(statDate, provinceName, cityName, countryName string) bool {
 	// 使用已导入数据缓存检查
 	return m.IsDataImported(statDate, provinceName, cityName, countryName)
 }
 
-// ClearOptimizedCache 清除优化缓存
+// ClearOptimizedCache 清除缓存
 func (m *Attachment2CacheManager) ClearOptimizedCache() {
 	yearlyAggregatedCache = nil
 	cityDataCache = nil
@@ -169,7 +169,7 @@ func (m *Attachment2CacheManager) ClearOptimizedCache() {
 	optimizedCacheInitialized = false
 }
 
-// PreloadOptimizedCache 预加载优化缓存（从数据库加载所有相关数据到新结构）
+// PreloadOptimizedCache 预加载缓存（从数据库加载所有相关数据到新结构）
 func (m *Attachment2CacheManager) PreloadOptimizedCache() error {
 	// 初始化缓存
 	m.InitOptimizedCache()

@@ -112,7 +112,7 @@ func NewDataImportService(app App) *DataImportService {
 // GetAreaConfig 获取当前用户区域配置
 func (s *DataImportService) GetAreaConfig() *EnhancedAreaConfig {
 	var areaConfig *EnhancedAreaConfig
-	// 获取区域配置并更新优化缓存
+	// 获取区域配置并更新缓存
 	areaResult := s.app.GetAreaConfig()
 	if areaResult.Ok && areaResult.Data != nil {
 		// 从map[string]interface{}构建EnhancedAreaConfig

@@ -445,7 +445,7 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 	return errors
 }
 
-// validateAttachment2DataConsistency 校验附件2数据一致性（优化版本，使用定点数运算）
+// validateAttachment2DataConsistency 校验附件2数据一致性（使用定点数运算）
 func (s *DataImportService) validateAttachment2DataConsistency(data map[string]interface{}, rowNum int) []ValidationError {
 	errors := []ValidationError{}
 
@@ -477,7 +477,7 @@ func (s *DataImportService) initAttachment2CacheManager() {
 	}
 }
 
-// validateAttachment2DatabaseRules 校验附件2数据库验证规则（优化版本）
+// validateAttachment2DatabaseRules 校验附件2数据库验证规则
 func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig) []ValidationError {
 	errors := []ValidationError{}
 
@@ -784,8 +784,6 @@ func (s *DataImportService) coverAttachment2Data(mainData []map[string]interface
 			// 插入新数据后，更新缓存
 			s.updateCacheWithNewData(statDate, provinceName, cityName, countryName, record)
 		}
-
-		// 注意：这里不再调用 UpdateOptimizedCacheAfterUpload，因为已经在上面分别处理了
 	}
 
 	return nil
@@ -1111,8 +1109,6 @@ func (s *DataImportService) insertAttachment2Data(record map[string]interface{})
 	if err != nil {
 		return fmt.Errorf("保存数据失败: %v", err)
 	}
-
-	// 注意：新的优化缓存结构会在预加载时自动处理，无需手动更新
 
 	return nil
 }
