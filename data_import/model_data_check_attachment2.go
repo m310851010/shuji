@@ -135,7 +135,6 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 
 	areaConfig := s.GetAreaConfig()
 
-
 	var validationErrors = []ValidationError{} // 错误信息
 	var systemErrors = []ValidationError{}     // 系统错误信息
 	var importedFiles = []string{}             // 导入的文件
@@ -173,7 +172,7 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 			if len(errors) > 0 {
 				lastRowNumber := 0
 				if hasDBError && areaConfig.CountryName == "" {
-					lastRowNumber = s.getExcelRowNumber(mainData[len(mainData) - 1]) + 2
+					lastRowNumber = s.getExcelRowNumber(mainData[len(mainData)-1]) + 2
 				}
 				// 校验失败，在Excel文件中错误行最后添加错误信息
 				err = s.addValidationErrorsToExcelAttachment2(filePath, errors, lastRowNumber)
@@ -270,7 +269,7 @@ func (s *DataImportService) modelDataCheckAttachment2WithRecover() db.QueryResul
 }
 
 // validateAttachment2DataForModel 校验附件2数据（模型校验专用）
-func (s *DataImportService) validateAttachment2DataForModel(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig)( []ValidationError, bool) {
+func (s *DataImportService) validateAttachment2DataForModel(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig) ([]ValidationError, bool) {
 	errors := []ValidationError{}
 
 	// 逐行校验数值字段、数据一致性和整体规则（行内字段间逻辑关系）
@@ -299,147 +298,209 @@ func (s *DataImportService) validateAttachment2NumericFields(data map[string]int
 	errors := []ValidationError{}
 
 	// 1. 分品种煤炭消费摸底部分校验
-	totalCoal := s.parseFloat(s.getStringValue(data["total_coal"]))
-	rawCoal := s.parseFloat(s.getStringValue(data["raw_coal"]))
-	washedCoal := s.parseFloat(s.getStringValue(data["washed_coal"]))
-	otherCoal := s.parseFloat(s.getStringValue(data["other_coal"]))
-
-	// ①≧0
-	if s.isIntegerLessThan(totalCoal, 0) {
+	totalCoal, err := s.tryParseFloat(s.getStringValue(data["total_coal"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(rawCoal, 0) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(washedCoal, 0) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(otherCoal, 0) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能为负数", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(totalCoal, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(totalCoal, 200000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能大于200000", Cells: cells})
+		}
 	}
 
-	// ②≦200000
-	if s.isIntegerGreaterThan(totalCoal, 200000) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "total_coal", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤合计不能大于200000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(rawCoal, 200000) {
+	rawCoal, err := s.tryParseFloat(s.getStringValue(data["raw_coal"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能大于200000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(rawCoal, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(rawCoal, 200000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_coal", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "原煤不能大于200000", Cells: cells})
+		}
 	}
-	if s.isIntegerGreaterThan(washedCoal, 200000) {
+
+	washedCoal, err := s.tryParseFloat(s.getStringValue(data["washed_coal"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能大于200000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(washedCoal, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(washedCoal, 200000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "washed_coal", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "洗精煤不能大于200000", Cells: cells})
+		}
 	}
-	if s.isIntegerGreaterThan(otherCoal, 200000) {
+	otherCoal, err := s.tryParseFloat(s.getStringValue(data["other_coal"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能大于200000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(otherCoal, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(otherCoal, 200000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "other_coal", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他不能大于200000", Cells: cells})
+		}
 	}
 
 	// 2. 分用途煤炭消费摸底部分校验
-	powerGeneration := s.parseFloat(s.getStringValue(data["power_generation"]))
-	heating := s.parseFloat(s.getStringValue(data["heating"]))
-	coalWashing := s.parseFloat(s.getStringValue(data["coal_washing"]))
-	coking := s.parseFloat(s.getStringValue(data["coking"]))
-	oilRefining := s.parseFloat(s.getStringValue(data["oil_refining"]))
-	gasProduction := s.parseFloat(s.getStringValue(data["gas_production"]))
-	industry := s.parseFloat(s.getStringValue(data["industry"]))
-	rawMaterials := s.parseFloat(s.getStringValue(data["raw_materials"]))
-	otherUses := s.parseFloat(s.getStringValue(data["other_uses"]))
-
-	// ①≧0
-	if s.isIntegerLessThan(powerGeneration, 0) {
+	powerGeneration, err := s.tryParseFloat(s.getStringValue(data["power_generation"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能为负数", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(powerGeneration, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(powerGeneration, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能大于100000", Cells: cells})
+		}
 	}
-	if s.isIntegerLessThan(heating, 0) {
+	heating, err := s.tryParseFloat(s.getStringValue(data["heating"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "heating", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能为负数", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(heating, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "heating", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能为负数", Cells: cells})
+		}
+
+		if s.isIntegerGreaterThan(heating, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "heating", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能大于100000", Cells: cells})
+		}
 	}
-	if s.isIntegerLessThan(coalWashing, 0) {
+	coalWashing, err := s.tryParseFloat(s.getStringValue(data["coal_washing"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能为负数", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(coalWashing, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(coalWashing, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能大于100000", Cells: cells})
+		}
 	}
-	if s.isIntegerLessThan(coking, 0) {
+	coking, err := s.tryParseFloat(s.getStringValue(data["coking"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coking", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能为负数", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(coking, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "coking", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(coking, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "coking", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能大于100000", Cells: cells})
+		}
 	}
-	if s.isIntegerLessThan(oilRefining, 0) {
+	oilRefining, err := s.tryParseFloat(s.getStringValue(data["oil_refining"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(gasProduction, 0) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(industry, 0) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "industry", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(rawMaterials, 0) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(otherUses, 0) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能为负数", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(oilRefining, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(oilRefining, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能大于100000", Cells: cells})
+		}
 	}
 
-	// ②≦100000
-	if s.isIntegerGreaterThan(powerGeneration, 100000) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "power_generation", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "火力发电不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(heating, 100000) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "heating", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "供热不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(coalWashing, 100000) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "coal_washing", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭洗选不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(coking, 100000) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "coking", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼焦不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(oilRefining, 100000) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "oil_refining", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "炼油及煤制油不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(gasProduction, 100000) {
+	gasProduction, err := s.tryParseFloat(s.getStringValue(data["gas_production"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能大于100000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(gasProduction, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(gasProduction, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "gas_production", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "制气不能大于100000", Cells: cells})
+		}
 	}
-	if s.isIntegerGreaterThan(industry, 100000) {
+	industry, err := s.tryParseFloat(s.getStringValue(data["industry"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "industry", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能大于100000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(industry, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "industry", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(industry, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "industry", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业不能大于100000", Cells: cells})
+		}
 	}
-	if s.isIntegerGreaterThan(rawMaterials, 100000) {
+	rawMaterials, err := s.tryParseFloat(s.getStringValue(data["raw_materials"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能大于100000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(rawMaterials, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(rawMaterials, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "raw_materials", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "工业（#用作原料、材料）不能大于100000", Cells: cells})
+		}
 	}
-	if s.isIntegerGreaterThan(otherUses, 100000) {
+	otherUses, err := s.tryParseFloat(s.getStringValue(data["other_uses"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能大于100000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(otherUses, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(otherUses, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "other_uses", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "其他用途不能大于100000", Cells: cells})
+		}
 	}
 
 	// 3. 焦炭消费摸底部分校验
-	coke := s.parseFloat(s.getStringValue(data["coke"]))
-
-	// ①≧0
-	if s.isIntegerLessThan(coke, 0) {
+	coke, err := s.tryParseFloat(s.getStringValue(data["coke"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableTypeAttachment2, "coke", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能为负数", Cells: cells})
-	}
-
-	// ②≦100000
-	if s.isIntegerGreaterThan(coke, 100000) {
-		cells := []string{s.getCellPosition(TableTypeAttachment2, "coke", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能大于100000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭应为数字", Cells: cells})
+	} else {
+		if s.isIntegerLessThan(coke, 0) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "coke", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能为负数", Cells: cells})
+		}
+		if s.isIntegerGreaterThan(coke, 100000) {
+			cells := []string{s.getCellPosition(TableTypeAttachment2, "coke", rowNum)}
+			errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭不能大于100000", Cells: cells})
+		}
 	}
 
 	return errors
@@ -658,14 +719,12 @@ func (s *DataImportService) validateAttachment2DatabaseRules(mainData []map[stri
 		}
 	}
 
-	if currentTotalCoal == 0 && currentRawCoal == 0{
+	if currentTotalCoal == 0 && currentRawCoal == 0 {
 		return errors
 	}
-	
 
 	// 校验规则：同年份本单位所导入数值*120%应≥下级单位相加之和
 	threshold := 1.2
-
 
 	// 校验各个字段（使用下辖区县累加数据）
 	// 计算 currentTotalCoal * threshold
@@ -836,7 +895,6 @@ func (s *DataImportService) updateAttachment2DataByRegionAndYear(statDate, provi
 
 	return affectedRows, nil
 }
-
 
 // updateAttachment2DatabaseCacheForUpdate 更新附件2数据库缓存（用于UPDATE操作）
 func (s *DataImportService) updateAttachment2DatabaseCacheForUpdate(statDate, provinceName, cityName, countryName string, oldRecord, newRecord map[string]interface{}) {
@@ -1061,7 +1119,6 @@ func (s *DataImportService) isAttachment2FileImported(mainData []map[string]inte
 	return false
 }
 
-
 // saveAttachment2DataForModel 模型校验专用保存附件2数据到数据库（只使用INSERT）
 func (s *DataImportService) saveAttachment2DataForModel(mainData []map[string]interface{}, areaConfig *EnhancedAreaConfig) error {
 	for _, record := range mainData {
@@ -1157,7 +1214,6 @@ func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath strin
 		}
 	}
 
-
 	style, err := f.NewStyle(&excelize.Style{
 		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
 		Alignment: &excelize.Alignment{
@@ -1183,7 +1239,7 @@ func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath strin
 		// 格式化错误信息：每条错误使用序号标识并换行
 		formattedErrorMsg := formatErrorMessages(errorMsg)
 		f.SetCellValue(sheetName, errorCellName, formattedErrorMsg)
-		
+
 		f.SetCellStyle(sheetName, errorCellName, errorCellName, style)
 		// 设置错误信息列的宽度为50
 		colName, _ := excelize.ColumnNumberToName(errorCol)
@@ -1204,7 +1260,7 @@ func (s *DataImportService) addValidationErrorsToExcelAttachment2(filePath strin
 		f.SetCellValue(sheetName, cellName, "本错误无法精准定位出数据不合理的区域，建议将全市及各县区数据全部进行再次检查，确认无误后再次整体导入")
 		f.SetCellStyle(sheetName, cellName, cellName, style)
 	}
-		
+
 	// 保存文件
 	return f.Save()
 }
@@ -1319,7 +1375,7 @@ func (s *DataImportService) UpdateOptimizedCacheAfterUpload(areaConfig *Enhanced
 		}
 
 		// 判断是否为当前市的数据（countryName为空）
-		if recordCountryName == ""  {
+		if recordCountryName == "" {
 			cityData.TotalCoal = s.addFloat64(cityData.TotalCoal, s.parseFloat(s.getStringValue(record["total_coal"])))
 			cityData.RawCoal = s.addFloat64(cityData.RawCoal, s.parseFloat(s.getStringValue(record["raw_coal"])))
 			cityData.WashedCoal = s.addFloat64(cityData.WashedCoal, s.parseFloat(s.getStringValue(record["washed_coal"])))
@@ -1349,12 +1405,12 @@ func (s *DataImportService) UpdateOptimizedCacheAfterUpload(areaConfig *Enhanced
 // generateAllRelatedCells 生成所有相关单元格位置（包括本市数据和下辖区县数据）
 func (s *DataImportService) generateAllRelatedCells(fieldName string, mainData []map[string]interface{}) []string {
 	var cells []string
-	
+
 	// 添加本市数据的单元格
 	for _, rowData := range mainData {
 		cell := s.getCellPosition(TableTypeAttachment2, fieldName, s.getExcelRowNumber(rowData))
 		cells = append(cells, cell)
 	}
-	
+
 	return cells
 }
