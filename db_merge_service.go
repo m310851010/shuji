@@ -1801,8 +1801,6 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 		coal_type := getStringValue(row["coal_type"])
 		annual_coal_consumption := getStringValue(row["annual_coal_consumption"])
 
-		annual_coal_consumption_value, _ := SM4Decrypt(annual_coal_consumption)
-
 		equipRow := map[string]interface{}{
 			"stat_date":               statDate,
 			"credit_code":             creditCode,
@@ -1811,11 +1809,16 @@ func (a *App) DBTranformExcel(dbPath string) db.QueryResult {
 			"country_name":            country_name,
 			"unit_name":               unit_name,
 			"coal_type":               coal_type,
-			"annual_coal_consumption": annual_coal_consumption_value,
 			"equip_type":              equip_type,
 			"equip_no":                equip_no,
 			"unit_type":               "规上企业",
 		}
+
+        if	annual_coal_consumption != "" {
+            annual_coal_consumption_value, _ := SM4Decrypt(annual_coal_consumption)
+            annual_coal_consumptionValue := parseFloat(getStringValue(annual_coal_consumption_value))
+            equipRow["annual_coal_consumption"] = fmt.Sprintf("%.4f", annual_coal_consumptionValue/ 10000)
+        }
 
 		equipList = append(equipList, equipRow)
 	}

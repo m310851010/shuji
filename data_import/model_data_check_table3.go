@@ -271,156 +271,234 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 
 	// 1. 年综合能源消费量部分校验
 	// 当量值、等价值校验规则：①≧0；②≦100000
-	equivalentValue := s.parseFloat(s.getStringValue(data["equivalent_value"]))
-	equivalentCost := s.parseFloat(s.getStringValue(data["equivalent_cost"]))
-
-	if s.isIntegerLessThan(equivalentValue, 0) {
+	equivalentValue, err := s.tryParseFloat(s.getStringValue(data["equivalent_value"]))
+	if err != nil {
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
-			Message:   "年综合能源消费量当量值不能为负数",
+			Message:   "年综合能源消费量当量值应为数字",
 			Cells:     []string{s.getCellPosition(TableType3, "equivalent_value", rowNum)},
 		})
-	}
-	if s.isIntegerGreaterThan(equivalentValue, 100000) {
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "年综合能源消费量当量值不能大于100000",
-			Cells:     []string{s.getCellPosition(TableType3, "equivalent_value", rowNum)},
-		})
+	} else {
+	    if s.isIntegerLessThan(equivalentValue, 0) {
+            errors = append(errors, ValidationError{
+                RowNumber: rowNum,
+                Message:   "年综合能源消费量当量值不能为负数",
+                Cells:     []string{s.getCellPosition(TableType3, "equivalent_value", rowNum)},
+            })
+        }
+        if s.isIntegerGreaterThan(equivalentValue, 100000) {
+            errors = append(errors, ValidationError{
+                RowNumber: rowNum,
+                Message:   "年综合能源消费量当量值不能大于100000",
+                Cells:     []string{s.getCellPosition(TableType3, "equivalent_value", rowNum)},
+            })
+        }
 	}
 
-	if s.isIntegerLessThan(equivalentCost, 0) {
+	equivalentCost, err := s.tryParseFloat(s.getStringValue(data["equivalent_cost"]))
+	if err != nil {
 		errors = append(errors, ValidationError{
 			RowNumber: rowNum,
-			Message:   "年综合能源消费量等价值不能为负数",
+			Message:   "年综合能源消费量等价值应为数字",
 			Cells:     []string{s.getCellPosition(TableType3, "equivalent_cost", rowNum)},
 		})
-	}
-	if s.isIntegerGreaterThan(equivalentCost, 100000) {
-		errors = append(errors, ValidationError{
-			RowNumber: rowNum,
-			Message:   "年综合能源消费量等价值不能大于100000",
-			Cells:     []string{s.getCellPosition(TableType3, "equivalent_cost", rowNum)},
-		})
+	} else {
+	    if s.isIntegerLessThan(equivalentCost, 0) {
+            errors = append(errors, ValidationError{
+                RowNumber: rowNum,
+                Message:   "年综合能源消费量等价值不能为负数",
+                Cells:     []string{s.getCellPosition(TableType3, "equivalent_cost", rowNum)},
+            })
+        }
+        if s.isIntegerGreaterThan(equivalentCost, 100000) {
+            errors = append(errors, ValidationError{
+                RowNumber: rowNum,
+                Message:   "年综合能源消费量等价值不能大于100000",
+                Cells:     []string{s.getCellPosition(TableType3, "equivalent_cost", rowNum)},
+            })
+        }
 	}
 
 	// 2. 年煤品消费量部分校验
 	// 煤品消费总量（实物量）、煤炭消费量（实物量）、焦炭消费量（实物量）、兰炭消费量（实物量）
 	// 煤品消费总量（折标量）、煤炭消费量（折标量）、焦炭消费量（折标量）、兰炭消费量（折标量）
-	pqTotalCoalConsumption := s.parseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
-	pqCoalConsumption := s.parseFloat(s.getStringValue(data["pq_coal_consumption"]))
-	pqCokeConsumption := s.parseFloat(s.getStringValue(data["pq_coke_consumption"]))
-	pqBlueCokeConsumption := s.parseFloat(s.getStringValue(data["pq_blue_coke_consumption"]))
+	pqTotalCoalConsumption, err := s.tryParseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
 
-	sceTotalCoalConsumption := s.parseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
-	sceCoalConsumption := s.parseFloat(s.getStringValue(data["sce_coal_consumption"]))
-	sceCokeConsumption := s.parseFloat(s.getStringValue(data["sce_coke_consumption"]))
-	sceBlueCokeConsumption := s.parseFloat(s.getStringValue(data["sce_blue_coke_consumption"]))
-
-	// ①≧0
-	if s.isIntegerLessThan(pqTotalCoalConsumption, 0) {
-		cells := []string{s.getCellPosition(TableType3, "pq_total_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（实物量）不能为负数", Cells: cells})
+	if err != nil {
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "煤品消费总量（实物量）应为数字",
+			Cells:     []string{s.getCellPosition(TableType3, "pq_total_coal_consumption", rowNum)},
+		})
+	} else {
+        if s.isIntegerLessThan(pqTotalCoalConsumption, 0) {
+            cells := []string{s.getCellPosition(TableType3, "pq_total_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（实物量）不能为负数", Cells: cells})
+        }
+        if s.isIntegerGreaterThan(pqTotalCoalConsumption, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "pq_total_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（实物量）不能大于100000", Cells: cells})
+        }
 	}
-	if s.isIntegerLessThan(pqCoalConsumption, 0) {
+
+	pqCoalConsumption, err := s.tryParseFloat(s.getStringValue(data["pq_coal_consumption"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType3, "pq_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（实物量）不能为负数", Cells: cells})
+        errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（实物量）应为数字", Cells: cells})
+	} else {
+	    if s.isIntegerLessThan(pqCoalConsumption, 0) {
+            cells := []string{s.getCellPosition(TableType3, "pq_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（实物量）不能为负数", Cells: cells})
+        }
+        if s.isIntegerGreaterThan(pqCoalConsumption, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "pq_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（实物量）不能大于100000", Cells: cells})
+        }
 	}
-	if s.isIntegerLessThan(pqCokeConsumption, 0) {
+
+	pqCokeConsumption, err := s.tryParseFloat(s.getStringValue(data["pq_coke_consumption"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType3, "pq_coke_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（实物量）不能为负数", Cells: cells})
+        errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（实物量）应为数字", Cells: cells})
+	} else {
+	    if s.isIntegerLessThan(pqCokeConsumption, 0) {
+            cells := []string{s.getCellPosition(TableType3, "pq_coke_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（实物量）不能为负数", Cells: cells})
+        }
+        if s.isIntegerGreaterThan(pqCokeConsumption, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "pq_coke_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（实物量）不能大于100000", Cells: cells})
+        }
 	}
-	if s.isIntegerLessThan(pqBlueCokeConsumption, 0) {
+
+	pqBlueCokeConsumption, err := s.tryParseFloat(s.getStringValue(data["pq_blue_coke_consumption"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType3, "pq_blue_coke_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（实物量）不能为负数", Cells: cells})
+        errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（实物量）应为数字", Cells: cells})
+	} else {
+	    if s.isIntegerLessThan(pqBlueCokeConsumption, 0) {
+            cells := []string{s.getCellPosition(TableType3, "pq_blue_coke_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（实物量）不能为负数", Cells: cells})
+        }
+        if s.isIntegerGreaterThan(pqBlueCokeConsumption, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "pq_blue_coke_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（实物量）不能大于100000", Cells: cells})
+        }
 	}
 
-	if s.isIntegerLessThan(sceTotalCoalConsumption, 0) {
+	// 3. 年煤品消费量部分校验
+	sceTotalCoalConsumption, err := s.tryParseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（折标量）不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(sceCoalConsumption, 0) {
-		cells := []string{s.getCellPosition(TableType3, "sce_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（折标量）不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(sceCokeConsumption, 0) {
-		cells := []string{s.getCellPosition(TableType3, "sce_coke_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（折标量）不能为负数", Cells: cells})
-	}
-	if s.isIntegerLessThan(sceBlueCokeConsumption, 0) {
-		cells := []string{s.getCellPosition(TableType3, "sce_blue_coke_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（折标量）不能为负数", Cells: cells})
+        errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（折标量）应为数字", Cells: cells})
+	} else {
+        if s.isIntegerLessThan(sceTotalCoalConsumption, 0) {
+            cells := []string{s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（折标量）不能为负数", Cells: cells})
+        }
+        if s.isIntegerGreaterThan(sceTotalCoalConsumption, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（折标量）不能大于100000", Cells: cells})
+        }
 	}
 
-	// ②≦100000
-	if s.isIntegerGreaterThan(pqTotalCoalConsumption, 100000) {
-		cells := []string{s.getCellPosition(TableType3, "pq_total_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（实物量）不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(pqCoalConsumption, 100000) {
-		cells := []string{s.getCellPosition(TableType3, "pq_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（实物量）不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(pqCokeConsumption, 100000) {
-		cells := []string{s.getCellPosition(TableType3, "pq_coke_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（实物量）不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(pqBlueCokeConsumption, 100000) {
-		cells := []string{s.getCellPosition(TableType3, "pq_blue_coke_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（实物量）不能大于100000", Cells: cells})
+	sceCoalConsumption, err := s.tryParseFloat(s.getStringValue(data["sce_coal_consumption"]))
+	if err != nil {
+		cells := []string{s.getCellPosition(TableType3, "sce_coal_consumption", rowNum)}
+        errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（折标量）应为数字", Cells: cells})
+	} else {
+	    if s.isIntegerLessThan(sceCoalConsumption, 0) {
+            cells := []string{s.getCellPosition(TableType3, "sce_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（折标量）不能为负数", Cells: cells})
+        }
+        if s.isIntegerGreaterThan(sceCoalConsumption, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "sce_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（折标量）不能大于100000", Cells: cells})
+        }
 	}
 
-	if s.isIntegerGreaterThan(sceTotalCoalConsumption, 100000) {
-		cells := []string{s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤品消费总量（折标量）不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(sceCoalConsumption, 100000) {
-		cells := []string{s.getCellPosition(TableType3, "sce_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费量（折标量）不能大于100000", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(sceCokeConsumption, 100000) {
+
+	sceCokeConsumption, err := s.tryParseFloat(s.getStringValue(data["sce_coke_consumption"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType3, "sce_coke_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（折标量）不能大于100000", Cells: cells})
+        errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（折标量）应为数字", Cells: cells})
+	} else {
+	    if s.isIntegerLessThan(sceCokeConsumption, 0) {
+            cells := []string{s.getCellPosition(TableType3, "sce_coke_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（折标量）不能为负数", Cells: cells})
+        }
+        if s.isIntegerGreaterThan(sceCokeConsumption, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "sce_coke_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "焦炭消费量（折标量）不能大于100000", Cells: cells})
+        }
 	}
-	if s.isIntegerGreaterThan(sceBlueCokeConsumption, 100000) {
+
+	sceBlueCokeConsumption, err := s.tryParseFloat(s.getStringValue(data["sce_blue_coke_consumption"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType3, "sce_blue_coke_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（折标量）不能大于100000", Cells: cells})
+        errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（折标量）应为数字", Cells: cells})
+	} else {
+	    if s.isIntegerLessThan(sceBlueCokeConsumption, 0) {
+            cells := []string{s.getCellPosition(TableType3, "sce_blue_coke_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（折标量）不能为负数", Cells: cells})
+        }
+
+        if s.isIntegerGreaterThan(sceBlueCokeConsumption, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "sce_blue_coke_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "兰炭消费量（折标量）不能大于100000", Cells: cells})
+        }
 	}
 
 	// 3. 煤炭消费替代情况部分校验
 	// 煤炭消费替代量（实物量）规则：①≧0；②≦100000
-	substitutionQuantity := s.parseFloat(s.getStringValue(data["substitution_quantity"]))
+	substitutionQuantity, err := s.tryParseFloat(s.getStringValue(data["substitution_quantity"]))
+	if err != nil {
+		cells := []string{s.getCellPosition(TableType3, "substitution_quantity", rowNum)}
+        errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费替代量（实物量）应为数字", Cells: cells})
+	} else {
+	    if s.isIntegerLessThan(substitutionQuantity, 0) {
+    		cells := []string{s.getCellPosition(TableType3, "substitution_quantity", rowNum)}
+    		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费替代量（实物量）不能为负数", Cells: cells})
+    	}
+    	if s.isIntegerGreaterThan(substitutionQuantity, 100000) {
+    		cells := []string{s.getCellPosition(TableType3, "substitution_quantity", rowNum)}
+    		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费替代量（实物量）不能大于100000", Cells: cells})
+    	}
+	}
 
-	if s.isIntegerLessThan(substitutionQuantity, 0) {
-		cells := []string{s.getCellPosition(TableType3, "substitution_quantity", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费替代量（实物量）不能为负数", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(substitutionQuantity, 100000) {
-		cells := []string{s.getCellPosition(TableType3, "substitution_quantity", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "煤炭消费替代量（实物量）不能大于100000", Cells: cells})
-	}
 
 	// 4. 原料用煤部分校验
 	// 年原料用煤量（实物量）、年原料用煤量（折标量）规则：①≧0；②≦100000；
-	pqAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
-	sceAnnualCoalQuantity := s.parseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
-
-	if s.isIntegerLessThan(pqAnnualCoalQuantity, 0) {
+	pqAnnualCoalQuantity, err := s.tryParseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType3, "pq_annual_coal_quantity", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（实物量）不能为负数", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(pqAnnualCoalQuantity, 100000) {
-		cells := []string{s.getCellPosition(TableType3, "pq_annual_coal_quantity", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（实物量）不能大于100000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（实物量）应为数字", Cells: cells})
+	} else {
+	    if s.isIntegerLessThan(pqAnnualCoalQuantity, 0) {
+            cells := []string{s.getCellPosition(TableType3, "pq_annual_coal_quantity", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（实物量）不能为负数", Cells: cells})
+        }
+        if s.isIntegerGreaterThan(pqAnnualCoalQuantity, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "pq_annual_coal_quantity", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（实物量）不能大于100000", Cells: cells})
+        }
 	}
 
-	if s.isIntegerLessThan(sceAnnualCoalQuantity, 0) {
+
+
+	sceAnnualCoalQuantity, err := s.tryParseFloat(s.getStringValue(data["sce_annual_coal_quantity"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType3, "sce_annual_coal_quantity", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（折标量）不能为负数", Cells: cells})
-	}
-	if s.isIntegerGreaterThan(sceAnnualCoalQuantity, 100000) {
-		cells := []string{s.getCellPosition(TableType3, "sce_annual_coal_quantity", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（折标量）不能大于100000", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（折标量）应为数字", Cells: cells})
+	} else {
+	    if s.isIntegerLessThan(sceAnnualCoalQuantity, 0) {
+            cells := []string{s.getCellPosition(TableType3, "sce_annual_coal_quantity", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（折标量）不能为负数", Cells: cells})
+        }
+        if s.isIntegerGreaterThan(sceAnnualCoalQuantity, 100000) {
+            cells := []string{s.getCellPosition(TableType3, "sce_annual_coal_quantity", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年原料用煤量（折标量）不能大于100000", Cells: cells})
+        }
 	}
 
 	if s.isIntegerLessThan(pqAnnualCoalQuantity, sceAnnualCoalQuantity) {

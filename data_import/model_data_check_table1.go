@@ -791,63 +791,75 @@ func (s *DataImportService) validateTable1EquipNumericFields(data map[string]int
 	errors := []ValidationError{}
 
 	// 获取设备相关数值
-	totalRuntime := s.parseFloat(s.getStringValue(data["total_runtime"]))
-	designLife := s.parseFloat(s.getStringValue(data["design_life"]))
-	energyEfficiency := s.parseFloat(s.getStringValue(data["energy_efficiency"]))
-	capacity := s.parseFloat(s.getStringValue(data["capacity"]))
-	annualCoalConsumption := s.parseFloat(s.getStringValue(data["annual_coal_consumption"]))
-
-	// 1. 累计使用时间、设计年限校验
-	// 应为0-50（含0和50）间的整数
-	if s.isIntegerLessThan(totalRuntime, 0) || s.isIntegerGreaterThan(totalRuntime, 50) {
+	totalRuntime, err := s.tryParseFloat(s.getStringValue(data["total_runtime"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType1, "total_runtime", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应在0-50之间", Cells: cells})
-	}
-	// 检查是否为整数
-	if !s.isIntegerInteger(totalRuntime) {
-		cells := []string{s.getCellPosition(TableType1, "total_runtime", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应为整数", Cells: cells})
-	}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应为数字", Cells: cells})
+	} else {
+        // 1. 累计使用时间、设计年限校验
+        // 应为0-50（含0和50）间的整数
+        if s.isIntegerLessThan(totalRuntime, 0) || s.isIntegerGreaterThan(totalRuntime, 50) {
+            cells := []string{s.getCellPosition(TableType1, "total_runtime", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应在0-50之间", Cells: cells})
+        }
+        // 检查是否为整数
+        if !s.isIntegerInteger(totalRuntime) {
+            cells := []string{s.getCellPosition(TableType1, "total_runtime", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "累计使用时间应为整数", Cells: cells})
+        }
+    }
 
-	if s.isIntegerLessThan(designLife, 0) || s.isIntegerGreaterThan(designLife, 50) {
+	designLife, err := s.tryParseFloat(s.getStringValue(data["design_life"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType1, "design_life", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应在0-50之间", Cells: cells})
-	}
-	// 检查是否为整数
-	if !s.isIntegerInteger(designLife) {
-		cells := []string{s.getCellPosition(TableType1, "design_life", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应为整数", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应为数字", Cells: cells})
+	} else {
+        if s.isIntegerLessThan(designLife, 0) || s.isIntegerGreaterThan(designLife, 50) {
+            cells := []string{s.getCellPosition(TableType1, "design_life", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应在0-50之间", Cells: cells})
+        }
+        // 检查是否为整数
+        if !s.isIntegerInteger(designLife) {
+            cells := []string{s.getCellPosition(TableType1, "design_life", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "设计年限应为整数", Cells: cells})
+        }
 	}
 
-	// 2. 容量校验
-	// 应为正整数
-	if s.isIntegerLessThan(capacity, 0) {
+	capacity, err := s.tryParseFloat(s.getStringValue(data["capacity"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType1, "capacity", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量不能为负数", Cells: cells})
-	}
-	// 检查是否为整数
-	if !s.isIntegerInteger(capacity) {
-		cells := []string{s.getCellPosition(TableType1, "capacity", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量应为整数", Cells: cells})
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量应为数字", Cells: cells})
+	} else {
+        // 容量校验
+        // 应为正整数
+        if s.isIntegerLessThan(capacity, 0) {
+            cells := []string{s.getCellPosition(TableType1, "capacity", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量不能为负数", Cells: cells})
+        }
+        // 检查是否为整数
+        if !s.isIntegerInteger(capacity) {
+            cells := []string{s.getCellPosition(TableType1, "capacity", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "容量应为整数", Cells: cells})
+        }
 	}
 
-	// 3. 年耗煤量校验
-	// ①≧0
-	if s.isIntegerLessThan(annualCoalConsumption, 0) {
+	annualCoalConsumption, err := s.tryParseFloat(s.getStringValue(data["annual_coal_consumption"]))
+	if err != nil {
 		cells := []string{s.getCellPosition(TableType1, "annual_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能为负数", Cells: cells})
-	}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "耗煤总量（标准量）应为数字", Cells: cells})
+	} else {
+	    // 3. 年耗煤量校验
+        // ①≧0
+        if s.isIntegerLessThan(annualCoalConsumption, 0) {
+            cells := []string{s.getCellPosition(TableType1, "annual_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能为负数", Cells: cells})
+        }
 
-	// ②≦1000000000
-	if s.isIntegerGreaterThan(annualCoalConsumption, 1000000000) {
-		cells := []string{s.getCellPosition(TableType1, "annual_coal_consumption", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能大于1000000000", Cells: cells})
-	}
-
-	// 能效水平校验（保持原有的非负校验）
-	if s.isIntegerLessThan(energyEfficiency, 0) {
-		cells := []string{s.getCellPosition(TableType1, "energy_efficiency", rowNum)}
-		errors = append(errors, ValidationError{RowNumber: rowNum, Message: "能效水平不能为负数", Cells: cells})
+        // ②≦1000000000
+        if s.isIntegerGreaterThan(annualCoalConsumption, 1000000000) {
+            cells := []string{s.getCellPosition(TableType1, "annual_coal_consumption", rowNum)}
+            errors = append(errors, ValidationError{RowNumber: rowNum, Message: "年耗煤量不能大于1000000000", Cells: cells})
+        }
 	}
 
 	return errors

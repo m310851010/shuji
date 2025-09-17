@@ -481,6 +481,19 @@ func (s *DataImportService) parseFloat(value string) float64 {
 	return result
 }
 
+// tryParseFloat 尝试解析浮点数
+func (s *DataImportService) tryParseFloat(value string) (float64, error) {
+	if value == "" {
+        return 0, nil
+    }
+	result, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, err
+	}
+	return result, nil
+}
+
+
 // isIntegerEqual 使用整数计算判断两个float64是否相等（乘以1000转换为整数计算）
 func (s *DataImportService) isIntegerEqual(a, b float64) bool {
 	// 将浮点数乘以1000转换为整数进行计算
