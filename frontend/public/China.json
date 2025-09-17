@@ -6973,32 +6973,6 @@
         ]
       },
       {
-        "code": "4290",
-        "name": "潜江市",
-        "children": [
-          {
-            "code": "429005",
-            "name": "潜江市",
-            "children": []
-          },
-          {
-            "code": "429021",
-            "name": "神农架林区",
-            "children": []
-          },
-          {
-            "code": "429006",
-            "name": "天门市",
-            "children": []
-          },
-          {
-            "code": "429004",
-            "name": "仙桃市",
-            "children": []
-          }
-        ]
-      },
-      {
         "code": "4203",
         "name": "十堰市",
         "children": [
@@ -7331,6 +7305,49 @@
           {
             "code": "420505",
             "name": "猇亭区",
+            "children": []
+          }
+        ]
+      },{
+        "code": "4290",
+        "name": "潜江市",
+        "children": [
+          {
+            "code": "429005",
+            "name": "潜江市",
+            "children": []
+          }
+        ]
+      },
+      {
+        "code": "4297",
+        "name": "神农架林区",
+        "children": [
+          {
+            "code": "429700",
+            "name": "神农架林区",
+            "children": []
+          }
+        ]
+      },
+      {
+        "code": "4298",
+        "name": "天门市",
+        "children": [
+          {
+            "code": "429800",
+            "name": "天门市",
+            "children": []
+          }
+        ]
+      },
+      {
+        "code": "4299",
+        "name": "仙桃市",
+        "children": [
+          {
+            "code": "429900",
+            "name": "仙桃市",
             "children": []
           }
         ]
@@ -15322,6 +15339,14 @@
           {
             "code": "653227",
             "name": "民丰县",
+            "children": []
+          },{
+            "code": "653228",
+            "name": "和康县",
+            "children": []
+          },{
+            "code": "653229",
+            "name": "和安县",
             "children": []
           }
         ]
