@@ -1,0 +1,146 @@
+#!/bin/bash
+
+set -e
+
+# 检查系统架构
+ARCH=$(dpkg --print-architecture)
+if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "amd64" ]; then
+    echo "错误：安装包仅支持arm64和amd64架构"
+    exit 1
+fi
+
+# 检测操作系统类型
+if grep -qi "kylin" /etc/os-release; then
+    OS_TYPE="kylin"
+    echo "检测到银河麒麟系统"
+elif grep -qi "uos" /etc/os-release || grep -qi "uniontech" /etc/os-release; then
+    OS_TYPE="uos"
+    echo "检测到统信UOS系统"
+elif grep -qi "deepin" /etc/os-release; then
+    OS_TYPE="deepin"
+    echo "检测到Deepin系统"
+else
+    OS_TYPE="debian"
+    echo "检测到Debian/Ubuntu系系统"
+fi
+
+echo "正在安装和更新系统依赖..."
+
+# 更新软件包列表
+apt-get update
+
+# 基础依赖
+BASE_DEPS="libgtk-3-0 libwebkit2gtk-4.0-37 libappindicator3-1 librsvg2-common"
+BASE_DEPS="$BASE_DEPS libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good"
+BASE_DEPS="$BASE_DEPS gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav"
+
+# 字体和主题依赖
+FONT_DEPS="fonts-noto-cjk fonts-wqy-microhei fonts-wqy-zenhei"
+THEME_DEPS="gtk2-engines-pixbuf adwaita-icon-theme-full gnome-themes-extra"
+
+# WebKit和GTK相关依赖
+WEB_DEPS="libjavascriptcoregtk-4.0-18 libsoup2.4-1 libharfbuzz-icu0 libenchant-2-2"
+
+# 多媒体支持
+MEDIA_DEPS="libavcodec58 libavformat58 libswscale5 libsdl2-2.0-0"
+
+# 统信UOS依赖
+if [ "$OS_TYPE" = "uos" ]; then
+    echo "安装统信UOS依赖..."
+    UOS_DEPS="libqt5gui5 libqt5widgets5 libqt5core5a"
+    UOS_DEPS="$UOS_DEPS libdtkgui5 libdtkwidget5 libdtkcore5"
+    BASE_DEPS="$BASE_DEPS $UOS_DEPS"
+fi
+
+# 银河麒麟依赖
+if [ "$OS_TYPE" = "kylin" ]; then
+    echo "安装银河麒麟依赖..."
+    KYLIN_DEPS="kylin-software-center-common"
+    BASE_DEPS="$BASE_DEPS $KYLIN_DEPS"
+fi
+
+# 安装所有依赖
+echo "安装基础依赖: $BASE_DEPS"
+apt-get install -y $BASE_DEPS
+
+echo "安装字体依赖: $FONT_DEPS"
+apt-get install -y $FONT_DEPS
+
+echo "安装主题依赖: $THEME_DEPS"
+apt-get install -y $THEME_DEPS
+
+echo "安装Web依赖: $WEB_DEPS"
+apt-get install -y $WEB_DEPS
+
+echo "安装多媒体依赖: $MEDIA_DEPS"
+apt-get install -y $MEDIA_DEPS
+
+# 针对不同系统的处理
+case $OS_TYPE in
+    "uos")
+        # 统信UOS的配置
+        echo "配置统信UOS环境..."
+        # 应用DTK环境变量
+        if [ -f "/etc/profile.d/dtk.sh" ]; then
+            source /etc/profile.d/dtk.sh
+        fi
+        ;;
+    "kylin")
+        # 银河麒麟的配置
+        echo "配置银河麒麟环境..."
+        # 修复主题问题
+        if [ -x "$(command -v kylin-software-center)" ]; then
+            echo "检测到麒麟软件中心，进行兼容性配置"
+        fi
+        ;;
+    "deepin")
+        # Deepin的配置
+        echo "配置Deepin环境..."
+        DEEPIN_DEPS="deepin-qt5integration deepin-qt5config"
+        apt-get install -y $DEEPIN_DEPS
+        ;;
+    *)
+        # 通用Debian/Ubuntu配置
+        echo "通用Linux环境配置..."
+        ;;
+esac
+
+# 清理和优化
+echo "清理系统..."
+apt-get autoremove -y
+apt-get clean
+
+# 更新动态链接库缓存
+echo "更新库缓存..."
+ldconfig
+
+# 修复GTK主题问题
+echo "修复GTK主题配置..."
+fix_gtk_theme() {
+    # 如果不存在用户级GTK配置则创建
+    local gtk3_config="$HOME/.config/gtk-3.0/settings.ini"
+    if [ ! -f "$gtk3_config" ] && [ -n "$SUDO_USER" ]; then
+        # 如果是sudo运行，为原始用户创建配置
+        local user_home=$(eval echo ~$SUDO_USER)
+        mkdir -p "$user_home/.config/gtk-3.0"
+        cat > "$user_home/.config/gtk-3.0/settings.ini" << EOF
+[Settings]
+gtk-theme-name=Adwaita
+gtk-application-prefer-dark-theme=false
+EOF
+        chown $SUDO_USER:$SUDO_USER "$user_home/.config/gtk-3.0/settings.ini"
+    fi
+}
+
+# 只在图形环境下运行GTK修复
+if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+    fix_gtk_theme
+fi
+
+echo "================================================"
+echo "依赖安装完成！"
+echo "操作系统: $OS_TYPE"
+echo "架构: $ARCH"
+echo "================================================"
+
+exit 0
