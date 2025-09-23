@@ -1,37 +1,157 @@
 #!/bin/bash
 
-set +e
+set -e
 
-case "$1" in
-    configure)
-        # 更新桌面数据库
-        update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
-        
-        # 更新图标缓存
-        gtk-update-icon-cache -f /usr/share/icons/hicolor >/dev/null 2>&1 || true
-        
-        # 为所有用户创建桌面快捷方式（兼容中英文环境）
-        for home_dir in /home/*; do
-            if [ -d "$home_dir" ] && [ "$(basename "$home_dir")" != "lost+found" ]; then
-                username=$(basename "$home_dir")
-                
-                # 确定桌面路径（兼容中英文）
-                desktop_dir=""
-                if [ -d "$home_dir/Desktop" ]; then
-                    desktop_dir="$home_dir/Desktop"
-                elif [ -d "$home_dir/桌面" ]; then
-                    desktop_dir="$home_dir/桌面"
-                else
-                    # 如果桌面目录不存在，创建它
-                    desktop_dir="$home_dir/Desktop"
-                    mkdir -p "$desktop_dir"
-                    chown "$username:$username" "$desktop_dir"
-                fi
-                
-                # 创建桌面快捷方式
-                desktop_file="$desktop_dir/煤炭摸底数据校验软件.desktop"
-                
-                cat > "$desktop_file" << EOF
+# 检查系统架构
+ARCH=$(dpkg --print-architecture)
+if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "amd64" ]; then
+    echo "错误：安装包仅支持arm64和amd64架构"
+    exit 1
+fi
+
+# 检测操作系统类型
+if grep -qi "kylin" /etc/os-release; then
+    OS_TYPE="kylin"
+    echo "检测到银河麒麟系统"
+elif grep -qi "uos" /etc/os-release || grep -qi "uniontech" /etc/os-release; then
+    OS_TYPE="uos"
+    echo "检测到统信UOS系统"
+elif grep -qi "deepin" /etc/os-release; then
+    OS_TYPE="deepin"
+    echo "检测到Deepin系统"
+else
+    OS_TYPE="debian"
+    echo "检测到Debian/Ubuntu系系统"
+fi
+
+echo "正在安装和更新系统依赖..."
+
+# 更新软件包列表
+apt-get update
+
+# 基础依赖
+BASE_DEPS="libgtk-3-0 libwebkit2gtk-4.0-37 libappindicator3-1 librsvg2-common"
+BASE_DEPS="$BASE_DEPS libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good"
+BASE_DEPS="$BASE_DEPS gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav"
+
+# 字体和主题依赖
+FONT_DEPS="fonts-noto-cjk fonts-wqy-microhei fonts-wqy-zenhei"
+THEME_DEPS="gtk2-engines-pixbuf adwaita-icon-theme-full gnome-themes-extra"
+
+# WebKit和GTK相关依赖
+WEB_DEPS="libjavascriptcoregtk-4.0-18 libsoup2.4-1 libharfbuzz-icu0 libenchant-2-2"
+
+# 多媒体支持
+MEDIA_DEPS="libavcodec58 libavformat58 libswscale5 libsdl2-2.0-0"
+
+# 安装所有依赖
+echo "安装基础依赖: $BASE_DEPS"
+apt-get install -y $BASE_DEPS
+
+echo "安装字体依赖: $FONT_DEPS"
+apt-get install -y $FONT_DEPS
+
+echo "安装主题依赖: $THEME_DEPS"
+apt-get install -y $THEME_DEPS
+
+echo "安装Web依赖: $WEB_DEPS"
+apt-get install -y $WEB_DEPS
+
+echo "安装多媒体依赖: $MEDIA_DEPS"
+apt-get install -y $MEDIA_DEPS
+
+# 针对不同系统的处理
+case $OS_TYPE in
+    "uos")
+        # 统信UOS的配置
+        echo "配置统信UOS环境..."
+        # 应用DTK环境变量
+        if [ -f "/etc/profile.d/dtk.sh" ]; then
+            source /etc/profile.d/dtk.sh
+        fi
+        ;;
+    "kylin")
+        # 银河麒麟的配置
+        echo "配置银河麒麟环境..."
+        # 修复主题问题
+        if [ -x "$(command -v kylin-software-center)" ]; then
+            echo "检测到麒麟软件中心，进行兼容性配置"
+        fi
+        ;;
+    "deepin")
+        # Deepin的配置
+        echo "配置Deepin环境..."
+        DEEPIN_DEPS="deepin-qt5integration deepin-qt5config"
+        apt-get install -y $DEEPIN_DEPS
+        ;;
+    *)
+        # 通用Debian/Ubuntu配置
+        echo "通用Linux环境配置..."
+        ;;
+esac
+
+# 清理和优化
+echo "清理系统..."
+apt-get autoremove -y
+apt-get clean
+
+# 更新动态链接库缓存
+echo "更新库缓存..."
+ldconfig
+
+# 修复GTK主题问题
+echo "修复GTK主题配置..."
+fix_gtk_theme() {
+    # 如果不存在用户级GTK配置则创建
+    local gtk3_config="$HOME/.config/gtk-3.0/settings.ini"
+    if [ ! -f "$gtk3_config" ] && [ -n "$SUDO_USER" ]; then
+        # 如果是sudo运行，为原始用户创建配置
+        local user_home=$(eval echo ~$SUDO_USER)
+        mkdir -p "$user_home/.config/gtk-3.0"
+        cat > "$user_home/.config/gtk-3.0/settings.ini" << EOF
+[Settings]
+gtk-theme-name=Adwaita
+gtk-application-prefer-dark-theme=false
+EOF
+        chown $SUDO_USER:$SUDO_USER "$user_home/.config/gtk-3.0/settings.ini"
+    fi
+}
+
+# 只在图形环境下运行GTK修复
+if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+    fix_gtk_theme
+fi
+
+# 创建桌面文件
+create_desktop() {
+    # 更新桌面数据库
+    update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+    
+    # 更新图标缓存
+    gtk-update-icon-cache -f /usr/share/icons/hicolor >/dev/null 2>&1 || true
+    
+    # 为所有用户创建桌面快捷方式
+    for home_dir in /home/*; do
+        if [ -d "$home_dir" ] && [ "$(basename "$home_dir")" != "lost+found" ]; then
+            username=$(basename "$home_dir")
+            
+            # 确定桌面路径（兼容中英文）
+            desktop_dir=""
+            if [ -d "$home_dir/Desktop" ]; then
+                desktop_dir="$home_dir/Desktop"
+            elif [ -d "$home_dir/桌面" ]; then
+                desktop_dir="$home_dir/桌面"
+            else
+                # 如果桌面目录不存在，创建它
+                desktop_dir="$home_dir/Desktop"
+                mkdir -p "$desktop_dir"
+                chown "$username:$username" "$desktop_dir"
+            fi
+            
+            # 创建桌面快捷方式
+            desktop_file="$desktop_dir/煤炭摸底数据校验软件.desktop"
+            
+            cat > "$desktop_file" << EOF
 [Desktop Entry]
 Comment=数据处理软件
 Comment[zh_CN]=数据处理软件
@@ -53,70 +173,21 @@ Icon=/usr/share/icons/shuji/appicon.png
 Description=煤炭摸底数据校验软件
 StartupWMClass=shuji
 EOF
-                
-                # 设置正确的权限
-                chown "$username:$username" "$desktop_file"
-                chmod 755 "$desktop_file"
-            fi
-        done
-        ;;
-esac
-
-
-# 检查并更新 WebKitGTK
-PACKAGE="libwebkit2gtk-4.0-37:amd64"
-LOG_FILE="/var/log/${PACKAGE%-*}-upgrade.log"
-
-log() {
-    logger -t "shuji-postinst" "$*" >> "$LOG_FILE" 2>&1 || true
+            
+            # 设置正确的权限
+            chown "$username:$username" "$desktop_file"
+            chmod 755 "$desktop_file"
+        fi
+    done
 }
 
-log "开始检查 WebKitGTK 依赖..."
+echo "创建桌面文件..."
+create_desktop
 
-# 获取已安装版本
-INSTALLED_VERSION=$(dpkg -l | grep "^ii" | grep -w "$PACKAGE" | awk '{print $3}' | head -n1)
-
-if [ -z "$INSTALLED_VERSION" ]; then
-    log "$PACKAGE 未安装，跳过升级。"
-    exit 0
-fi
-
-log "当前版本: $INSTALLED_VERSION"
-
-log "尝试从本地缓存获取最新版本..."
-CANDIDATE_VERSION=$(apt-cache policy "$PACKAGE" | grep "Candidate" | awk '{print $2}' | head -n1)
-
-if [ -z "$CANDIDATE_VERSION" ] || [ "$CANDIDATE_VERSION" = "(none)" ]; then
-    log "本地缓存无可用版本，尝试更新 APT 索引..."
-
-    # 静默更新 APT 缓存（可能因网络或权限失败，但不影响）
-    apt-get update -qq >/dev/null 2>&1 || log "APT 更新失败，跳过升级。"
-
-    # 再次尝试获取最新版本
-    CANDIDATE_VERSION=$(apt-cache policy "$PACKAGE" | grep "Candidate" | awk '{print $2}' | head -n1)
-fi
-
-if [ -z "$CANDIDATE_VERSION" ] || [ "$CANDIDATE_VERSION" = "(none)" ]; then
-    log "无法获取最新版本信息，跳过升级。"
-    exit 0
-fi
-
-log "最新版本: $CANDIDATE_VERSION"
-
-# 比较版本
-if dpkg --compare-versions "$CANDIDATE_VERSION" gt "$INSTALLED_VERSION"; then
-    log "正在静默升级 $PACKAGE 到 $CANDIDATE_VERSION..."
-
-    # 静默安装最新版本
-    apt-get install -y --no-install-recommends "$PACKAGE=$CANDIDATE_VERSION" > /dev/null 2>&1
-
-    if [ $? -eq 0 ]; then
-        log "升级成功"
-    else
-        log "升级失败（可能网络或权限问题），继续安装主程序。"
-    fi
-else
-    log "已是最新版本，无需升级。"
-fi
+echo "================================================"
+echo "依赖安装完成！"
+echo "操作系统: $OS_TYPE"
+echo "架构: $ARCH"
+echo "================================================"
 
 exit 0

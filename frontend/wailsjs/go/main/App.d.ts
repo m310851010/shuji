@@ -26,6 +26,14 @@ export function CreateNewDatabase(arg1:string):Promise<db.Database>;
 
 export function DBTranformExcel(arg1:string):Promise<db.QueryResult>;
 
+export function DeleteDataAttachment2(arg1:Array<string>):Promise<db.QueryResult>;
+
+export function DeleteDataTable1(arg1:Array<string>):Promise<db.QueryResult>;
+
+export function DeleteDataTable2(arg1:Array<string>):Promise<db.QueryResult>;
+
+export function DeleteDataTable3(arg1:Array<string>):Promise<db.QueryResult>;
+
 export function ExitApp():Promise<void>;
 
 export function ExportAttachment2ProgressToExcel(arg1:string):Promise<db.QueryResult>;

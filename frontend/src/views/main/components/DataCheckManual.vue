@@ -26,7 +26,7 @@
     :title="modal.title"
     :cancel-button-props="{ style: 'display: none' }"
     @ok="modal.handleOk"
-    ok-text="确认当前表格"
+    :ok-text="modal.data?.is_confirm === '1' ? '关闭' : '确认当前表格'"
   >
     <div class="wh-100 relative">
       <div class="abs" style="overflow: auto">
@@ -57,9 +57,14 @@
     ConfirmDataAttachment2,
     ConfirmDataTable1,
     ConfirmDataTable2,
-    ConfirmDataTable3
+    ConfirmDataTable3,
+    DeleteDataTable1,
+    DeleteDataTable2,
+    DeleteDataTable3,
+    DeleteDataAttachment2
   } from '@wailsjs/go';
   import dayjs from 'dayjs';
+import { openModal } from '@/components/useModal';
 
   const tableBoxRef = ref(null);
   const tableScroll = useTableHeight(tableBoxRef);
@@ -204,6 +209,11 @@
       }
     },
     handleOk: async () => {
+      if (modal.data?.is_confirm === '1') {
+        modal.show = false;
+        return;
+      }
+
       try {
         await executeConfirm(props.tableType, objId.value, 1);
         queryDataByTableType(props.tableType);
@@ -214,6 +224,36 @@
       modal.show = false;
     }
   });
+
+  const confrimModal = (data: Record<string, any>) => {
+    openModal({
+      title: '确认删除',
+      content: `删除后不可恢复，确定删除？`,
+      onOk: async () => {
+        let objId = [data.obj_id];
+        let result;
+        if (props.tableType === 'table1') {
+            result = await DeleteDataTable1(objId);
+        } else if (props.tableType === 'table2') {
+          objId = data.data.map((item: any) => item.obj_id)
+            result = await DeleteDataTable2(objId);
+        } else if (props.tableType === 'table3') {
+            result = await DeleteDataTable3(objId); 
+        } else if (props.tableType === 'attachment2') {
+          objId = data.data.map((item: any) => item.obj_id)
+          result = await DeleteDataAttachment2(objId);
+        } else {
+          return;
+        }
+        if (result.ok) {
+          queryDataByTableType(props.tableType);
+          message.success('删除数据成功');
+        } else {
+          message.error(result.message || '删除数据失败');
+        }
+      }
+    });
+  };
 
   const selectedRowKeys = ref<string[]>([]);
   const selectedRows = ref<Record<string, any>[]>([]);
@@ -329,18 +369,16 @@
     },
     {
       title: '操作',
+      width: 180,
       customRender: opt => {
         return (
-          <div style="display: flex; justify-content: center;">
-            {opt.record.is_confirm === '1' ? (
-              <Button type="primary" size="small" class="ant-btn-loading">
-                已校核
+          <div style="display: flex; justify-content: center; ">
+              <Button type="primary" style="margin-right: 10px;" size="small" onClick={() => modal.showModal(opt.record)}>
+                {opt.record.is_confirm === '1' ? '已校核' : '校核'}
               </Button>
-            ) : (
-              <Button type="primary" size="small" onClick={() => modal.showModal(opt.record)}>
-                校核
+              <Button danger size="small" onClick={() => confrimModal(opt.record)}>
+               删除
               </Button>
-            )}
           </div>
         );
       }

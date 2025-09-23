@@ -224,3 +224,42 @@ func (s *DataImportService) ConfirmDataAttachment2(obj_id []string) db.QueryResu
 		Message: fmt.Sprintf("成功确认 %d 条附件2数据", len(obj_id)),
 	}
 }
+
+func (s *DataImportService) DeleteDataAttachment2(obj_id []string) db.QueryResult {
+	if len(obj_id) == 0 {
+		return db.QueryResult{
+			Ok:      false,
+			Message: "请选择要删除的数据",
+		}
+	}
+
+	// 构建IN查询的占位符
+	placeholders := strings.Repeat("?,", len(obj_id))
+	placeholders = placeholders[:len(placeholders)-1] // 移除最后一个逗号
+
+	// 删除附件2数据
+	query := fmt.Sprintf(`
+		DELETE FROM coal_consumption_report 
+		WHERE obj_id IN (%s)
+	`, placeholders)
+
+	args := s.convertToInterfaceSlice(obj_id)
+
+	_, err := s.app.GetDB().Exec(query, args...)
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("删除%s数据失败: %v", TableAttachment2, err),
+		}
+	}
+
+	// 异步重新加载缓存
+	if attachment2CacheManager != nil {
+		go attachment2CacheManager.ReloadCache()
+	}
+
+	return db.QueryResult{
+		Ok:      true,	
+		Message: fmt.Sprintf("成功删除 %d 条%s数据", len(obj_id), TableAttachment2),
+	}
+}

@@ -46,6 +46,22 @@ export function DBTranformExcel(arg1) {
   return window['go']['main']['App']['DBTranformExcel'](arg1);
 }
 
+export function DeleteDataAttachment2(arg1) {
+  return window['go']['main']['App']['DeleteDataAttachment2'](arg1);
+}
+
+export function DeleteDataTable1(arg1) {
+  return window['go']['main']['App']['DeleteDataTable1'](arg1);
+}
+
+export function DeleteDataTable2(arg1) {
+  return window['go']['main']['App']['DeleteDataTable2'](arg1);
+}
+
+export function DeleteDataTable3(arg1) {
+  return window['go']['main']['App']['DeleteDataTable3'](arg1);
+}
+
 export function ExitApp() {
   return window['go']['main']['App']['ExitApp']();
 }

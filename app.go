@@ -757,6 +757,29 @@ func (a *App) ConfirmDataAttachment2(obj_id []string) db.QueryResult {
 	return dataImportService.ConfirmDataAttachment2(obj_id)
 }
 
+func (a *App) DeleteDataTable1(obj_id []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.DeleteDataTable1(obj_id)
+}
+
+// DeleteDataTable2 删除附表2数据
+func (a *App) DeleteDataTable2(obj_id []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.DeleteDataTable2(obj_id)
+}
+
+// DeleteDataTable3 删除附表3数据
+func (a *App) DeleteDataTable3(obj_id []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.DeleteDataTable3(obj_id)
+}
+
+// DeleteDataAttachment2 删除附件2数据
+func (a *App) DeleteDataAttachment2(obj_id []string) db.QueryResult {
+	dataImportService := data_import.NewDataImportService(a)
+	return dataImportService.DeleteDataAttachment2(obj_id)
+}
+
 // ========================SM4加密========================
 
 // SM4Encrypt 加密

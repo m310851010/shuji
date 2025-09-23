@@ -342,3 +342,68 @@ func (s *DataImportService) ConfirmDataTable1(obj_id []string) db.QueryResult {
 		Message: fmt.Sprintf("成功确认 %d 条附表1数据", len(obj_id)),
 	}
 }
+
+// DeleteDataTable1 删除附表1数据
+func (s *DataImportService) DeleteDataTable1(obj_id []string) db.QueryResult {
+	if len(obj_id) == 0 {
+		return db.QueryResult{
+			Ok:      false,
+			Message: "请选择要删除的数据",
+		}
+	}
+
+	// 构建IN查询的占位符
+	placeholders := strings.Repeat("?,", len(obj_id))
+	placeholders = placeholders[:len(placeholders)-1] // 移除最后一个逗号
+
+	// 删除附表1数据
+	query := fmt.Sprintf(`
+		DELETE FROM enterprise_coal_consumption_main 
+		WHERE obj_id IN (%s)
+	`, placeholders)
+
+	args := s.convertToInterfaceSlice(obj_id)
+
+	_, err := s.app.GetDB().Exec(query, args...)
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("删除%s数据失败: %v", TableName1, err),
+		}
+	}
+
+	query = fmt.Sprintf(`
+		DELETE FROM enterprise_coal_consumption_usage 
+		WHERE fk_id IN (%s)
+	`, placeholders)
+
+	args = s.convertToInterfaceSlice(obj_id)
+
+	_, err = s.app.GetDB().Exec(query, args...)
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("删除%s数据失败: %v", TableName1, err),
+		}
+	}
+
+	query = fmt.Sprintf(`
+		DELETE FROM enterprise_coal_consumption_equip 
+		WHERE fk_id IN (%s)
+	`, placeholders)
+
+	args = s.convertToInterfaceSlice(obj_id)
+
+	_, err = s.app.GetDB().Exec(query, args...)
+	if err != nil {
+		return db.QueryResult{
+			Ok:      false,
+			Message: fmt.Sprintf("删除%s数据失败: %v", TableName1, err),
+		}
+	}
+
+	return db.QueryResult{
+		Ok:      true,	
+		Message: fmt.Sprintf("成功删除 %d 条%s数据", len(obj_id), TableName1),
+	}	
+}

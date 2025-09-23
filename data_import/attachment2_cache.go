@@ -169,6 +169,12 @@ func (m *Attachment2CacheManager) ClearOptimizedCache() {
 	optimizedCacheInitialized = false
 }
 
+// 重新加载缓存
+func (m *Attachment2CacheManager) ReloadCache()  {
+	m.ClearOptimizedCache()
+	m.PreloadOptimizedCache()
+}
+
 // PreloadOptimizedCache 预加载缓存（从数据库加载所有相关数据到新结构）
 func (m *Attachment2CacheManager) PreloadOptimizedCache() error {
 	// 初始化缓存

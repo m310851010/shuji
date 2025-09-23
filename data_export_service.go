@@ -454,11 +454,9 @@ func (a *App) processTable3Data(countyCount int, dataLevel int) ([]ExportDataIte
 	// 批量查询所有县区的校核状态
 	query := fmt.Sprintf(`
 		SELECT 
-			examination_authority,
 			COUNT(1) as total_count,
 			SUM(CASE WHEN is_confirm = '%s' THEN 1 ELSE 0 END) as is_confirm_yes
-		FROM fixed_assets_investment_project 
-		GROUP BY examination_authority
+		FROM fixed_assets_investment_project GROUP BY is_confirm
 	`, ENCRYPTED_ONE)
 
 	result, err := a.db.Query(query)
@@ -466,20 +464,18 @@ func (a *App) processTable3Data(countyCount int, dataLevel int) ([]ExportDataIte
 		return nil, err
 	}
 
-	Table3Count := countyCount
-	if dataLevel == 3 {
-		Table3Count = 0
-	}
+	
 	table3List := make([]ExportDataItem, 0)
 
 	item := &ExportDataItem{
 		StatDate:     "--",
 		IsConfirmYes: 0,
 		IsConfirmNo:  0,
-		Count:        Table3Count,
+		Count:        0,
 		IsCheckedYes: 0,
 		IsCheckedNo:  0,
 	}
+	table3Count := 0
 
 	if result.Ok && result.Data != nil {
 		if data, ok := result.Data.([]map[string]interface{}); ok {
@@ -487,16 +483,19 @@ func (a *App) processTable3Data(countyCount int, dataLevel int) ([]ExportDataIte
 				totalCount := 0
 				if count, ok := row["total_count"].(int64); ok {
 					totalCount = int(count)
+					table3Count += totalCount
 				}
 
 				isConfirmYes := int(row["is_confirm_yes"].(int64))
-				if isConfirmYes == totalCount && totalCount > 0 {
-					item.IsConfirmYes++
+				if isConfirmYes == totalCount && isConfirmYes > 0 {
+					item.IsConfirmYes = isConfirmYes
+				} else {
+					item.IsConfirmNo = totalCount
 				}
 			}
 
-			item.IsCheckedYes = len(data)
-			item.IsConfirmNo = item.IsCheckedYes - item.IsConfirmYes
+			item.IsCheckedYes = table3Count
+			item.Count = table3Count
 		}
 	}
 
