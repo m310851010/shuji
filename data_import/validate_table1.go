@@ -497,7 +497,7 @@ func (s *DataImportService) ValidateTable1File(filePath string, isCover bool) db
 	}
 }
 
-// validateTable1DataWithEnterpriseCheck 校验附表1数据（包含企业名称和统一信用代码校验）
+// validateTable1DataWithEnterpriseCheck 校验附表1数据（包含企业名称和统一社会信用代码校验）
 func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usageData, equipData []map[string]interface{}) []string {
 	errors := []string{}
 
@@ -507,7 +507,7 @@ func (s *DataImportService) validateTable1DataWithEnterpriseCheck(mainData, usag
 	}
 
 	unitInfo := mainData[0]
-	// 企业名称和统一信用代码校验
+	// 企业名称和统一社会信用代码校验
 	enterpriseErrors := s.validateEnterpriseAndCreditCode(unitInfo, 7, 7)
 	errors = append(errors, enterpriseErrors...)
 

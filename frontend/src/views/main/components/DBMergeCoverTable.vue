@@ -102,7 +102,7 @@
 
   // 新的冲突数据结构
   interface Condition {
-    credit_code?: string; // 统一信用代码（表1、表2）
+    credit_code?: string; // 统一社会信用代码（表1、表2）
     stat_date?: string; // 年份（表1、表2、附件2）
     project_code?: string; // 项目代码（表3）
     document_number?: string; // 审查意见文号（表3）

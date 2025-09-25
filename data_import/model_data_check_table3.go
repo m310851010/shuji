@@ -269,7 +269,37 @@ func (s *DataImportService) validateTable3DataForModel(mainData []map[string]int
 func (s *DataImportService) validateTable3NumericFields(data map[string]interface{}, rowNum int) []ValidationError {
 	errors := []ValidationError{}
 
-	// 1. 年综合能源消费量部分校验
+	// 拟投产时间 <= 20 个字
+	scheduledTime := s.getStringValue(data["scheduled_time"])
+	if len(scheduledTime) > 20 {
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "拟投产时间应不大于20个字",
+			Cells:     []string{s.getCellPosition(TableType3, "scheduled_time", rowNum)},
+		})
+	}
+
+	// 实际投产时间 <= 20 个字
+	actualTime := s.getStringValue(data["actual_time"])
+	if len(actualTime) > 20 {
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "实际投产时间应不大于20个字",
+			Cells:     []string{s.getCellPosition(TableType3, "actual_time", rowNum)},
+		})
+	}
+
+	// 是否煤炭消费替代 必须是"是"或"否"
+	isSubstitution := s.getStringValue(data["is_substitution"])
+	if isSubstitution != "" && (isSubstitution != "是" && isSubstitution != "否") {
+		errors = append(errors, ValidationError{
+			RowNumber: rowNum,
+			Message:   "是否煤炭消费替代应为\"是\"或\"否\"",
+			Cells:     []string{s.getCellPosition(TableType3, "is_substitution", rowNum)},
+		})
+	}
+
+	// 年综合能源消费量部分校验
 	// 当量值、等价值校验规则：①≧0；②≦100000
 	equivalentValue, err := s.tryParseFloat(s.getStringValue(data["equivalent_value"]))
 	if err != nil {
@@ -319,7 +349,7 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
         }
 	}
 
-	// 2. 年煤品消费量部分校验
+	// 年煤品消费量部分校验
 	// 煤品消费总量（实物量）、煤炭消费量（实物量）、焦炭消费量（实物量）、兰炭消费量（实物量）
 	// 煤品消费总量（折标量）、煤炭消费量（折标量）、焦炭消费量（折标量）、兰炭消费量（折标量）
 	pqTotalCoalConsumption, err := s.tryParseFloat(s.getStringValue(data["pq_total_coal_consumption"]))
@@ -386,7 +416,7 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
         }
 	}
 
-	// 3. 年煤品消费量部分校验
+	// 年煤品消费量部分校验
 	sceTotalCoalConsumption, err := s.tryParseFloat(s.getStringValue(data["sce_total_coal_consumption"]))
 	if err != nil {
 		cells := []string{s.getCellPosition(TableType3, "sce_total_coal_consumption", rowNum)}
@@ -449,7 +479,7 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
         }
 	}
 
-	// 3. 煤炭消费替代情况部分校验
+	// 煤炭消费替代情况部分校验
 	// 煤炭消费替代量（实物量）规则：①≧0；②≦100000
 	substitutionQuantity, err := s.tryParseFloat(s.getStringValue(data["substitution_quantity"]))
 	if err != nil {
@@ -467,7 +497,7 @@ func (s *DataImportService) validateTable3NumericFields(data map[string]interfac
 	}
 
 
-	// 4. 原料用煤部分校验
+	// 原料用煤部分校验
 	// 年原料用煤量（实物量）、年原料用煤量（折标量）规则：①≧0；②≦100000；
 	pqAnnualCoalQuantity, err := s.tryParseFloat(s.getStringValue(data["pq_annual_coal_quantity"]))
 	if err != nil {

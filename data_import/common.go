@@ -222,6 +222,11 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 	countryName := s.getStringValue(data["country_name"])
 
 	if unitName != "" && creditCode != "" {
+		// 校验统一社会信用代码是否为20位
+		if len(creditCode) > 20 {
+			errors = append(errors, fmt.Sprintf("第%d行：统一社会信用代码应不大于20个字", unitRowNum))
+			return errors
+		}
 
 		// 第一步: 调用s.app.IsEnterpriseListExist(), 检查企业清单是否存在, 不存在直接校验通过
 		hasEnterpriseList, err := s.app.IsEnterpriseListExist()
@@ -231,10 +236,10 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 		}
 
 		if hasEnterpriseList {
-			// 第二步: 如果企业清单存在, 调用s.app.GetEnterpriseNameByCreditCode,检查统一信用代码是否有对应的企业名称, 未查询到企业名称校验失败
+			// 第二步: 如果企业清单存在, 调用s.app.GetEnterpriseNameByCreditCode,检查统一社会信用代码是否有对应的企业名称, 未查询到企业名称校验失败
 			result := s.app.GetEnterpriseInfoByCreditCode(creditCode)
 			if !result.Ok || result.Data == nil {
-				errors = append(errors, fmt.Sprintf("第%d行：%s企业，统一信用代码%s未在清单表里", unitRowNum, unitName, creditCode))
+				errors = append(errors, fmt.Sprintf("第%d行：%s企业，统一社会信用代码%s未在清单表里", unitRowNum, unitName, creditCode))
 				return errors
 			}
 
@@ -247,7 +252,7 @@ func (s *DataImportService) validateEnterpriseAndCreditCode(data map[string]inte
 
 				// 如果查询到企业名了，比较企业名称是否相同
 				if dbUnitName != unitName {
-					errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和导入的企业名称不对应", unitRowNum, creditCode))
+					errors = append(errors, fmt.Sprintf("第%d行：统一社会信用代码%s和导入的企业名称不对应", unitRowNum, creditCode))
 					return errors
 				}
 
@@ -275,6 +280,11 @@ func (s *DataImportService) validateEquipmentAndCreditCode(data map[string]inter
 	countryName := s.getStringValue(data["country_name"])
 
 	if unitName != "" && creditCode != "" {
+		// 校验统一社会信用代码是否为20位
+		if len(creditCode) > 20 {
+			errors = append(errors, fmt.Sprintf("第%d行：统一社会信用代码应不大于20个字", unitRowNum))
+			return errors
+		}
 
 		// 第一步: 调用s.app.IsEquipmentListExist(), 检查企业清单是否存在, 不存在直接校验通过
 		hasEquipmentList, err := s.app.IsEquipmentListExist()
@@ -284,10 +294,10 @@ func (s *DataImportService) validateEquipmentAndCreditCode(data map[string]inter
 		}
 
 		if hasEquipmentList {
-			// 第二步: 如果企业清单存在, 调用s.app.GetEquipmentNameByCreditCode,检查统一信用代码是否有对应的企业名称, 未查询到企业名称校验失败
+			// 第二步: 如果企业清单存在, 调用s.app.GetEquipmentNameByCreditCode,检查统一社会信用代码是否有对应的企业名称, 未查询到企业名称校验失败
 			result := s.app.GetEquipmentByCreditCode(creditCode)
 			if !result.Ok || result.Data == nil {
-				errors = append(errors, fmt.Sprintf("第%d行：%s企业，统一信用代码%s未在清单表里", unitRowNum, unitName, creditCode))
+				errors = append(errors, fmt.Sprintf("第%d行：%s企业，统一社会信用代码%s未在清单表里", unitRowNum, unitName, creditCode))
 				return errors
 			}
 
@@ -300,7 +310,7 @@ func (s *DataImportService) validateEquipmentAndCreditCode(data map[string]inter
 
 				// 如果查询到企业名了，比较企业名称是否相同
 				if dbUnitName != unitName {
-					errors = append(errors, fmt.Sprintf("第%d行：统一信用代码%s和导入的企业名称不对应", unitRowNum, creditCode))
+					errors = append(errors, fmt.Sprintf("第%d行：统一社会信用代码%s和导入的企业名称不对应", unitRowNum, creditCode))
 					return errors
 				}
 
@@ -442,6 +452,15 @@ var (
 // generateUUID 生成UUID
 func (s *DataImportService) generateUUID() string {
 	return uuid.New().String()
+}
+
+// mapKeyToString map的key转为字符串
+func (s *DataImportService) mapKeyToString(dataMap map[string]bool) string {
+	var keys []string
+    for k := range dataMap {
+        keys = append(keys, k)
+    }
+    return strings.Join(keys, "、")
 }
 
 // parseDateValue 解析日期值

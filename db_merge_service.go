@@ -72,7 +72,7 @@ type ConflictData struct {
 
 // Condition 冲突条件结构
 type Condition struct {
-	CreditCode     string `json:"credit_code,omitempty"`     // 统一信用代码（表1、表2）
+	CreditCode     string `json:"credit_code,omitempty"`     // 统一社会信用代码（表1、表2）
 	StatDate       string `json:"stat_date,omitempty"`       // 年份（表1、表2、附件2）
 	ProjectCode    string `json:"project_code,omitempty"`    // 项目代码（表3）
 	DocumentNumber string `json:"document_number,omitempty"` // 审查意见文号（表3）
@@ -404,7 +404,7 @@ func (a *App) CreateNewDatabase(prefix string) (*db.Database, string, error) {
 	return newDb, dbTempPath, nil
 }
 
-// checkTable1Conflicts 检查表1冲突（统一信用代码+年份）- 只在上传文件之间检查冲突
+// checkTable1Conflicts 检查表1冲突（统一社会信用代码+年份）- 只在上传文件之间检查冲突
 func (a *App) checkTable1Conflicts(sourceDbs []*db.Database, originalSourcePaths []string, areaConfig AreaConfig) (TableConflictInfo, []map[string]interface{}, error) {
 	conflictInfo := TableConflictInfo{}
 	var nonConflictData []map[string]interface{}
@@ -546,7 +546,7 @@ func (a *App) checkTable1Conflicts(sourceDbs []*db.Database, originalSourcePaths
 	return conflictInfo, nonConflictData, nil
 }
 
-// checkTable2Conflicts 检查表2冲突（统一信用代码+年份）- 只在上传文件之间检查冲突
+// checkTable2Conflicts 检查表2冲突（统一社会信用代码+年份）- 只在上传文件之间检查冲突
 func (a *App) checkTable2Conflicts(sourceDbs []*db.Database, originalSourcePaths []string, areaConfig AreaConfig) (TableConflictInfo, []map[string]interface{}, error) {
 	conflictInfo := TableConflictInfo{}
 	var nonConflictData []map[string]interface{}

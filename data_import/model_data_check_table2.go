@@ -13,6 +13,22 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// table2CoalTypeMap 附表2类型映射
+var table2CoalTypeMap = map[string]bool{
+	"锅炉": true,
+	"窑炉": true,
+	"其他": true,
+}
+
+// table2UseInfoMap 附表2用途映射
+var table2UseInfoMap = map[string]bool{
+	"农林牧渔": true,
+	"工业": true,
+	"服务业": true,
+	"居民生活": true,
+	"其他": true,
+}
+
 // ModelDataCoverTable2 覆盖附表2数据
 func (s *DataImportService) ModelDataCoverTable2(filePaths []string) db.QueryResult {
 	// 使用包装函数来处理异常
@@ -271,7 +287,21 @@ func (s *DataImportService) validateTable2DataForModel(mainData []map[string]int
 func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]interface{}, rowNum int) []ValidationError {
 	errors := []ValidationError{}
 
-	// 1. 累计使用时间、设计年限校验
+	// 类型必须是 锅炉、窑炉、其他 之一
+	coalType := s.getStringValue(data["coal_type"])
+	if !table2CoalTypeMap[coalType] {
+		cells := []string{s.getCellPosition(TableType2, "coal_type", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum,Message: fmt.Sprintf("类型应为%s其中之一", s.mapKeyToString(table2CoalTypeMap)),Cells: cells,})
+	}
+
+	// 用途必须是 农林牧渔/工业/服务业/居民生活/其他 之一
+	useInfo := s.getStringValue(data["use_info"])
+	if !table2UseInfoMap[useInfo] {
+		cells := []string{s.getCellPosition(TableType2, "use_info", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum,Message: fmt.Sprintf("用途应为%s其中之一", s.mapKeyToString(table2UseInfoMap)),Cells: cells,})
+	}
+
+	// 累计使用时间、设计年限校验
 	// 应为0-50（含0和50）间的整数
 	totalRuntime, err := s.tryParseFloat(s.getStringValue(data["usage_time"]))
 	if err != nil {
@@ -324,7 +354,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
         }
 	}
 
-	// 2. 容量校验
+	// 容量校验
 	// 应为正整数
 	capacity, err := s.tryParseFloat(s.getStringValue(data["capacity"]))
 	if err != nil {
@@ -353,7 +383,7 @@ func (s *DataImportService) validateTable2NumericFieldsForModel(data map[string]
 		}
 	}
 
-	// 3. 年耗煤量校验
+	// 年耗煤量校验
 	// ≧0且≦1000000000
 	annualCoalConsumption, err := s.tryParseFloat(s.getStringValue(data["annual_coal_consumption"]))
 	if err != nil {
@@ -391,11 +421,11 @@ func (s *DataImportService) coverTable2Data(mainData []map[string]interface{}, f
 		return fmt.Errorf("数据为空")
 	}
 
-	// 获取统一信用代码和年份
+	// 获取统一社会信用代码和年份
 	creditCode := s.getStringValue(mainData[0]["credit_code"])
 	statDate := s.getStringValue(mainData[0]["stat_date"])
 
-	// 根据年份+统一信用代码删除表数据
+	// 根据年份+统一社会信用代码删除表数据
 	err := s.deleteTable2DataByCreditCodeAndYear(creditCode, statDate)
 	if err != nil {
 		return fmt.Errorf("删除旧数据失败: %v", err)
@@ -405,7 +435,7 @@ func (s *DataImportService) coverTable2Data(mainData []map[string]interface{}, f
 	return s.saveTable2Data(mainData)
 }
 
-// deleteTable2DataByCreditCodeAndYear 根据统一信用代码和年份删除附表2数据
+// deleteTable2DataByCreditCodeAndYear 根据统一社会信用代码和年份删除附表2数据
 func (s *DataImportService) deleteTable2DataByCreditCodeAndYear(creditCode, statDate string) error {
 	query := "DELETE FROM critical_coal_equipment_consumption WHERE credit_code = ? AND stat_date = ?"
 	_, err := s.app.GetDB().Exec(query, creditCode, statDate)

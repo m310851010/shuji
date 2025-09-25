@@ -16,6 +16,17 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// table1EquipTypeMap 附表1设备类型映射
+var table1EquipTypeMap = map[string]bool{
+	"锅炉": true,
+	"窑炉": true,
+	"气化炉": true,
+	"炼铁高炉": true,
+	"焦化炉": true,
+	"矿热炉": true,
+	"其他": true,
+}
+
 // ModelDataCheckReportDownload 导出模型校验结果
 func (s *DataImportService) ModelDataCheckReportDownload(tableType string) db.QueryResult {
 	// 使用包装函数来处理异常
@@ -353,11 +364,11 @@ func (s *DataImportService) coverTable1Data(mainData, usageData, equipData []map
 		return fmt.Errorf("主表数据为空")
 	}
 
-	// 获取统一信用代码和年份
+	// 获取统一社会信用代码和年份
 	creditCode := s.getStringValue(mainData[0]["credit_code"])
 	statDate := s.getStringValue(mainData[0]["stat_date"])
 
-	// 根据年份+统一信用代码删除表数据
+	// 根据年份+统一社会信用代码删除表数据
 	err := s.deleteTable1DataByCreditCodeAndYear(creditCode, statDate)
 	if err != nil {
 		return fmt.Errorf("删除旧数据失败: %v", err)
@@ -367,7 +378,7 @@ func (s *DataImportService) coverTable1Data(mainData, usageData, equipData []map
 	return s.saveTable1Data(mainData, usageData, equipData)
 }
 
-// deleteTable1DataByCreditCodeAndYear 根据统一信用代码和年份删除附表1数据
+// deleteTable1DataByCreditCodeAndYear 根据统一社会信用代码和年份删除附表1数据
 func (s *DataImportService) deleteTable1DataByCreditCodeAndYear(creditCode, statDate string) error {
 	// 先查出一条主表记录，获取obj_id，扩展表的fk_id就是obj_id
 	var objID string
@@ -790,6 +801,12 @@ func (s *DataImportService) validateTable1UsageNumericFields(data map[string]int
 func (s *DataImportService) validateTable1EquipNumericFields(data map[string]interface{}, rowNum int) []ValidationError {
 	errors := []ValidationError{}
 
+	equipType := s.getStringValue(data["equip_type"])
+	if equipType != "" && !table1EquipTypeMap[equipType] {
+		cells := []string{s.getCellPosition(TableType1, "equip_type", rowNum)}
+		errors = append(errors, ValidationError{RowNumber: rowNum, Message: fmt.Sprintf("类型应为%s其中之一", s.mapKeyToString(table1EquipTypeMap)), Cells: cells})
+	}
+	
 	// 获取设备相关数值
 	totalRuntime, err := s.tryParseFloat(s.getStringValue(data["total_runtime"]))
 	if err != nil {

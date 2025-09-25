@@ -261,7 +261,7 @@ func (s *DataImportService) ValidateTable2File(filePath string, isCover bool) db
 	}
 }
 
-// validateTable2DataWithEnterpriseCheck 校验附表2数据（包含企业名称和统一信用代码校验）
+// validateTable2DataWithEnterpriseCheck 校验附表2数据（包含企业名称和统一社会信用代码校验）
 func (s *DataImportService) validateTable2DataWithEnterpriseCheck(unitInfo map[string]interface{}, mainData []map[string]interface{}) []string {
 	errors := []string{}
 
@@ -286,7 +286,7 @@ func (s *DataImportService) validateTable2DataWithEnterpriseCheck(unitInfo map[s
 	regionFieldErrors := s.validateRequiredFields(unitInfo, regionRequiredFields, 4)
 	errors = append(errors, regionFieldErrors...)
 
-	// 企业名称和统一信用代码校验
+	// 企业名称和统一社会信用代码校验
 	enterpriseErrors := s.validateEquipmentAndCreditCode(unitInfo, 3, 4)
 	errors = append(errors, enterpriseErrors...)
 
