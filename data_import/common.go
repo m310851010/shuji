@@ -767,6 +767,7 @@ func (s *DataImportService) getTable1FieldMapping() map[string]ExcelFieldMapping
 		"output_quantity": {TableType: "table1", FieldName: "output_quantity", Column: "I", RowOffset: 0},
 
 		// 设备表字段映射
+		"equip_type":              {TableType: "table1", FieldName: "equip_type", Column: "B", RowOffset: 0},
 		"total_runtime":           {TableType: "table1", FieldName: "total_runtime", Column: "D", RowOffset: 0},
 		"design_life":             {TableType: "table1", FieldName: "design_life", Column: "E", RowOffset: 0},
 		"energy_efficiency":       {TableType: "table1", FieldName: "energy_efficiency", Column: "F", RowOffset: 0},
@@ -778,9 +779,11 @@ func (s *DataImportService) getTable1FieldMapping() map[string]ExcelFieldMapping
 // getTable2FieldMapping 获取附表2字段映射
 func (s *DataImportService) getTable2FieldMapping() map[string]ExcelFieldMapping {
 	return map[string]ExcelFieldMapping{
+		"coal_type":               {TableType: "table2", FieldName: "coal_type", Column: "B", RowOffset: 0},
 		"usage_time":              {TableType: "table2", FieldName: "usage_time", Column: "D", RowOffset: 0},
 		"design_life":             {TableType: "table2", FieldName: "design_life", Column: "E", RowOffset: 0},
 		"capacity":                {TableType: "table2", FieldName: "capacity", Column: "H", RowOffset: 0},
+		"use_info":                {TableType: "table2", FieldName: "use_info", Column: "I", RowOffset: 0},
 		"annual_coal_consumption": {TableType: "table2", FieldName: "annual_coal_consumption", Column: "K", RowOffset: 0},
 	}
 }
@@ -788,6 +791,8 @@ func (s *DataImportService) getTable2FieldMapping() map[string]ExcelFieldMapping
 // getTable3FieldMapping 获取附表3字段映射
 func (s *DataImportService) getTable3FieldMapping() map[string]ExcelFieldMapping {
 	return map[string]ExcelFieldMapping{
+		"scheduled_time":             {TableType: "table3", FieldName: "scheduled_time", Column: "L", RowOffset: 0},
+		"actual_time":                {TableType: "table3", FieldName: "actual_time", Column: "M", RowOffset: 0},
 		"equivalent_value":           {TableType: "table3", FieldName: "equivalent_value", Column: "P", RowOffset: 0},
 		"equivalent_cost":            {TableType: "table3", FieldName: "equivalent_cost", Column: "Q", RowOffset: 0},
 		"pq_total_coal_consumption":  {TableType: "table3", FieldName: "pq_total_coal_consumption", Column: "R", RowOffset: 0},
@@ -798,6 +803,7 @@ func (s *DataImportService) getTable3FieldMapping() map[string]ExcelFieldMapping
 		"sce_coal_consumption":       {TableType: "table3", FieldName: "sce_coal_consumption", Column: "W", RowOffset: 0},
 		"sce_coke_consumption":       {TableType: "table3", FieldName: "sce_coke_consumption", Column: "X", RowOffset: 0},
 		"sce_blue_coke_consumption":  {TableType: "table3", FieldName: "sce_blue_coke_consumption", Column: "Y", RowOffset: 0},
+		"is_substitution":            {TableType: "table3", FieldName: "is_substitution", Column: "Z", RowOffset: 0},
 		"substitution_quantity":      {TableType: "table3", FieldName: "substitution_quantity", Column: "AB", RowOffset: 0},
 		"pq_annual_coal_quantity":    {TableType: "table3", FieldName: "pq_annual_coal_quantity", Column: "AC", RowOffset: 0},
 		"sce_annual_coal_quantity":   {TableType: "table3", FieldName: "sce_annual_coal_quantity", Column: "AD", RowOffset: 0},

@@ -2,41 +2,6 @@ Package: shuji
 Version: 1.0
 Architecture: amd64
 Maintainer: 北京<service@qq.com>
-Depends: libgtk-3-0 (>= 3.24),
-         libwebkit2gtk-4.0-37 (>= 2.38),
-         libappindicator3-1 (>= 0.4),
-         librsvg2-common (>= 2.46),
-         libgstreamer1.0-0 (>= 1.16),
-         gstreamer1.0-plugins-base (>= 1.16),
-         gstreamer1.0-plugins-good (>= 1.16),
-         gstreamer1.0-plugins-bad (>= 1.16),
-         gstreamer1.0-plugins-ugly (>= 1.16),
-         gstreamer1.0-libav (>= 1.16),
-         libjavascriptcoregtk-4.0-18 (>= 2.38),
-         libsoup2.4-1 (>= 2.68),
-         libharfbuzz-icu0 (>= 2.6),
-         libenchant-2-2 (>= 2.2),
-         libavcodec58 (>= 7:4.2),
-         libavformat58 (>= 7:4.2),
-         libswscale5 (>= 7:4.2),
-         libsdl2-2.0-0 (>= 2.0.10),
-         fonts-noto-cjk,
-         fonts-wqy-microhei,
-         fonts-wqy-zenhei,
-         gtk2-engines-pixbuf,
-         adwaita-icon-theme-full,
-         gnome-themes-extra
-Recommends: libqt5gui5,
-           libqt5widgets5,
-           libqt5core5a,
-           libdtkgui5,
-           libdtkwidget5,
-           libdtkcore5,
-           pulseaudio,
-           pulseaudio-utils
-Suggests: kylin-software-center-common,
-          deepin-qt5integration,
-          deepin-qt5config
 Provides: shuji
 Description: 煤炭摸底数据校验软件
 Vendor: 北京<service@qq.com>
