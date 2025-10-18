@@ -95,11 +95,10 @@
   const allFiles: { file: File; valid: boolean }[] = [];
   async function addFileDropHandler() {
     setFileDropHandler((dropFiles, x, y) => {
-      console.log('allFiles====', allFiles);
       const files: EnhancedFile[] = [];
       const validFile = props.validFile;
-      let valid = false;
       const isFunction = typeof validFile === 'function';
+      const _selectedFiles = selectedFiles.value;
 
       for (let i = 0; i < allFiles.length; i++) {
         const item = allFiles[i];
@@ -109,28 +108,42 @@
 
         const fileInfo = dropFiles[i];
         if (!fileInfo.isDirectory) {
-          files.push(fileInfo);
+          if (_selectedFiles.every((item) => item.fullPath !== fileInfo.fullPath)) {
+            files.push(fileInfo);
+          }
           continue;
         }
 
-        for (const fileInDir of fileInfo.files!) {
-          if (isFunction) {
-            valid = validFile(fileInDir, null);
-          } else {
-            valid = validFile.indexOf(fileInDir.ext) >= 0;
-          }
-          if (valid) {
-            files.push(fileInDir);
-          }
-        }
+        const _files = mergeFiles(fileInfo.files!, validFile, isFunction);
+        files.push(..._files);
       }
 
       if (files.length) {
-        selectedFiles.value = files;
+        selectedFiles.value = selectedFiles.value.concat(files);
         emit('file-change', selectedFiles.value);
       }
     });
   }
+
+  function mergeFiles(files: EnhancedFile[], validFile: any, isFunction: boolean){
+    let valid = false;
+    const _files: EnhancedFile[] = [];
+    const _selectedFiles = selectedFiles.value;
+    for (const f of files!) {
+        if (isFunction) {
+          valid = validFile(f, null);
+        } else {
+          valid = validFile.indexOf(f.ext) >= 0;
+        }
+        if (valid) {
+          if (_selectedFiles.every((item) => item.fullPath !== f.fullPath)) {
+            _files.push(f);
+          }
+        }
+      }
+    return _files;
+  }
+
 
   // 在keep-alive组件重新设置文件拖拽处理函数
   onActivated(() => addFileDropHandler());
@@ -246,8 +259,12 @@
       files.push(fileInfo as unknown as EnhancedFile);
     }
 
-    if (files.length) {
-      selectedFiles.value = files;
+    const validFile = props.validFile;
+    const isFunction = typeof validFile === 'function';
+
+    const _files = mergeFiles(files, validFile, isFunction);
+    if (_files.length) {
+      selectedFiles.value = selectedFiles.value.concat(_files);
       emit('file-change', selectedFiles.value);
     }
   };
@@ -267,8 +284,12 @@
     }
 
     const files: EnhancedFile[] = await getFilesDir(result.filePaths[0]);
-    if (files.length) {
-      selectedFiles.value = files;
+    const validFile = props.validFile;
+    const isFunction = typeof validFile === 'function';
+
+    const _files = mergeFiles(files, validFile, isFunction);
+    if (_files.length) {
+      selectedFiles.value = selectedFiles.value.concat(_files);
       emit('file-change', selectedFiles.value);
     }
   };

@@ -15,13 +15,11 @@ for (let key in modules) {
 }
 
 const routes: RouteRecordRaw[] = [
-  { path: '/', name: 'index', redirect: '/login', meta: { title: '首页' } },
-  { path: '/select-address', name: 'select-address', component: () => import('../views/select-address.vue'), meta: { title: '选择区域' } },
-  { path: '/login', name: 'login', component: () => import('../views/login.vue'), meta: { title: '登录' } },
+  { path: '/', name: 'index', redirect: '/main/data-check', meta: { title: '首页' } },
   {
     path: '/main',
     name: 'main',
-    redirect: '/main/data-import',
+    redirect: '/main/data-check',
     component: main,
     meta: { title: '主页' },
     children: mainRoutes

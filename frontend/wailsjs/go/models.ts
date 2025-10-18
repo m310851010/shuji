@@ -1,112 +1,5 @@
-export namespace db {
-	
-	export class Database {
-	
-	
-	    static createFrom(source: any = {}) {
-	        return new Database(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	
-	    }
-	}
-	export class QueryResult {
-	    ok: boolean;
-	    data: any;
-	    message: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new QueryResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ok = source["ok"];
-	        this.data = source["data"];
-	        this.message = source["message"];
-	    }
-	}
-
-}
-
 export namespace main {
 	
-	export class AreaConfig {
-	    province_name: string;
-	    city_name: string;
-	    country_name: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new AreaConfig(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.province_name = source["province_name"];
-	        this.city_name = source["city_name"];
-	        this.country_name = source["country_name"];
-	    }
-	}
-	export class Condition {
-	    credit_code?: string;
-	    stat_date?: string;
-	    project_code?: string;
-	    document_number?: string;
-	    province_name?: string;
-	    city_name?: string;
-	    country_name?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new Condition(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.credit_code = source["credit_code"];
-	        this.stat_date = source["stat_date"];
-	        this.project_code = source["project_code"];
-	        this.document_number = source["document_number"];
-	        this.province_name = source["province_name"];
-	        this.city_name = source["city_name"];
-	        this.country_name = source["country_name"];
-	    }
-	}
-	export class ConflictData {
-	    filePath: string;
-	    tableType: string;
-	    conditions: Condition[];
-	
-	    static createFrom(source: any = {}) {
-	        return new ConflictData(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.filePath = source["filePath"];
-	        this.tableType = source["tableType"];
-	        this.conditions = this.convertValues(source["conditions"], Condition);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 	export class EnvResult {
 	    appName: string;
 	    appFileName: string;
@@ -280,6 +173,22 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.response = source["response"];
 	        this.checkboxChecked = source["checkboxChecked"];
+	    }
+	}
+	export class QueryResult {
+	    ok: boolean;
+	    data: any;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new QueryResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ok = source["ok"];
+	        this.data = source["data"];
+	        this.message = source["message"];
 	    }
 	}
 

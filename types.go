@@ -1,5 +1,12 @@
 package main
 
+// QueryResult 查询结果
+type QueryResult struct {
+	Ok      bool        `json:"ok"`
+	Data    interface{} `json:"data"`
+	Message string      `json:"message"`
+}
+
 // EnvResult 环境变量结果
 type EnvResult struct {
 	AppName     string `json:"appName"`
@@ -77,69 +84,16 @@ type FileDialogResult struct {
 	FilePaths []string `json:"filePaths"`
 }
 
-// KeyEquipmentListData 装置清单数据结构
-type KeyEquipmentListData struct {
-	ObjID            string `json:"obj_id" db:"obj_id"`                         // 主键
-	ProvinceName     string `json:"province_name" db:"province_name"`           // 单位省级名称
-	CityName         string `json:"city_name" db:"city_name"`                   // 单位市级名称
-	CountryName      string `json:"country_name" db:"country_name"`             // 单位县级名称
-	UnitName         string `json:"unit_name" db:"unit_name"`                   // 单位详细名称
-	CreditCode       string `json:"credit_code" db:"credit_code"`               // 统一社会信用代码
-	EquipType        string `json:"equip_type" db:"equip_type"`                 // 设备类型
-	EquipModelNumber string `json:"equip_model_number" db:"equip_model_number"` // 设备型号
-	EquipNo          string `json:"equip_no" db:"equip_no"`                     // 设备编号
-}
-
-// EnterpriseList 企业清单数据结构
-type EnterpriseListData struct {
-	ObjID        string `json:"obj_id" db:"obj_id"`               // 主键
-	ProvinceName string `json:"province_name" db:"province_name"` // 单位省级名称
-	CityName     string `json:"city_name" db:"city_name"`         // 单位市级名称
-	CountryName  string `json:"country_name" db:"country_name"`   // 单位县级名称
-	UnitName     string `json:"unit_name" db:"unit_name"`         // 单位详细名称
-	CreditCode   string `json:"credit_code" db:"credit_code"`     // 统一社会信用代码
-}
-
-// ExcelParseResult Excel解析结果
-type ExcelParseResult struct {
-	Ok      bool     `json:"ok"`
-	Message string   `json:"message"`
-	Total   int      `json:"total"`   // 总记录数
-	Success int      `json:"success"` // 成功导入数
-	Failed  int      `json:"failed"`  // 失败数
-	Errors  []string `json:"errors"`  // 错误信息列表
-}
-
-// PasswordInfo 密码信息结构
-type PasswordInfo struct {
-	ObjID    string `json:"obj_id" db:"obj_id"`       // 主键
-	AdminPws string `json:"admin_pws" db:"admin_pws"` // 管理员密码，加密
-	UserPws  string `json:"user_pws" db:"user_pws"`   // 用户密码，加密
-}
-
-// AppConfig 应用配置结构
+// AppConfig 应用配置
 type AppConfig struct {
-	CurrentUnitName string `json:"current_unit_name"` // 当前单位名称
-	CurrentProvince string `json:"current_province"`  // 当前省份
-	CurrentCity     string `json:"current_city"`      // 当前城市
-	CurrentCountry  string `json:"current_country"`   // 当前县区
-}
-
-// AreaInfo 区域信息结构
-type AreaInfo struct {
-	Code string `json:"code"` // 区域代码
-	Name string `json:"name"` // 区域名称
-}
-
-// EnhancedAreaConfig 增强的区域配置结构
-type EnhancedAreaConfig struct {
-	ObjID            string     `json:"obj_id"`            // 主键
-	ProvinceName     string     `json:"province_name"`     // 省级名称
-	CityName         string     `json:"city_name"`         // 市级名称
-	CountryName      string     `json:"country_name"`      // 县级名称
-	ProvinceCode     string     `json:"province_code"`     // 省级代码
-	CityCode         string     `json:"city_code"`         // 市级代码
-	CountryCode      string     `json:"country_code"`      // 县级代码
-	DataLevel        int        `json:"data_level"`        // 数据级别：1-省级，2-市级，3-县级
-	SubordinateAreas []AreaInfo `json:"subordinate_areas"` // 下级区域列表
+	// 耗煤总量阈值, “耗煤总量(实物量，万吨)”数值与“原煤消费(实物量，万吨)”“洗精煤消费(实物量，万吨)”“其他煤炭消费(实物量，万吨)”加和的数值相等
+	ThresholdTotalCoalConsumption int `json:"thresholdTotalCoalConsumption"`
+	// 耗煤用途阈值 “耗煤总量(实物量，万吨)”与附表1主要用途情况，企业的“投入量”之和相等
+    ThresholdMainUsage int `json:"thresholdMainUsage"`
+	// 耗煤设备阈值 “耗煤总量(实物量，万吨)”与附表1重点耗煤装置（设备）情况这重点耗煤装置的年耗煤量之和相等
+    ThresholdCoalEquipment int `json:"thresholdCoalEquipment"`
+	// 煤合计阈值 本年度的“煤合计”与“原煤”“洗精煤”“其他”应该相等
+    ThresholdTotalCoal3 int `json:"thresholdTotalCoal3"`
+	// 煤合计阈值 本年度的“煤合计”数值与“能源加工转换”和“终端消费”之和应该相等
+    ThresholdTotalCoalSum int `json:"thresholdTotalCoalSum"`
 }

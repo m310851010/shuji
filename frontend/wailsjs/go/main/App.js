@@ -10,96 +10,24 @@ export function CacheFileExists(arg1, arg2) {
   return window['go']['main']['App']['CacheFileExists'](arg1, arg2);
 }
 
-export function ConfirmDataAttachment2(arg1) {
-  return window['go']['main']['App']['ConfirmDataAttachment2'](arg1);
-}
-
-export function ConfirmDataTable1(arg1) {
-  return window['go']['main']['App']['ConfirmDataTable1'](arg1);
-}
-
-export function ConfirmDataTable2(arg1) {
-  return window['go']['main']['App']['ConfirmDataTable2'](arg1);
-}
-
-export function ConfirmDataTable3(arg1) {
-  return window['go']['main']['App']['ConfirmDataTable3'](arg1);
-}
-
 export function CopyFileToCache(arg1, arg2) {
   return window['go']['main']['App']['CopyFileToCache'](arg1, arg2);
-}
-
-export function CopySystemDb(arg1) {
-  return window['go']['main']['App']['CopySystemDb'](arg1);
 }
 
 export function Copyfile(arg1, arg2) {
   return window['go']['main']['App']['Copyfile'](arg1, arg2);
 }
 
-export function CreateNewDatabase(arg1) {
-  return window['go']['main']['App']['CreateNewDatabase'](arg1);
-}
-
-export function DBTranformExcel(arg1) {
-  return window['go']['main']['App']['DBTranformExcel'](arg1);
-}
-
-export function DeleteDataAttachment2(arg1) {
-  return window['go']['main']['App']['DeleteDataAttachment2'](arg1);
-}
-
-export function DeleteDataTable1(arg1) {
-  return window['go']['main']['App']['DeleteDataTable1'](arg1);
-}
-
-export function DeleteDataTable2(arg1) {
-  return window['go']['main']['App']['DeleteDataTable2'](arg1);
-}
-
-export function DeleteDataTable3(arg1) {
-  return window['go']['main']['App']['DeleteDataTable3'](arg1);
+export function DownloadValidateReport() {
+  return window['go']['main']['App']['DownloadValidateReport']();
 }
 
 export function ExitApp() {
   return window['go']['main']['App']['ExitApp']();
 }
 
-export function ExportAttachment2ProgressToExcel(arg1) {
-  return window['go']['main']['App']['ExportAttachment2ProgressToExcel'](arg1);
-}
-
-export function ExportDBData(arg1) {
-  return window['go']['main']['App']['ExportDBData'](arg1);
-}
-
-export function ExportDataToExcel(arg1, arg2, arg3) {
-  return window['go']['main']['App']['ExportDataToExcel'](arg1, arg2, arg3);
-}
-
-export function ExportTable1ProgressToExcel(arg1) {
-  return window['go']['main']['App']['ExportTable1ProgressToExcel'](arg1);
-}
-
-export function ExportTable2ProgressToExcel(arg1) {
-  return window['go']['main']['App']['ExportTable2ProgressToExcel'](arg1);
-}
-
-export function ExportTable3ProgressToExcel(arg1) {
-  return window['go']['main']['App']['ExportTable3ProgressToExcel'](arg1);
-}
-
 export function FileExists(arg1) {
   return window['go']['main']['App']['FileExists'](arg1);
-}
-
-export function GetAreaConfig() {
-  return window['go']['main']['App']['GetAreaConfig']();
-}
-
-export function GetAreaStr() {
-  return window['go']['main']['App']['GetAreaStr']();
 }
 
 export function GetCachePath(arg1) {
@@ -114,124 +42,20 @@ export function GetChinaAreaStr() {
   return window['go']['main']['App']['GetChinaAreaStr']();
 }
 
-export function GetCtx() {
-  return window['go']['main']['App']['GetCtx']();
-}
-
 export function GetCurrentOSUser() {
   return window['go']['main']['App']['GetCurrentOSUser']();
-}
-
-export function GetDB() {
-  return window['go']['main']['App']['GetDB']();
-}
-
-export function GetDBPassword() {
-  return window['go']['main']['App']['GetDBPassword']();
-}
-
-export function GetEnhancedAreaConfig() {
-  return window['go']['main']['App']['GetEnhancedAreaConfig']();
-}
-
-export function GetEnterpriseInfoByCreditCode(arg1) {
-  return window['go']['main']['App']['GetEnterpriseInfoByCreditCode'](arg1);
 }
 
 export function GetEnv() {
   return window['go']['main']['App']['GetEnv']();
 }
 
-export function GetEquipmentByCreditCode(arg1) {
-  return window['go']['main']['App']['GetEquipmentByCreditCode'](arg1);
-}
-
 export function GetFileInfo(arg1) {
   return window['go']['main']['App']['GetFileInfo'](arg1);
 }
 
-export function GetImportRecordsByFileType(arg1) {
-  return window['go']['main']['App']['GetImportRecordsByFileType'](arg1);
-}
-
-export function GetPasswordInfo() {
-  return window['go']['main']['App']['GetPasswordInfo']();
-}
-
-export function GetStateManifest() {
-  return window['go']['main']['App']['GetStateManifest']();
-}
-
-export function ImportEnterpriseList(arg1) {
-  return window['go']['main']['App']['ImportEnterpriseList'](arg1);
-}
-
-export function ImportKeyEquipmentList(arg1) {
-  return window['go']['main']['App']['ImportKeyEquipmentList'](arg1);
-}
-
-export function InsertImportRecord(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['InsertImportRecord'](arg1, arg2, arg3, arg4);
-}
-
-export function IsEnterpriseListExist() {
-  return window['go']['main']['App']['IsEnterpriseListExist']();
-}
-
-export function IsEquipmentListExist() {
-  return window['go']['main']['App']['IsEquipmentListExist']();
-}
-
-export function Login(arg1) {
-  return window['go']['main']['App']['Login'](arg1);
-}
-
 export function Makedir(arg1) {
   return window['go']['main']['App']['Makedir'](arg1);
-}
-
-export function MergeConflictData(arg1, arg2) {
-  return window['go']['main']['App']['MergeConflictData'](arg1, arg2);
-}
-
-export function MergeDatabase(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['MergeDatabase'](arg1, arg2, arg3, arg4);
-}
-
-export function ModelDataCheckAttachment2() {
-  return window['go']['main']['App']['ModelDataCheckAttachment2']();
-}
-
-export function ModelDataCheckReportDownload(arg1) {
-  return window['go']['main']['App']['ModelDataCheckReportDownload'](arg1);
-}
-
-export function ModelDataCheckTable1() {
-  return window['go']['main']['App']['ModelDataCheckTable1']();
-}
-
-export function ModelDataCheckTable2() {
-  return window['go']['main']['App']['ModelDataCheckTable2']();
-}
-
-export function ModelDataCheckTable3() {
-  return window['go']['main']['App']['ModelDataCheckTable3']();
-}
-
-export function ModelDataCoverAttachment2(arg1) {
-  return window['go']['main']['App']['ModelDataCoverAttachment2'](arg1);
-}
-
-export function ModelDataCoverTable1(arg1) {
-  return window['go']['main']['App']['ModelDataCoverTable1'](arg1);
-}
-
-export function ModelDataCoverTable2(arg1) {
-  return window['go']['main']['App']['ModelDataCoverTable2'](arg1);
-}
-
-export function ModelDataCoverTable3(arg1) {
-  return window['go']['main']['App']['ModelDataCoverTable3'](arg1);
 }
 
 export function Movefile(arg1, arg2) {
@@ -254,74 +78,6 @@ export function OpenSaveDialog(arg1) {
   return window['go']['main']['App']['OpenSaveDialog'](arg1);
 }
 
-export function QueryDataAttachment2() {
-  return window['go']['main']['App']['QueryDataAttachment2']();
-}
-
-export function QueryDataDetailAttachment2(arg1) {
-  return window['go']['main']['App']['QueryDataDetailAttachment2'](arg1);
-}
-
-export function QueryDataDetailAttachment2ByDBFile(arg1, arg2) {
-  return window['go']['main']['App']['QueryDataDetailAttachment2ByDBFile'](arg1, arg2);
-}
-
-export function QueryDataDetailTable1(arg1) {
-  return window['go']['main']['App']['QueryDataDetailTable1'](arg1);
-}
-
-export function QueryDataDetailTable1ByDBFile(arg1, arg2) {
-  return window['go']['main']['App']['QueryDataDetailTable1ByDBFile'](arg1, arg2);
-}
-
-export function QueryDataDetailTable2(arg1) {
-  return window['go']['main']['App']['QueryDataDetailTable2'](arg1);
-}
-
-export function QueryDataDetailTable2ByDBFile(arg1, arg2) {
-  return window['go']['main']['App']['QueryDataDetailTable2ByDBFile'](arg1, arg2);
-}
-
-export function QueryDataDetailTable3(arg1) {
-  return window['go']['main']['App']['QueryDataDetailTable3'](arg1);
-}
-
-export function QueryDataDetailTable3ByDBFile(arg1, arg2) {
-  return window['go']['main']['App']['QueryDataDetailTable3ByDBFile'](arg1, arg2);
-}
-
-export function QueryDataTable1() {
-  return window['go']['main']['App']['QueryDataTable1']();
-}
-
-export function QueryDataTable2() {
-  return window['go']['main']['App']['QueryDataTable2']();
-}
-
-export function QueryDataTable3() {
-  return window['go']['main']['App']['QueryDataTable3']();
-}
-
-export function QueryExportData() {
-  return window['go']['main']['App']['QueryExportData']();
-}
-
-export function QueryTable1Process() {
-  return window['go']['main']['App']['QueryTable1Process']();
-}
-
-export function QueryTable2Process() {
-  return window['go']['main']['App']['QueryTable2Process']();
-}
-
-export function QueryTable3Process() {
-  return window['go']['main']['App']['QueryTable3Process']();
-}
-
-export function QueryTableAttachment2Process() {
-  return window['go']['main']['App']['QueryTableAttachment2Process']();
-}
-
 export function ReadFile(arg1, arg2) {
   return window['go']['main']['App']['ReadFile'](arg1, arg2);
 }
@@ -334,50 +90,10 @@ export function Removefile(arg1) {
   return window['go']['main']['App']['Removefile'](arg1);
 }
 
-export function SM4Decrypt(arg1) {
-  return window['go']['main']['App']['SM4Decrypt'](arg1);
-}
-
-export function SM4Encrypt(arg1) {
-  return window['go']['main']['App']['SM4Encrypt'](arg1);
-}
-
-export function SaveAreaConfig(arg1) {
-  return window['go']['main']['App']['SaveAreaConfig'](arg1);
-}
-
-export function SetUserPassword(arg1) {
-  return window['go']['main']['App']['SetUserPassword'](arg1);
-}
-
 export function ShowMessageBox(arg1) {
   return window['go']['main']['App']['ShowMessageBox'](arg1);
 }
 
-export function UpdateStateManifest(arg1) {
-  return window['go']['main']['App']['UpdateStateManifest'](arg1);
-}
-
-export function ValidateAttachment2File(arg1, arg2) {
-  return window['go']['main']['App']['ValidateAttachment2File'](arg1, arg2);
-}
-
-export function ValidateEnterpriseListFile(arg1) {
-  return window['go']['main']['App']['ValidateEnterpriseListFile'](arg1);
-}
-
-export function ValidateKeyEquipmentListFile(arg1) {
-  return window['go']['main']['App']['ValidateKeyEquipmentListFile'](arg1);
-}
-
-export function ValidateTable1File(arg1, arg2) {
-  return window['go']['main']['App']['ValidateTable1File'](arg1, arg2);
-}
-
-export function ValidateTable2File(arg1, arg2) {
-  return window['go']['main']['App']['ValidateTable2File'](arg1, arg2);
-}
-
-export function ValidateTable3File(arg1, arg2) {
-  return window['go']['main']['App']['ValidateTable3File'](arg1, arg2);
+export function ValidateData(arg1) {
+  return window['go']['main']['App']['ValidateData'](arg1);
 }

@@ -191,12 +191,6 @@ func (a *App) openFileDialogWithRecover(option FileDialogOptions) FileDialogResu
 
 	var filters = a.transformFileFilters(option.Filters)
 
-	// DefaultPath 默认值
-	if option.DefaultPath == "" {
-		option.DefaultPath = "."
-	}
-
-	print(option.OpenDirectory)
 	// OpenDirectory 选择目录
 	if option.OpenDirectory {
 		selection, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{

@@ -1,18 +1,12 @@
 package main
 
 import (
-	"context"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strconv"
-
-	"github.com/google/uuid"
-	"github.com/tjfoc/gmsm/sm4"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 
@@ -23,108 +17,6 @@ func GetPath(path string) string {
 	return filepath.Clean(path)
 }
 
-// SM4Encrypt SM4加密函数
-// 加密模式：ECB
-// 填充方式：PKCS#7
-// 输出格式：十六进制字符串
-// 不足16字节时用0填充，超过16字节时截断
-// 加密时使用PKCS#7填充
-
-func SM4Encrypt(plaintext string) (string, error) {
-	key := DEFAULT_ENCRYPTION_KEY
-	// 将密钥转换为字节数组
-	keyBytes := []byte(key)
-	if len(keyBytes) != SM4_KEY_LENGTH {
-		// 如果密钥长度不是16字节，进行填充或截断
-		if len(keyBytes) < SM4_KEY_LENGTH {
-			// 填充到16字节
-			for len(keyBytes) < SM4_KEY_LENGTH {
-				keyBytes = append(keyBytes, 0)
-			}
-		} else {
-			// 截断到16字节
-			keyBytes = keyBytes[:SM4_KEY_LENGTH]
-		}
-	}
-
-	// 创建SM4加密器
-	cipher, err := sm4.NewCipher(keyBytes)
-	if err != nil {
-		return "", fmt.Errorf("创建SM4加密器失败: %v", err)
-	}
-
-	// 将明文转换为字节数组
-	plaintextBytes := []byte(plaintext)
-
-	// 计算需要填充的字节数
-	padding := SM4_BLOCK_SIZE - (len(plaintextBytes) % SM4_BLOCK_SIZE)
-	if padding == SM4_BLOCK_SIZE {
-		padding = 0
-	}
-
-	// 填充明文
-	for i := 0; i < padding; i++ {
-		plaintextBytes = append(plaintextBytes, byte(padding))
-	}
-
-	// 加密
-	ciphertext := make([]byte, len(plaintextBytes))
-	for i := 0; i < len(plaintextBytes); i += SM4_BLOCK_SIZE {
-		cipher.Encrypt(ciphertext[i:i+SM4_BLOCK_SIZE], plaintextBytes[i:i+SM4_BLOCK_SIZE])
-	}
-
-	// 返回十六进制字符串
-	return hex.EncodeToString(ciphertext), nil
-}
-
-// SM4Decrypt SM4解密函数
-func SM4Decrypt(ciphertextHex string) (string, error) {
-	key := DEFAULT_ENCRYPTION_KEY
-	// 将密钥转换为字节数组
-	keyBytes := []byte(key)
-	if len(keyBytes) != SM4_KEY_LENGTH {
-		// 如果密钥长度不是16字节，进行填充或截断
-		if len(keyBytes) < SM4_KEY_LENGTH {
-			// 填充到16字节
-			for len(keyBytes) < SM4_KEY_LENGTH {
-				keyBytes = append(keyBytes, 0)
-			}
-		} else {
-			// 截断到16字节
-			keyBytes = keyBytes[:SM4_KEY_LENGTH]
-		}
-	}
-
-	// 创建SM4解密器
-	cipher, err := sm4.NewCipher(keyBytes)
-	if err != nil {
-		return "", fmt.Errorf("创建SM4解密器失败: %v", err)
-	}
-
-	// 将十六进制字符串转换为字节数组
-	ciphertextBytes, err := hex.DecodeString(ciphertextHex)
-	if err != nil {
-		return "", fmt.Errorf("解析十六进制字符串失败: %v", err)
-	}
-
-	// 解密
-	plaintext := make([]byte, len(ciphertextBytes))
-	for i := 0; i < len(ciphertextBytes); i += SM4_BLOCK_SIZE {
-		cipher.Decrypt(plaintext[i:i+SM4_BLOCK_SIZE], ciphertextBytes[i:i+SM4_BLOCK_SIZE])
-	}
-
-	// 去除填充
-	if len(plaintext) > 0 {
-		padding := int(plaintext[len(plaintext)-1])
-		if padding > 0 && padding <= SM4_BLOCK_SIZE {
-			plaintext = plaintext[:len(plaintext)-padding]
-		}
-	}
-
-	// 返回明文
-	return string(plaintext), nil
-}
-
 // GetCurrentOSUser 获取当前操作系统登录账号
 func GetCurrentOSUser() string {
 	currentUser, err := user.Current()
@@ -132,10 +24,6 @@ func GetCurrentOSUser() string {
 		return "系统"
 	}
 	return currentUser.Username
-}
-
-func GenerateUUID() string {
-	return uuid.New().String()
 }
 
 // copyCacheFile 带异常处理的复制缓存文件函数
@@ -173,12 +61,6 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(destFile, sourceFile)
 	return err
-}
-
-// SendImportResultNotification 发送导入结果通知
-func SendImportResultNotification(ctx context.Context, result map[string]interface{}, messageID string) {
-	result["messageId"] = messageID
-	runtime.EventsEmit(ctx, "import_result", result)
 }
 
 // getStringValue 安全获取字符串值

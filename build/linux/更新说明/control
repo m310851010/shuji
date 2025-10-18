@@ -38,7 +38,7 @@ Suggests: kylin-software-center-common,
           deepin-qt5integration,
           deepin-qt5config
 Provides: shuji
-Description: 煤炭摸底数据校验软件
+Description: 数据校验工具
 Vendor: 北京<service@qq.com>
 Priority: optional
 Section: utils

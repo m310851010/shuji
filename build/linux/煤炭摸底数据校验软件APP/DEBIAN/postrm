@@ -8,13 +8,13 @@ case "$1" in
         for home_dir in /home/*; do
             if [ -d "$home_dir" ] && [ "$(basename "$home_dir")" != "lost+found" ]; then
                 # 删除英文桌面路径的快捷方式
-                if [ -f "$home_dir/Desktop/煤炭摸底数据校验软件.desktop" ]; then
-                    rm -f "$home_dir/Desktop/煤炭摸底数据校验软件.desktop"
+                if [ -f "$home_dir/Desktop/数据校验工具.desktop" ]; then
+                    rm -f "$home_dir/Desktop/数据校验工具.desktop"
                 fi
                 
                 # 删除中文桌面路径的快捷方式
-                if [ -f "$home_dir/桌面/煤炭摸底数据校验软件.desktop" ]; then
-                    rm -f "$home_dir/桌面/煤炭摸底数据校验软件.desktop"
+                if [ -f "$home_dir/桌面/数据校验工具.desktop" ]; then
+                    rm -f "$home_dir/桌面/数据校验工具.desktop"
                 fi
             fi
         done

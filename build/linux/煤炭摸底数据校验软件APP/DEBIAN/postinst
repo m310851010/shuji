@@ -29,17 +29,17 @@ case "$1" in
                 fi
 
                 # 创建桌面快捷方式
-                desktop_file="$desktop_dir/煤炭摸底数据校验软件.desktop"
+                desktop_file="$desktop_dir/数据校验工具.desktop"
 
                 cat > "$desktop_file" << EOF
 [Desktop Entry]
 Comment=数据处理软件
 Comment[zh_CN]=数据处理软件
 Exec=/usr/local/bin/shuji
-GenericName=煤炭摸底数据校验软件
-GenericName[zh_CN]=煤炭摸底数据校验软件
-Name=煤炭摸底数据校验软件
-Name[zh_CN]=煤炭摸底数据校验软件
+GenericName=数据校验工具
+GenericName[zh_CN]=数据校验工具
+Name=数据校验工具
+Name[zh_CN]=数据校验工具
 StartupNotify=false
 Terminal=false
 Type=Application
@@ -50,7 +50,7 @@ X-DBUS-StartupType=
 X-KDE-SubstituteUID=false
 X-KDE-Username=
 Icon=/usr/share/icons/shuji/appicon.png
-Description=煤炭摸底数据校验软件
+Description=数据校验工具
 StartupWMClass=shuji
 EOF
 
