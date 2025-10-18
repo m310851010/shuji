@@ -8,6 +8,7 @@ func (a *App) ValidateData(filePaths []string) QueryResult {
 		Message: "验证通过",
 	}
 }
+
 // DownloadValidateReport 下载验证报告
 func (a *App) DownloadValidateReport() QueryResult {
 	return QueryResult{
