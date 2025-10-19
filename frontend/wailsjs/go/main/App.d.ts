@@ -16,9 +16,11 @@ export function ExitApp():Promise<void>;
 
 export function FileExists(arg1:string):Promise<main.FlagResult>;
 
+export function GetAppConfig():Promise<main.AppConfig>;
+
 export function GetCachePath(arg1:string):Promise<string>;
 
-export function GetChinaAreaMap():Promise<Array<any>>;
+export function GetChinaAreaMap():Promise<Record<string, Record<string, Record<string, boolean>>>>;
 
 export function GetChinaAreaStr():Promise<main.QueryResult>;
 
@@ -27,6 +29,8 @@ export function GetCurrentOSUser():Promise<string>;
 export function GetEnv():Promise<main.EnvResult>;
 
 export function GetFileInfo(arg1:string):Promise<main.FileInfo>;
+
+export function GetTradeMapping():Promise<Record<string, Record<string, Record<string, boolean>>>>;
 
 export function Makedir(arg1:string):Promise<main.FlagResult>;
 
@@ -49,3 +53,5 @@ export function Removefile(arg1:string):Promise<main.FlagResult>;
 export function ShowMessageBox(arg1:main.MessageBoxOptions):Promise<main.MessageBoxResult>;
 
 export function ValidateData(arg1:Array<string>):Promise<main.QueryResult>;
+
+export function WriteAppConfig(arg1:main.AppConfig):Promise<main.QueryResult>;

@@ -2,6 +2,12 @@
     "thresholdTotalCoalConsumption": 0,
     "thresholdMainUsage": 0,
     "thresholdCoalEquipment": 0,
-    "thresholdTotalCoal3": 0,
-    "thresholdTotalCoalSum": 0
+    "thresholdTotalCoal_province": 0,
+    "thresholdTotalCoal_city": 0,
+    "thresholdTotalCoal_country": 0,
+    "thresholdEnergyTypes": 0,
+    "thresholdCoalConsumption": 0,
+    "thresholdTotalCoal_area_province": 0,
+    "thresholdTotalCoal_area_city": 0,
+    "thresholdTotalCoal_area_country": 0
 }

@@ -1,5 +1,37 @@
 export namespace main {
 	
+	export class AppConfig {
+	    thresholdTotalCoalConsumption: number;
+	    thresholdMainUsage: number;
+	    thresholdCoalEquipment: number;
+	    thresholdTotalCoal_province: number;
+	    thresholdTotalCoal_city: number;
+	    thresholdTotalCoal_country: number;
+	    thresholdEnergyTypes: number;
+	    thresholdCoalConsumption: number;
+	    thresholdTotalCoal_area_province: number;
+	    thresholdTotalCoal_area_city: number;
+	    thresholdTotalCoal_area_country: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.thresholdTotalCoalConsumption = source["thresholdTotalCoalConsumption"];
+	        this.thresholdMainUsage = source["thresholdMainUsage"];
+	        this.thresholdCoalEquipment = source["thresholdCoalEquipment"];
+	        this.thresholdTotalCoal_province = source["thresholdTotalCoal_province"];
+	        this.thresholdTotalCoal_city = source["thresholdTotalCoal_city"];
+	        this.thresholdTotalCoal_country = source["thresholdTotalCoal_country"];
+	        this.thresholdEnergyTypes = source["thresholdEnergyTypes"];
+	        this.thresholdCoalConsumption = source["thresholdCoalConsumption"];
+	        this.thresholdTotalCoal_area_province = source["thresholdTotalCoal_area_province"];
+	        this.thresholdTotalCoal_area_city = source["thresholdTotalCoal_area_city"];
+	        this.thresholdTotalCoal_area_country = source["thresholdTotalCoal_area_country"];
+	    }
+	}
 	export class EnvResult {
 	    appName: string;
 	    appFileName: string;

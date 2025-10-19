@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	sysruntime "runtime"
 	"strings"
+	"time"
 
 	"github.com/klauspost/cpuid/v2"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -32,14 +33,6 @@ var Env = &EnvResult{
 	X64Level:    cpuid.CPU.X64Level(),
 	AssetsDir:   "",
 	ExePath:     "",
-}
-
-var Config = &AppConfig{
-	ThresholdTotalCoalConsumption: 0,
-	ThresholdMainUsage: 0,
-	ThresholdCoalEquipment: 0,
-	ThresholdTotalCoal3: 0,
-	ThresholdTotalCoalSum: 0,
 }
 
 // NewApp creates a new App application struct
@@ -74,8 +67,17 @@ func CreateApp(fs embed.FS) *App {
 	app.fs = fs
 
 	// 初始化配置文件
-	extractEmbeddedFile(fs, FRONTEND_FILE_DIR_NAME + CONFIG_FILE_NAME, filepath.Join(DATA_DIR_NAME, CONFIG_FILE_NAME))
+	go initConfigFiles(*app)
 	return app
+}
+
+// initConfigFiles 初始化配置文件
+func initConfigFiles(a App) {
+	extractEmbeddedFile(a.fs, FRONTEND_FILE_DIR_NAME + CONFIG_FILE_NAME, filepath.Join(Env.BasePath, DATA_DIR_NAME, CONFIG_FILE_NAME))
+	a.GetChinaAreaMap()
+	a.GetTradeMapping()
+	time.Sleep(500 * time.Millisecond)
+	a.GetAppConfig()
 }
 
 // 抽取嵌入式文件

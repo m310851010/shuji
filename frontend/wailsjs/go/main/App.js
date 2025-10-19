@@ -30,6 +30,10 @@ export function FileExists(arg1) {
   return window['go']['main']['App']['FileExists'](arg1);
 }
 
+export function GetAppConfig() {
+  return window['go']['main']['App']['GetAppConfig']();
+}
+
 export function GetCachePath(arg1) {
   return window['go']['main']['App']['GetCachePath'](arg1);
 }
@@ -52,6 +56,10 @@ export function GetEnv() {
 
 export function GetFileInfo(arg1) {
   return window['go']['main']['App']['GetFileInfo'](arg1);
+}
+
+export function GetTradeMapping() {
+  return window['go']['main']['App']['GetTradeMapping']();
 }
 
 export function Makedir(arg1) {
@@ -96,4 +104,8 @@ export function ShowMessageBox(arg1) {
 
 export function ValidateData(arg1) {
   return window['go']['main']['App']['ValidateData'](arg1);
+}
+
+export function WriteAppConfig(arg1) {
+  return window['go']['main']['App']['WriteAppConfig'](arg1);
 }

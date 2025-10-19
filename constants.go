@@ -20,6 +20,8 @@ const (
 	// 前端文件目录名称
 	FRONTEND_FILE_DIR_NAME = "frontend/dist/"
 
-	// 前端文件路径
+	// 中国区域信息文件路径
 	CHINA_AREA_FILE_PATH = FRONTEND_FILE_DIR_NAME + "China.json"
+	// 行业门类映射文件路径
+	TRADE_MAPPING_FILE_PATH = FRONTEND_FILE_DIR_NAME + "TradeMapping.json"
 )

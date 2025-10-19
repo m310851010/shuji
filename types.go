@@ -87,13 +87,41 @@ type FileDialogResult struct {
 // AppConfig 应用配置
 type AppConfig struct {
 	// 耗煤总量阈值, “耗煤总量(实物量，万吨)”数值与“原煤消费(实物量，万吨)”“洗精煤消费(实物量，万吨)”“其他煤炭消费(实物量，万吨)”加和的数值相等
-	ThresholdTotalCoalConsumption int `json:"thresholdTotalCoalConsumption"`
+	ThresholdTotalCoalConsumption float64 `json:"thresholdTotalCoalConsumption"`
 	// 耗煤用途阈值 “耗煤总量(实物量，万吨)”与附表1主要用途情况，企业的“投入量”之和相等
-    ThresholdMainUsage int `json:"thresholdMainUsage"`
+    ThresholdMainUsage float64 `json:"thresholdMainUsage"`
 	// 耗煤设备阈值 “耗煤总量(实物量，万吨)”与附表1重点耗煤装置（设备）情况这重点耗煤装置的年耗煤量之和相等
-    ThresholdCoalEquipment int `json:"thresholdCoalEquipment"`
-	// 煤合计阈值 本年度的“煤合计”与“原煤”“洗精煤”“其他”应该相等
-    ThresholdTotalCoal3 int `json:"thresholdTotalCoal3"`
-	// 煤合计阈值 本年度的“煤合计”数值与“能源加工转换”和“终端消费”之和应该相等
-    ThresholdTotalCoalSum int `json:"thresholdTotalCoalSum"`
+    ThresholdCoalEquipment float64 `json:"thresholdCoalEquipment"`
+	// 对于某一个区域（省、市、县）年度煤合计数值，预留差异空间配置
+    ThresholdTotalCoal_province float64 `json:"thresholdTotalCoal_province"`
+	// 对于某一个区域（省、市、县）年度煤合计数值，预留差异空间配置
+    ThresholdTotalCoal_city float64 `json:"thresholdTotalCoal_city"`
+	// 对于某一个区域（省、市、县）年度煤合计数值，预留差异空间配置
+    ThresholdTotalCoal_country float64 `json:"thresholdTotalCoal_country"`
+	// 对于某一个区域（省、市、县）的煤炭消费品种数据，预留差异空间配置
+    ThresholdEnergyTypes float64 `json:"thresholdEnergyTypes"`
+	// 对于某一个区域（省、市、县）的煤炭消费数据，预留差异空间配置
+    ThresholdCoalConsumption float64 `json:"thresholdCoalConsumption"`
+	// 对于某一个区域（省、市）的煤炭消费数据，本年度“煤合计”数值与下辖所有区域（市、县）“煤合计”数值，预留差异空间配置
+    ThresholdTotalCoal_area_province float64 `json:"thresholdTotalCoal_area_province"`
+	// 对于某一个区域（省、市）的煤炭消费数据，本年度“煤合计”数值与下辖所有区域（市、县）“煤合计”数值，预留差异空间配置
+    ThresholdTotalCoal_area_city float64 `json:"thresholdTotalCoal_area_city"`
+	// 对于某一个区域（省、市）的煤炭消费数据，本年度“煤合计”数值与下辖所有区域（市、县）“煤合计”数值，预留差异空间配置
+    ThresholdTotalCoal_area_country float64 `json:"thresholdTotalCoal_area_country"`
+}
+
+// ValidationError 验证错误结构
+type ValidationError struct {
+	RowNumber int      `json:"row_number"` // 错误行号
+	Message   string   `json:"message"`    // 错误信息
+	Type      string   `json:"type"`       // 错误类型	
+	Flag      int   `json:"flag"`      // 错误标识, 用于高亮单元格 0: 蓝色, 1: 黄色
+	Cells      []string   `json:"cells"`      // 单元格位置，如["A1", "B1", "C1"]
+}
+
+// ExcelFieldMapping Excel字段映射
+type ExcelFieldMapping struct {
+	FieldName string `json:"fieldName"` // 字段名
+	Index int `json:"index"` // 字段索引
+	Column    string `json:"column"` // Excel列名，如 "A", "B", "C"	
 }
