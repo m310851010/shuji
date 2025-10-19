@@ -91,6 +91,7 @@
   const handleBackClick = async () => {
     model.passed = false;
     model.checkFinished = false;
+    model.selectedFiles = [];
     // @ts-ignore
     await Removefile(model.zipPath);
   };

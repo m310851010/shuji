@@ -12,179 +12,143 @@ import (
 
 // ValidateData 验证数据
 func (a *App) ValidateData(province string, filePaths []string) QueryResult {
-
 	if len(filePaths) != 4 {
 		return QueryResult{Ok: false, Message: "请上传4个文件"}
 	}
 
-	// 根据文件名识别并分类文件
-	fileMap := make(map[string]string)
-	for _, filePath := range filePaths {
-		fileName := filepath.Base(filePath)
-		if strings.HasPrefix(fileName, "表1") {
-			fileMap["table1"] = filePath
-		} else if strings.HasPrefix(fileName, "表2") {
-			fileMap["table2"] = filePath
-		} else if strings.HasPrefix(fileName, "表3") {
-			fileMap["table3"] = filePath
-		} else if strings.HasPrefix(fileName, "附件2") {
-			fileMap["attachment2"] = filePath
-		}
-	}
-
-	// 检查是否所有文件都已识别
-	if len(fileMap) != 4 {
-		return QueryResult{Ok: false, Message: "文件名称必须以表1、表2、表3、附件2开头"}
-	}
-
-	// 复制文件到缓存并校验
-	cacheFiles := make(map[string]string)
-	allResults := make(map[string][]ValidateSheetResult)
-	hasErrors := false
-
-	// 表1校验
-	if filePath, ok := fileMap["table1"]; ok {
-		cachePath, err := CopyCacheFile(filePath, "")
-		if err != nil {
-			return QueryResult{Ok: false, Message: err.Error()}
-		}
-		cacheFiles["table1"] = cachePath
-
-		results, err := a.validateTable1(cachePath)
-		if err != nil {
-			return QueryResult{Ok: false, Message: err.Error()}
-		}
-		allResults["table1"] = results
-		for _, result := range results {
-			if len(result.Errors) > 0 {
-				hasErrors = true
-				break
-			}
-		}
-	}
-
-	// 表2校验
-	if filePath, ok := fileMap["table2"]; ok {
-		cachePath, err := CopyCacheFile(filePath, "")
-		if err != nil {
-			return QueryResult{Ok: false, Message: err.Error()}
-		}
-		cacheFiles["table2"] = cachePath
-
-		results, err := a.validateTable2(cachePath)
-		if err != nil {
-			return QueryResult{Ok: false, Message: err.Error()}
-		}
-		allResults["table2"] = results
-		for _, result := range results {
-			if len(result.Errors) > 0 {
-				hasErrors = true
-				break
-			}
-		}
-	}
-
-	// 表3校验
-	if filePath, ok := fileMap["table3"]; ok {
-		cachePath, err := CopyCacheFile(filePath, "")
-		if err != nil {
-			return QueryResult{Ok: false, Message: err.Error()}
-		}
-		cacheFiles["table3"] = cachePath
-
-		results, err := a.validateTable3(cachePath)
-		if err != nil {
-			return QueryResult{Ok: false, Message: err.Error()}
-		}
-		allResults["table3"] = results
-		for _, result := range results {
-			if len(result.Errors) > 0 {
-				hasErrors = true
-				break
-			}
-		}
-	}
-
-	// 附件2校验
-	if filePath, ok := fileMap["attachment2"]; ok {
-		cachePath, err := CopyCacheFile(filePath, "")
-		if err != nil {
-			return QueryResult{Ok: false, Message: err.Error()}
-		}
-		cacheFiles["attachment2"] = cachePath
-
-		results, err := a.validateAttachment2(cachePath)
-		if err != nil {
-			return QueryResult{Ok: false, Message: err.Error()}
-		}
-		allResults["attachment2"] = results
-		for _, result := range results {
-			if len(result.Errors) > 0 {
-				hasErrors = true
-				break
-			}
-		}
-	}
-
-	// 如果没有错误，直接返回成功
-	if !hasErrors {
-		// 清理缓存文件
-		for _, cachePath := range cacheFiles {
-			os.Remove(cachePath)
-		}
-		return QueryResult{
-			Ok:      true,
-			Data:    nil,
-			Message: "",
-		}
-	}
-
-	// 标记错误并生成压缩包
-	errorFiles := []string{}
-	for tableType, results := range allResults {
-		cachePath := cacheFiles[tableType]
-		hasError := false
-		for _, result := range results {
-			if len(result.Errors) > 0 {
-				hasError = true
-				break
-			}
-		}
-
-		if hasError {
-			// 标记错误
-			err := a.markErrorsInExcel(cachePath, results)
-			if err != nil {
-				// 清理所有缓存文件
-				for _, path := range cacheFiles {
-					os.Remove(path)
-				}
-				return QueryResult{Ok: false, Message: fmt.Sprintf("标记错误失败: %v", err)}
-			}
-			errorFiles = append(errorFiles, cachePath)
-		}
-	}
-
-	// 生成压缩包
-	zipPath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, "校验报告.zip"))
-	err := createZipFile(zipPath, errorFiles)
+	// 分类并校验文件
+	validationTasks, err := a.classifyAndValidate(filePaths)
 	if err != nil {
-		// 清理所有缓存文件
-		for _, path := range cacheFiles {
-			os.Remove(path)
-		}
-		return QueryResult{Ok: false, Message: fmt.Sprintf("生成压缩包失败: %v", err)}
+		return QueryResult{Ok: false, Message: err.Error()}
 	}
 
-	// 清理缓存的excel文件
-	for _, cachePath := range cacheFiles {
-		os.Remove(cachePath)
+	// 检查是否有错误
+	hasErrors := false
+	for _, task := range validationTasks {
+		if hasSheetErrors(task.Results) {
+			hasErrors = true
+			break
+		}
 	}
+
+	// 没有错误，清理并返回
+	if !hasErrors {
+		cleanupTasks(validationTasks)
+		return QueryResult{Ok: true, Data: nil, Message: ""}
+	}
+
+	// 生成错误报告
+	zipPath, err := a.generateErrorReport(validationTasks)
+	if err != nil {
+		cleanupTasks(validationTasks)
+		return QueryResult{Ok: false, Message: err.Error()}
+	}
+
+	// 清理缓存文件
+	cleanupTasks(validationTasks)
 
 	return QueryResult{
 		Ok:      true,
 		Data:    zipPath,
 		Message: "校验完成，发现错误，请下载报告查看",
+	}
+}
+
+// ValidationTask 校验任务
+type ValidationTask struct {
+	Prefix    string                 // 文件前缀（如"表1"）
+	Validate  func(string) ([]ValidateSheetResult, error) // 校验函数
+	CachePath string                 // 缓存文件路径
+	Results   []ValidateSheetResult  // 校验结果
+}
+
+// classifyAndValidate 分类文件并执行校验
+func (a *App) classifyAndValidate(filePaths []string) ([]*ValidationTask, error) {
+	// 定义校验任务
+	tasks := []*ValidationTask{
+		{Prefix: "表1", Validate: a.validateTable1},
+		{Prefix: "表2", Validate: a.validateTable2},
+		{Prefix: "表3", Validate: a.validateTable3},
+		{Prefix: "附件2", Validate: a.validateAttachment2},
+	}
+
+	// 为每个文件匹配对应的任务
+	for _, filePath := range filePaths {
+		fileName := filepath.Base(filePath)
+		matched := false
+		
+		for _, task := range tasks {
+			if strings.HasPrefix(fileName, task.Prefix) {
+				// 复制到缓存
+				cachePath, err := CopyCacheFile(filePath, "")
+				if err != nil {
+					return tasks, err
+				}
+				task.CachePath = cachePath
+
+				// 执行校验
+				results, err := task.Validate(cachePath)
+				if err != nil {
+					return tasks, err
+				}
+				task.Results = results
+				matched = true
+				break
+			}
+		}
+		
+		if !matched {
+			return tasks, fmt.Errorf("文件名称必须以表1、表2、表3、附件2开头")
+		}
+	}
+
+	// 检查是否所有任务都已完成
+	for _, task := range tasks {
+		if task.CachePath == "" {
+			return tasks, fmt.Errorf("缺少%s文件", task.Prefix)
+		}
+	}
+
+	return tasks, nil
+}
+
+// generateErrorReport 生成错误报告
+func (a *App) generateErrorReport(tasks []*ValidationTask) (string, error) {
+	var errorFiles []string
+
+	for _, task := range tasks {
+		if hasSheetErrors(task.Results) {
+			if err := a.markErrorsInExcel(task.CachePath, task.Results); err != nil {
+				return "", fmt.Errorf("标记错误失败: %v", err)
+			}
+			errorFiles = append(errorFiles, task.CachePath)
+		}
+	}
+
+	zipPath := GetPath(filepath.Join(CACHE_FILE_DIR_NAME, "校验报告.zip"))
+	if err := createZipFile(zipPath, errorFiles); err != nil {
+		return "", fmt.Errorf("生成压缩包失败: %v", err)
+	}
+
+	return zipPath, nil
+}
+
+// hasSheetErrors 检查是否有错误
+func hasSheetErrors(results []ValidateSheetResult) bool {
+	for _, result := range results {
+		if len(result.Errors) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// cleanupTasks 清理任务缓存文件
+func cleanupTasks(tasks []*ValidationTask) {
+	for _, task := range tasks {
+		if task.CachePath != "" {
+			os.Remove(task.CachePath)
+		}
 	}
 }
 
@@ -203,109 +167,129 @@ func (a *App) markErrorsInExcel(filePath string, results []ValidateSheetResult) 
 	}
 	defer f.Close()
 
-	// 定义颜色样式
-	blueStyle, err := f.NewStyle(&excelize.Style{
-		Fill: excelize.Fill{
-			Type:    "pattern",
-			Color:   []string{"#00b0f0"}, // 蓝色
-			Pattern: 1,
-		},
-		Border: border,
-	})
+	// 创建样式
+	blueStyle, yellowStyle, err := createCellStyles(f)
 	if err != nil {
 		return err
 	}
 
-	yellowStyle, err := f.NewStyle(&excelize.Style{
-		Fill: excelize.Fill{
-			Type:    "pattern",
-			Color:   []string{"#ffff00"}, // 黄色
-			Pattern: 1,
-		},
-		Border: border,
-	})
-	if err != nil {
-		return err
-	}
-
-	// 遍历每个sheet的错误
+	// 处理每个sheet
 	for _, sheetResult := range results {
-		fmt.Println(fmt.Sprintf("处理Sheet: %s, 错误数量: %d, RowNumber: %d", sheetResult.SheetName, len(sheetResult.Errors), sheetResult.RowNumber))
-		
 		if len(sheetResult.Errors) == 0 {
 			continue
 		}
 
-		// 统计每类问题的数量
-		typeCount := make(map[string]int)
-		for _, errItem := range sheetResult.Errors {
-			typeCount[errItem.Type]++
+		fmt.Printf("处理Sheet: %s, 错误数量: %d\n", sheetResult.SheetName, len(sheetResult.Errors))
+
+		// 标记错误单元格
+		if err := markErrorCells(f, sheetResult, blueStyle, yellowStyle); err != nil {
+			return err
 		}
 
-		// 合并同一单元格的错误
-		cellErrorsMap := make(map[string][]ValidationError)
-		for _, errItem := range sheetResult.Errors {
-			for _, cell := range errItem.Cells {
-				cellErrorsMap[cell] = append(cellErrorsMap[cell], errItem)
-			}
+		// 添加统计信息
+		if err := addStatistics(f, sheetResult); err != nil {
+			return err
 		}
-
-		// 标记每个单元格
-		for cell, errors := range cellErrorsMap {
-			// 合并错误消息
-			var messages []string
-			flag := 1 // 默认黄色
-			for _, err := range errors {
-				messages = append(messages, err.Message)
-				if err.Flag == 0 {
-					flag = 0 // 如果有蓝色标记，则使用蓝色
-				}
-			}
-			comment := strings.Join(messages, "\n")
-
-			// 设置单元格颜色
-			style := yellowStyle
-			if flag == 0 {
-				style = blueStyle
-			}
-			err := f.SetCellStyle(sheetResult.SheetName, cell, cell, style)
-			if err != nil {
-				return err
-			}
-
-			// 添加批注
-			err = f.AddComment(sheetResult.SheetName, excelize.Comment{
-				Cell:   cell,
-				Author: "系统校验",
-				Paragraph: []excelize.RichTextRun{
-					{Text: comment},
-				},
-			})
-			if err != nil {
-				return err
-			}
-		}
-
-		// 取消隐藏
-		f.SetRowVisible(sheetResult.SheetName, sheetResult.RowNumber + 1, true)
-		// 在最后一行添加统计信息
-		lastRow := sheetResult.RowNumber + 2 // 空一行后添加统计
-		f.SetRowVisible(sheetResult.SheetName, lastRow, true)
-		
-		// 添加统计标题
-		f.SetCellValue(sheetResult.SheetName, fmt.Sprintf("A%d", lastRow), "错误统计:")
-		
-		// 添加每类问题的统计
-		var statParts []string
-		for errorType, count := range typeCount {
-			statParts = append(statParts, fmt.Sprintf("%s: %d个", errorType, count))
-		}
-		statText := strings.Join(statParts, ", ")
-		f.SetCellValue(sheetResult.SheetName, fmt.Sprintf("B%d", lastRow), statText)
 	}
 
-	// 保存文件
 	return f.Save()
+}
+
+// createCellStyles 创建单元格样式
+func createCellStyles(f *excelize.File) (int, int, error) {
+	blueStyle, err := f.NewStyle(&excelize.Style{
+		Fill:   excelize.Fill{Type: "pattern", Color: []string{"#00b0f0"}, Pattern: 1},
+		Border: border,
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+
+	yellowStyle, err := f.NewStyle(&excelize.Style{
+		Fill:   excelize.Fill{Type: "pattern", Color: []string{"#ffff00"}, Pattern: 1},
+		Border: border,
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return blueStyle, yellowStyle, nil
+}
+
+// markErrorCells 标记错误单元格
+func markErrorCells(f *excelize.File, sheetResult ValidateSheetResult, blueStyle, yellowStyle int) error {
+	// 合并同一单元格的错误
+	cellErrorsMap := make(map[string][]ValidationError)
+	for _, errItem := range sheetResult.Errors {
+		for _, cell := range errItem.Cells {
+			cellErrorsMap[cell] = append(cellErrorsMap[cell], errItem)
+		}
+	}
+
+	// 标记每个单元格
+	for cell, errors := range cellErrorsMap {
+		messages, flag := mergeErrorMessages(errors)
+		
+		// 选择样式
+		style := yellowStyle
+		if flag == 0 {
+			style = blueStyle
+		}
+
+		// 设置单元格样式
+		if err := f.SetCellStyle(sheetResult.SheetName, cell, cell, style); err != nil {
+			return err
+		}
+
+		// 添加批注
+		if err := f.AddComment(sheetResult.SheetName, excelize.Comment{
+			Cell:   cell,
+			Author: "系统校验",
+			Paragraph: []excelize.RichTextRun{{Text: messages}},
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// mergeErrorMessages 合并错误消息
+func mergeErrorMessages(errors []ValidationError) (string, int) {
+	var messages []string
+	flag := 1 // 默认黄色
+	for _, err := range errors {
+		messages = append(messages, err.Message)
+		if err.Flag == 0 {
+			flag = 0 // 有蓝色标记则使用蓝色
+		}
+	}
+	return strings.Join(messages, "\n"), flag
+}
+
+// addStatistics 添加统计信息
+func addStatistics(f *excelize.File, sheetResult ValidateSheetResult) error {
+	// 统计每类问题数量
+	typeCount := make(map[string]int)
+	for _, errItem := range sheetResult.Errors {
+		typeCount[errItem.Type]++
+	}
+
+	// 确保统计行可见
+	lastRow := sheetResult.RowNumber + 2
+	f.SetRowVisible(sheetResult.SheetName, sheetResult.RowNumber+1, true)
+	f.SetRowVisible(sheetResult.SheetName, lastRow, true)
+
+	// 添加统计内容
+	f.SetCellValue(sheetResult.SheetName, fmt.Sprintf("A%d", lastRow), "错误统计:")
+
+	var statParts []string
+	for errorType, count := range typeCount {
+		statParts = append(statParts, fmt.Sprintf("%s: %d个", errorType, count))
+	}
+	f.SetCellValue(sheetResult.SheetName, fmt.Sprintf("B%d", lastRow), strings.Join(statParts, ", "))
+
+	return nil
 }
 
 // createZipFile 创建压缩包
