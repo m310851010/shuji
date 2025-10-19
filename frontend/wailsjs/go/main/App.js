@@ -18,10 +18,6 @@ export function Copyfile(arg1, arg2) {
   return window['go']['main']['App']['Copyfile'](arg1, arg2);
 }
 
-export function DownloadValidateReport() {
-  return window['go']['main']['App']['DownloadValidateReport']();
-}
-
 export function ExitApp() {
   return window['go']['main']['App']['ExitApp']();
 }
@@ -102,8 +98,8 @@ export function ShowMessageBox(arg1) {
   return window['go']['main']['App']['ShowMessageBox'](arg1);
 }
 
-export function ValidateData(arg1) {
-  return window['go']['main']['App']['ValidateData'](arg1);
+export function ValidateData(arg1, arg2) {
+  return window['go']['main']['App']['ValidateData'](arg1, arg2);
 }
 
 export function WriteAppConfig(arg1) {

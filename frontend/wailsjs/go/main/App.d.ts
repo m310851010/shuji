@@ -10,8 +10,6 @@ export function CopyFileToCache(arg1:string,arg2:string):Promise<main.QueryResul
 
 export function Copyfile(arg1:string,arg2:string):Promise<main.FlagResult>;
 
-export function DownloadValidateReport():Promise<main.QueryResult>;
-
 export function ExitApp():Promise<void>;
 
 export function FileExists(arg1:string):Promise<main.FlagResult>;
@@ -52,6 +50,6 @@ export function Removefile(arg1:string):Promise<main.FlagResult>;
 
 export function ShowMessageBox(arg1:main.MessageBoxOptions):Promise<main.MessageBoxResult>;
 
-export function ValidateData(arg1:Array<string>):Promise<main.QueryResult>;
+export function ValidateData(arg1:string,arg2:Array<string>):Promise<main.QueryResult>;
 
 export function WriteAppConfig(arg1:main.AppConfig):Promise<main.QueryResult>;

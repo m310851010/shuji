@@ -319,7 +319,7 @@ func GetCellPosition(fieldMapping map[string]ExcelFieldMapping, rowNumber int, f
 func CreateExcelFieldMapping(columnNames []string) map[string]ExcelFieldMapping {
 	mapping := make(map[string]ExcelFieldMapping)
 	for index, fieldName := range columnNames {
-		columnName, _ := excelize.ColumnNumberToName(index)
+		columnName, _ := excelize.ColumnNumberToName(index + 1)
 		mapping[fieldName] = ExcelFieldMapping{
 			FieldName: fieldName,
 			Index: index,

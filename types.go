@@ -114,9 +114,10 @@ type AppConfig struct {
 type ValidationError struct {
 	RowNumber int      `json:"row_number"` // 错误行号
 	Message   string   `json:"message"`    // 错误信息
-	Type      string   `json:"type"`       // 错误类型	
+	Type      string   `json:"type"`       // 错误类型 "文字格式填写错误","未按选项填写错误","数据与单位不匹配","数据校验逻辑错误","非数字格式错误","缺数据错误"
 	Flag      int   `json:"flag"`      // 错误标识, 用于高亮单元格 0: 蓝色, 1: 黄色
 	Cells      []string   `json:"cells"`      // 单元格位置，如["A1", "B1", "C1"]
+	SheetName string `json:"sheetName"` // 表格名称
 }
 
 // ExcelFieldMapping Excel字段映射
@@ -124,4 +125,12 @@ type ExcelFieldMapping struct {
 	FieldName string `json:"fieldName"` // 字段名
 	Index int `json:"index"` // 字段索引
 	Column    string `json:"column"` // Excel列名，如 "A", "B", "C"	
+}
+
+// ValidateSheetResult 验证表格结果
+type ValidateSheetResult struct {
+	SheetName string `json:"sheetName"` // 表格名称
+	RowNumber int `json:"lastRowNumber"` // 总行数
+	ColumnNumber int `json:"lastColumnNumber"` // 总列数
+	Errors []ValidationError `json:"errors"` // 错误列表
 }

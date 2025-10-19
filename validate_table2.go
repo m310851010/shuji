@@ -36,72 +36,38 @@ var table2StatusMap = map[string]bool{
 
 
 // ValidateTable2 验证表2数据
-func (a *App) validateTable2(filePath string) QueryResult {
+func (a *App) validateTable2(filePath string) ([]ValidateSheetResult, error) {
 
 	fileName := filepath.Base(filePath)
 
 	// 第二步: 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		errorMessage := fmt.Sprintf("读取文件%s失败: %v", fileName, err)
-		fmt.Println(errorMessage)
-		
-		return QueryResult{
-			Ok:      false,
-			Data:    nil,
-			Message: errorMessage,
-		}
+		return nil, fmt.Errorf("读取文件%s失败: %v", fileName, err)
 	}
 	defer f.Close()
 
 	// 获取所有工作表
 	sheets := f.GetSheetList()
 	if len(sheets) < 1 {
-		errorMessage := fmt.Sprintf("与数据模板不匹配：%s文件中没有足够的工作表", fileName)
-		fmt.Println(errorMessage)
-		return QueryResult{
-			Ok:      false,
-			Data:    nil,
-			Message: errorMessage,
-		}
+		return nil, fmt.Errorf("与数据模板不匹配：文件%s没有足够的工作表", fileName)
 	}
 
 	 err = a.validateTable2Headers(f, sheets)
 	 if err != nil {
-		errorMessage := fmt.Sprintf("与数据模板不匹配：%s", err.Error())
-		fmt.Println(errorMessage)
-		return QueryResult{
-			Ok:      false,
-			Data:    nil,
-			Message: errorMessage,
-		}
+		return nil, fmt.Errorf("与数据模板不匹配：文件%s:%s", fileName, err.Error())
 	}
 
 	mainData, err := a.parseTable2Excel(f, sheets)
 	if err != nil {
-		errorMessage := fmt.Sprintf("解析%s文件失败：%s", fileName, err.Error())
-		fmt.Println(errorMessage)
-		return QueryResult{
-			Ok:      false,
-			Data:    nil,
-			Message: errorMessage,
-		}
+		return nil, fmt.Errorf("解析文件%s失败：%s", fileName, err.Error())
 	}
 
 	errors := a.validateTable2Data(mainData)
 
-	if len(errors) > 0 {
-		return QueryResult{
-			Ok:      false,
-			Data:    false,
-		}
-	}
-	
-	return QueryResult{
-		Ok:      true,
-		Data:    true,
-		Message: "验证通过",
-	}
+	return []ValidateSheetResult{
+		{SheetName: sheets[0], Errors: errors, RowNumber: len(mainData) + 1, ColumnNumber: len(table2Names),},
+	}, nil
 }
 
 // parseTable2Excel 解析表2数据
@@ -125,6 +91,7 @@ func (a *App) validateTable2Headers(f *excelize.File, sheets []string) error {
 	expectedHeadersRow := []string{
 		"序号","单位名称","统一社会信用代码","年份","行业门类","行业大类","行业中类","单位所在省","单位所在地市","单位所在区县","类型","编号","累计使用时间","设计年限","能效水平","容量","容量单位","用途","状态","年耗煤量(吨)","状态",
 	}
+
 	err = a.validateSheetHeaders(rows1, sheetName, 0, 0, expectedHeadersRow)
 	if err != nil {
 		return err
@@ -163,26 +130,26 @@ func (a *App) validateEnergyDevice2(row map[string]interface{}, rowNumber int, e
 	// 装置（设备）中类型
 	equipType := getStringValue(row["coal_type"]) // 装置（设备）中类型
 	if !table1EquipTypeMap2[equipType] {
-		*errors = append(*errors, ValidationError{ Type: "required", Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "coal_type"), RowNumber: rowNumber,})
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "coal_type"), RowNumber: rowNumber,})
 	}
 	// 能效水平
 	energyEfficiency := getStringValue(row["enecrgy_efficienct_bmk"]) // 能效水平
 	if !table1EnergyEfficiencyMap[energyEfficiency] {
-		*errors = append(*errors, ValidationError{ Type: "required", Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "enecrgy_efficienct_bmk"), RowNumber: rowNumber,})
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "enecrgy_efficienct_bmk"), RowNumber: rowNumber,})
 	}
 	// 容量单位
 	capacity_unit := getStringValue(row["capacity_unit"]) // 容量单位
 	if !table1CapacityUnitMap[capacity_unit] {
-		*errors = append(*errors, ValidationError{ Type: "required", Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "capacity_unit"), RowNumber: rowNumber,})	
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "capacity_unit"), RowNumber: rowNumber,})	
 	}
 	// 用途
 	useInfo := getStringValue(row["use_info"]) // 用途
 	if !table1UseInfoMap[useInfo] {
-		*errors = append(*errors, ValidationError{ Type: "required", Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "use_info"), RowNumber: rowNumber,})	
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "use_info"), RowNumber: rowNumber,})	
 	}
 	// 状态
 	status := getStringValue(row["status"]) // 状态
 	if !table2StatusMap[status] {
-		*errors = append(*errors, ValidationError{ Type: "required", Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "status"), RowNumber: rowNumber,})	
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "不在选项中", Flag: 0, Cells: GetCellPosition(table2FieldMapping, rowNumber, "status"), RowNumber: rowNumber,})	
 	}
 }

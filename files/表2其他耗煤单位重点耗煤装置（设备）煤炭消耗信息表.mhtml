@@ -14,7 +14,7 @@ Content-Type: text/html; charset="us-ascii"
     <o:DocumentProperties>
      <o:Created>2025-10-09T00:00:00</o:Created>
      <o:LastAuthor>WPS</o:LastAuthor>
-     <o:LastSaved>2025-10-18T12:09:04</o:LastSaved>
+     <o:LastSaved>2025-10-18T14:17:02</o:LastSaved>
     </o:DocumentProperties>
     <o:CustomDocumentProperties>
      <o:ICV dt:dt=3D"string">C82A5C9598D9497D84E2D26D62EC0130_13</o:ICV>
@@ -841,14 +841,15 @@ td
         <x:Panes>
          <x:Pane>
           <x:Number>3</x:Number>
-          <x:ActiveCol>9</x:ActiveCol>
-          <x:ActiveRow>11</x:ActiveRow>
-          <x:RangeSelection>J12</x:RangeSelection>
+          <x:ActiveCol>6</x:ActiveCol>
+          <x:ActiveRow>17</x:ActiveRow>
+          <x:RangeSelection>G18</x:RangeSelection>
          </x:Pane>
         </x:Panes>
         <x:ProtectContents>False</x:ProtectContents>
         <x:ProtectObjects>False</x:ProtectObjects>
         <x:ProtectScenarios>False</x:ProtectScenarios>
+        <x:Zoom>115</x:Zoom>
         <x:Print>
          <x:ValidPrinterInfo/>
          <x:HorizontalResolution>300</x:HorizontalResolution>
@@ -863,6 +864,9 @@ td
      <x:WindowHeight>12375</x:WindowHeight>
      <x:WindowWidth>27945</x:WindowWidth>
     </x:ExcelWorkbook>
+    <x:SupBook>
+     <x:Path>D:\workerPersonal\&#21271;&#20140;&#23458;&#25143;&#31471;\&#26657;&#26680;&#24037;&#20855;\</x:Path>
+    </x:SupBook>
    </xml>
   <![endif]-->
  </head>
@@ -895,26 +899,26 @@ td
    </tr>
    <tr height=3D"17" style=3D'height:12.75pt;'>
     <td class=3D"xl66" height=3D"17" style=3D'height:12.75pt;'></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
+    <td class=3D"xl66" x:str>unit_name</td>
+    <td class=3D"xl66" x:str>credit_code</td>
+    <td class=3D"xl66" x:str>stat_date</td>
+    <td class=3D"xl66" x:str>trade_a</td>
+    <td class=3D"xl66" x:str>trade_b</td>
+    <td class=3D"xl66" x:str>trade_c</td>
+    <td class=3D"xl66" x:str>province_name</td>
+    <td class=3D"xl66" x:str>city_name</td>
+    <td class=3D"xl66" x:str>country_name</td>
+    <td class=3D"xl66" x:str>coal_type</td>
+    <td class=3D"xl66" x:str>coal_no</td>
+    <td class=3D"xl66" x:str>usage_time</td>
+    <td class=3D"xl66" x:str>design_life</td>
+    <td class=3D"xl66" x:str>enecrgy_efficienct_bmk</td>
+    <td class=3D"xl66" x:str>capacity</td>
+    <td class=3D"xl66" x:str>capacity_unit</td>
+    <td class=3D"xl66" x:str>use_info</td>
+    <td class=3D"xl66" x:str>status</td>
+    <td class=3D"xl66" x:str>annual_coal_consumpti<span style=3D'display:none;'>on</span></td>
+    <td class=3D"xl66" x:str>state</td>
    </tr>
    <tr height=3D"17" style=3D'height:12.75pt;'>
     <td class=3D"xl66" height=3D"17" style=3D'height:12.75pt;'></td>

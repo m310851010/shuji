@@ -25,3 +25,13 @@ const (
 	// 行业门类映射文件路径
 	TRADE_MAPPING_FILE_PATH = FRONTEND_FILE_DIR_NAME + "TradeMapping.json"
 )
+
+// 验证错误类型
+const (
+	ERROR_TYPE_TEXT_FORMAT_ERROR = "文字格式填写错误"
+	ERROR_TYPE_OPTION_ERROR = "未按选项填写错误"
+	ERROR_TYPE_DATA_UNIT_MISMATCH = "数据与单位不匹配"
+	ERROR_TYPE_DATA_LOGIC_ERROR = "数据校验逻辑错误"
+	ERROR_TYPE_NON_NUMBER_ERROR = "非数字格式错误"
+	ERROR_TYPE_MISSING_DATA_ERROR = "缺数据错误"
+)

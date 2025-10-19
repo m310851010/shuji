@@ -14,7 +14,7 @@ Content-Type: text/html; charset="us-ascii"
     <o:DocumentProperties>
      <o:Created>2025-10-09T00:01:00</o:Created>
      <o:LastAuthor>WPS</o:LastAuthor>
-     <o:LastSaved>2025-10-18T12:09:29</o:LastSaved>
+     <o:LastSaved>2025-10-19T18:02:01</o:LastSaved>
     </o:DocumentProperties>
     <o:CustomDocumentProperties>
      <o:ICV dt:dt=3D"string">8A5839588A574AD09ABB68758E651A35_13</o:ICV>
@@ -74,15 +74,6 @@ br
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
 .font4
-	{color:#000000;
-	font-size:11.0pt;
-	font-weight:400;
-	font-style:normal;
-	text-decoration:none;
-	font-family:"\5B8B\4F53";
-	mso-generic-font-family:auto;
-	mso-font-charset:134;}
-.font5
 	{color:#FF0000;
 	font-size:11.0pt;
 	font-weight:400;
@@ -91,7 +82,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font6
+.font5
 	{color:#44546A;
 	font-size:18.0pt;
 	font-weight:700;
@@ -100,7 +91,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font7
+.font6
 	{color:#7F7F7F;
 	font-size:11.0pt;
 	font-weight:400;
@@ -109,7 +100,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font8
+.font7
 	{color:#44546A;
 	font-size:15.0pt;
 	font-weight:700;
@@ -118,7 +109,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font9
+.font8
 	{color:#44546A;
 	font-size:13.0pt;
 	font-weight:700;
@@ -127,7 +118,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font10
+.font9
 	{color:#44546A;
 	font-size:11.0pt;
 	font-weight:700;
@@ -136,7 +127,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font11
+.font10
 	{color:#3F3F76;
 	font-size:11.0pt;
 	font-weight:400;
@@ -145,7 +136,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font12
+.font11
 	{color:#3F3F3F;
 	font-size:11.0pt;
 	font-weight:700;
@@ -154,8 +145,17 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font13
+.font12
 	{color:#FA7D00;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"\5B8B\4F53";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font13
+	{color:#FFFFFF;
 	font-size:11.0pt;
 	font-weight:700;
 	font-style:normal;
@@ -164,15 +164,6 @@ br
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
 .font14
-	{color:#FFFFFF;
-	font-size:11.0pt;
-	font-weight:700;
-	font-style:normal;
-	text-decoration:none;
-	font-family:"\5B8B\4F53";
-	mso-generic-font-family:auto;
-	mso-font-charset:134;}
-.font15
 	{color:#FA7D00;
 	font-size:11.0pt;
 	font-weight:400;
@@ -181,7 +172,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font16
+.font15
 	{color:#000000;
 	font-size:11.0pt;
 	font-weight:700;
@@ -190,7 +181,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font17
+.font16
 	{color:#006100;
 	font-size:11.0pt;
 	font-weight:400;
@@ -199,7 +190,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font18
+.font17
 	{color:#9C0006;
 	font-size:11.0pt;
 	font-weight:400;
@@ -208,7 +199,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font19
+.font18
 	{color:#9C6500;
 	font-size:11.0pt;
 	font-weight:400;
@@ -217,7 +208,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font20
+.font19
 	{color:#FFFFFF;
 	font-size:11.0pt;
 	font-weight:400;
@@ -226,7 +217,7 @@ br
 	font-family:"\5B8B\4F53";
 	mso-generic-font-family:auto;
 	mso-font-charset:134;}
-.font21
+.font20
 	{color:#000000;
 	font-size:11.0pt;
 	font-weight:400;
@@ -241,15 +232,12 @@ br
 	vertical-align:bottom;
 	white-space:nowrap;
 	mso-rotate:0;
-	mso-pattern:auto;
-	mso-background-source:auto;
 	color:windowtext;
 	font-size:10.0pt;
 	font-weight:400;
 	font-style:normal;
 	text-decoration:none;
 	font-family:Arial;
-	mso-generic-font-family:auto;
 	mso-font-charset:0;
 	border:none;
 	mso-protection:locked visible;
@@ -283,7 +271,6 @@ br
 	text-decoration:underline;
 	text-underline-style:single;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\8D85\94FE\63A5";
 	mso-style-id:8;}
@@ -295,7 +282,6 @@ br
 	text-decoration:underline;
 	text-underline-style:single;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\5DF2\8BBF\95EE\7684\8D85\94FE\63A5";
 	mso-style-id:9;}
@@ -311,7 +297,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\8B66\544A\6587\672C";}
 .style25
@@ -321,7 +306,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\6807\9898";}
 .style26
@@ -331,7 +315,6 @@ br
 	font-style:italic;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\89E3\91CA\6027\6587\672C";}
 .style27
@@ -341,7 +324,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	border-left:none;
 	border-top:none;
@@ -355,7 +337,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	border-left:none;
 	border-top:none;
@@ -369,7 +350,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	border-left:none;
 	border-top:none;
@@ -383,7 +363,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\6807\9898 4";}
 .style31
@@ -395,7 +374,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	border:.5pt solid #7F7F7F;
 	mso-style-name:"\8F93\5165";}
@@ -408,7 +386,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	border:.5pt solid #3F3F3F;
 	mso-style-name:"\8F93\51FA";}
@@ -421,7 +398,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	border:.5pt solid #7F7F7F;
 	mso-style-name:"\8BA1\7B97";}
@@ -434,7 +410,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	border:2.0pt double #3F3F3F;
 	mso-style-name:"\68C0\67E5\5355\5143\683C";}
@@ -445,7 +420,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	border-left:none;
 	border-top:none;
@@ -459,7 +433,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	border-left:none;
 	border-top:.5pt solid #5B9BD5;
@@ -475,7 +448,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\597D";}
 .style38
@@ -487,7 +459,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\5DEE";}
 .style39
@@ -499,7 +470,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\9002\4E2D";}
 .style40
@@ -511,7 +481,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\5F3A\8C03\6587\5B57\989C\8272 1";}
 .style41
@@ -523,7 +492,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"20% - \5F3A\8C03\6587\5B57\989C\8272 1";}
 .style42
@@ -535,7 +503,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"40% - \5F3A\8C03\6587\5B57\989C\8272 1";}
 .style43
@@ -547,7 +514,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"60% - \5F3A\8C03\6587\5B57\989C\8272 1";}
 .style44
@@ -559,7 +525,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\5F3A\8C03\6587\5B57\989C\8272 2";}
 .style45
@@ -571,7 +536,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"20% - \5F3A\8C03\6587\5B57\989C\8272 2";}
 .style46
@@ -583,7 +547,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"40% - \5F3A\8C03\6587\5B57\989C\8272 2";}
 .style47
@@ -595,7 +558,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"60% - \5F3A\8C03\6587\5B57\989C\8272 2";}
 .style48
@@ -607,7 +569,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\5F3A\8C03\6587\5B57\989C\8272 3";}
 .style49
@@ -619,7 +580,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"20% - \5F3A\8C03\6587\5B57\989C\8272 3";}
 .style50
@@ -631,7 +591,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"40% - \5F3A\8C03\6587\5B57\989C\8272 3";}
 .style51
@@ -643,7 +602,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"60% - \5F3A\8C03\6587\5B57\989C\8272 3";}
 .style52
@@ -655,7 +613,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\5F3A\8C03\6587\5B57\989C\8272 4";}
 .style53
@@ -667,7 +624,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"20% - \5F3A\8C03\6587\5B57\989C\8272 4";}
 .style54
@@ -679,7 +635,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"40% - \5F3A\8C03\6587\5B57\989C\8272 4";}
 .style55
@@ -691,7 +646,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"60% - \5F3A\8C03\6587\5B57\989C\8272 4";}
 .style56
@@ -703,7 +657,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\5F3A\8C03\6587\5B57\989C\8272 5";}
 .style57
@@ -715,7 +668,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"20% - \5F3A\8C03\6587\5B57\989C\8272 5";}
 .style58
@@ -727,7 +679,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"40% - \5F3A\8C03\6587\5B57\989C\8272 5";}
 .style59
@@ -739,7 +690,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"60% - \5F3A\8C03\6587\5B57\989C\8272 5";}
 .style60
@@ -751,7 +701,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"\5F3A\8C03\6587\5B57\989C\8272 6";}
 .style61
@@ -763,7 +712,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"20% - \5F3A\8C03\6587\5B57\989C\8272 6";}
 .style62
@@ -775,7 +723,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"40% - \5F3A\8C03\6587\5B57\989C\8272 6";}
 .style63
@@ -787,7 +734,6 @@ br
 	font-style:normal;
 	text-decoration:none;
 	font-family:\5B8B\4F53;
-	mso-generic-font-family:auto;
 	mso-font-charset:134;
 	mso-style-name:"60% - \5F3A\8C03\6587\5B57\989C\8272 6";}
 td
@@ -801,15 +747,12 @@ td
 	vertical-align:bottom;
 	white-space:nowrap;
 	mso-rotate:0;
-	mso-pattern:auto;
-	mso-background-source:auto;
 	color:windowtext;
 	font-size:10.0pt;
 	font-weight:400;
 	font-style:normal;
 	text-decoration:none;
 	font-family:Arial;
-	mso-generic-font-family:auto;
 	mso-font-charset:0;
 	border:none;
 	mso-protection:locked visible;}
@@ -836,24 +779,22 @@ td
       <x:ExcelWorksheet>
        <x:Name>sheet1</x:Name>
        <x:WorksheetOptions>
-        <x:StandardWidth>2340</x:StandardWidth>
+        <x:StandardWidth>2338</x:StandardWidth>
         <x:Selected/>
-        <x:LeftColumnVisible>6</x:LeftColumnVisible>
         <x:Panes>
          <x:Pane>
           <x:Number>3</x:Number>
           <x:ActiveCol>12</x:ActiveCol>
-          <x:ActiveRow>16</x:ActiveRow>
-          <x:RangeSelection>M17</x:RangeSelection>
+          <x:ActiveRow>14</x:ActiveRow>
+          <x:RangeSelection>M15</x:RangeSelection>
          </x:Pane>
         </x:Panes>
         <x:ProtectContents>False</x:ProtectContents>
         <x:ProtectObjects>False</x:ProtectObjects>
         <x:ProtectScenarios>False</x:ProtectScenarios>
+        <x:PageBreakZoom>100</x:PageBreakZoom>
         <x:Print>
          <x:ValidPrinterInfo/>
-         <x:HorizontalResolution>300</x:HorizontalResolution>
-         <x:VerticalResolution>300</x:VerticalResolution>
         </x:Print>
        </x:WorksheetOptions>
       </x:ExcelWorksheet>
@@ -903,25 +844,25 @@ td
    </tr>
    <tr height=3D"17" style=3D'height:12.75pt;'>
     <td class=3D"xl66" height=3D"17" style=3D'height:12.75pt;'></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
-    <td class=3D"xl66"></td>
+    <td class=3D"xl66" x:str>stat_date</td>
+    <td class=3D"xl66" x:str>province_name</td>
+    <td class=3D"xl66" x:str>city_name</td>
+    <td class=3D"xl66" x:str>country_name</td>
+    <td class=3D"xl66" x:str>total_coal</td>
+    <td class=3D"xl66" x:str>raw_coal</td>
+    <td class=3D"xl66" x:str>washed_coal</td>
+    <td class=3D"xl66" x:str>other_coal</td>
+    <td class=3D"xl66" x:str>power_generation</td>
+    <td class=3D"xl66" x:str>heating</td>
+    <td class=3D"xl66" x:str>coal_washing</td>
+    <td class=3D"xl66" x:str>coking</td>
+    <td class=3D"xl66" x:str>oil_refining</td>
+    <td class=3D"xl66" x:str>gas_production</td>
+    <td class=3D"xl66" x:str>industry</td>
+    <td class=3D"xl66" x:str>raw_materials</td>
+    <td class=3D"xl66" x:str>other_uses</td>
+    <td class=3D"xl66" x:str>coke</td>
+    <td class=3D"xl66" x:str>state</td>
    </tr>
    <tr height=3D"17" style=3D'height:12.75pt;'>
     <td class=3D"xl66" height=3D"17" style=3D'height:12.75pt;'></td>

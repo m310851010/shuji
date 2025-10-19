@@ -48,54 +48,68 @@
 </template>
 
 <script setup lang="tsx">
-  import { openInfoModal, openModal } from '@/components/useModal';
+  import { openInfoModal } from '@/components/useModal';
+  import { message } from 'ant-design-vue';
   import UploadComponent from './components/Upload.vue';
-  import { GetCachePath, Removefile } from '@wailsjs/go';
+  import { Copyfile, GetCachePath, OpenSaveDialog, Removefile, ValidateData } from '@wailsjs/go';
   import { main } from '@wailsjs/models';
-  import { TableTypeName } from '@/views/constant';
+  import { CurrentArea } from '../constant';
+
 
   const model = reactive({
     isChecking: false,
     checkFinished: false,
-    tableType: '',
+    zipPath: '',
     selectedFiles: [],
     passed: false,
-    errorMessage: `const handleBackClick = async () => {
-   `,
-    canDownloadReport: true
+    errorMessage: '',
+    canDownloadReport: false
   });
 
-  const handleDownloadReport = async () => {};
+  const handleDownloadReport = async () => {
+    if (!model.zipPath) {
+      return;
+    }
+
+    const result = await OpenSaveDialog(new main.FileDialogOptions({
+      title: '导出校验报告',
+      defaultFilename: '校验报告.zip',
+    }));
+
+    if (result.canceled) {
+      return;
+    }
+
+    const copyResult = await Copyfile(model.zipPath, result.filePaths[0]);
+    if (!copyResult.ok) {
+      openInfoModal({ content: copyResult.data });
+      return;
+    }
+    message.success('导出校验报告成功');
+  };
 
   const handleBackClick = async () => {
-    model.passed = null;
+    model.passed = false;
     model.checkFinished = false;
-    const cachePath = await GetCachePath(model.tableType);
     // @ts-ignore
-    await Removefile(cachePath + '/' + TableTypeName[model.tableType] + '校验报告.zip');
+    await Removefile(model.zipPath);
   };
 
   const handleCheckClick = async () => {
     const handleResult = (result: main.QueryResult) => {
-      const data = result.data || {};
-      model.canDownloadReport = data.hasExportReport;
-      model.passed = !data.hasFailedFiles;
+      const data = result.data;
+      model.canDownloadReport = result.ok && data;
+      // 如果校验通过，并且没有错误，则认为数据通过
+      model.passed = result.ok && !data;
       model.isChecking = false;
       model.errorMessage = (result.message || '').replace(/\n/g, '<br>');
       model.checkFinished = true;
+      model.zipPath = result.ok ? data as string : '';
     };
 
     model.isChecking = true;
-    const result = await model.checkFunc();
-    console.log('自动校验结果', result);
-    if (!result.ok) {
-      model.isChecking = false;
-      openInfoModal({
-        title: '校验失败',
-        content: result.message
-      });
-      return;
-    }
+    model.zipPath = '';
+    const result = await ValidateData(CurrentArea.province, model.selectedFiles.map((file: any) => file.fullPath));
     handleResult(result);
   };
 </script>

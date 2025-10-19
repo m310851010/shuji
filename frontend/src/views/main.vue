@@ -19,6 +19,7 @@
             v-model:value="province"
             show-search
             placeholder="请选择省"
+            @change="handleProvinceChange"
             :options="provinceOptions"
             :filter-option="filterOption"
           ></a-select>
@@ -59,6 +60,7 @@ import Window from '@/components/Window.vue';
 import { useRouter } from 'vue-router';
 import { GetChinaAreaStr } from '@wailsjs/go';
 import type { SelectProps } from 'ant-design-vue';
+import { CurrentArea } from './constant';
 
 // 菜单
 const menus = ref([
@@ -85,9 +87,10 @@ const selectedKeys = computed(() => [route.path]);
 const route = useRoute();
 const $router = useRouter();
 
+let LOCATION_DATA: any[] = [];
 onMounted(async () => {
   const res = await GetChinaAreaStr();
-  const LOCATION_DATA = JSON.parse(res.data);
+  LOCATION_DATA = JSON.parse(res.data);
 
   provinceOptions.value = LOCATION_DATA.map((item: any) => ({
     value: item.code,
@@ -95,7 +98,12 @@ onMounted(async () => {
   }));
 
   province.value = LOCATION_DATA[0].code;
+  CurrentArea.province = province.value;
 });
+
+const handleProvinceChange = (value: string) => {
+  CurrentArea.province = LOCATION_DATA.find((item: any) => item.code === value)?.name || '';
+};
 </script>
 
 <style scoped>
