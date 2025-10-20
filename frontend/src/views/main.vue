@@ -98,7 +98,7 @@ onMounted(async () => {
   }));
 
   province.value = LOCATION_DATA[0].code;
-  CurrentArea.province = province.value;
+  handleProvinceChange(province.value);
 });
 
 const handleProvinceChange = (value: string) => {

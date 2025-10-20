@@ -58,7 +58,7 @@ func (a *App) GetTradeMapping() (map[string]map[string]map[string]bool, error) {
 		return nil, err
 	}
 
-	TRADE_MAPPING_CACHE = toTreeMap(trades)
+	TRADE_MAPPING_CACHE = toTreeMapHangye(trades)
 	return TRADE_MAPPING_CACHE, nil
 }
 

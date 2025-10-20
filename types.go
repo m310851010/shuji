@@ -134,3 +134,11 @@ type ValidateSheetResult struct {
 	ColumnNumber int `json:"lastColumnNumber"` // 总列数
 	Errors []ValidationError `json:"errors"` // 错误列表
 }
+
+// ParseSheetResult 解析表格结果
+type ParseSheetResult struct {
+	SheetName string `json:"sheetName"` // 表格名称
+	RowNumber int `json:"lastRowNumber"` // 总行数
+	ColumnNumber int `json:"lastColumnNumber"` // 总列数
+	Data []map[string]interface{} `json:"data"` // 数据
+}

@@ -12,12 +12,11 @@ var table3Names = []string{
 var table3FieldMapping = CreateExcelFieldMapping(table3Names)
 
 
-// ValidateTable3 验证表3数据	
-func (a *App) validateTable3(filePath string) ([]ValidateSheetResult, error) {
-
+// validateTable3Format 验证表3格式（表头、工作表等）
+func (a *App) validateTable3Format(filePath string) ([]ParseSheetResult, error) {
 	fileName := filepath.Base(filePath)
 
-	// 第二步: 文件是否可读取
+	// 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("读取文件%s失败: %v", fileName, err)
@@ -27,45 +26,46 @@ func (a *App) validateTable3(filePath string) ([]ValidateSheetResult, error) {
 	// 获取所有工作表
 	sheets := f.GetSheetList()
 	if len(sheets) < 1 {
-		return nil, fmt.Errorf("与数据模板不匹配：文件%s没有足够的工作表", fileName)
+		return nil, fmt.Errorf("文件%s没有足够的工作表", fileName)
 	}
 
-	 err = a.validateTable3Headers(f, sheets)
-	 if err != nil {
-		return nil, fmt.Errorf("与数据模板不匹配：文件%s:%s", fileName, err.Error())
-	}
-
-	mainData, err := a.parseTable3Excel(f, sheets)
+	// 验证表头
+	rows1, err := a.validateTable3Headers(f, sheets)
 	if err != nil {
-		return nil, fmt.Errorf("解析文件%s失败：%s", fileName, err.Error())
+		return nil, fmt.Errorf("文件%s, %s", fileName, err.Error())
 	}
 
-	errors := a.validateTable3Data(mainData)	
+	// 解析数据
+	mainData := a.parseTableSheet(rows1, table3Names, 2)
+	if len(mainData) == 0 {
+		return nil, fmt.Errorf("文件%s, %s数据为空", fileName, sheets[0])
+	}
 
-	return []ValidateSheetResult{
-		{SheetName: sheets[0], Errors: errors, RowNumber: len(mainData) + 2, ColumnNumber: len(table3Names),},
+	return []ParseSheetResult{
+		{SheetName: sheets[0], Data: mainData, RowNumber: len(mainData) + 2, ColumnNumber: len(table3Names)},
 	}, nil
 }
 
-// parseTable3Excel 解析表3数据
-func (a *App) parseTable3Excel(f *excelize.File, sheets []string) ([]map[string]interface{}, error) {
-	mainData, err := a.parseTableSheet(f, sheets[0], table3Names, 1)
-	if err != nil {
-		return nil, fmt.Errorf("与数据模板不匹配")
+// validateTable3Data 验证表3数据
+func (a *App) validateTable3Data(sheetResults []ParseSheetResult) []ValidateSheetResult{
+	errors := a.validateTable3DataInner(sheetResults[0].Data)
+	return []ValidateSheetResult{
+		{SheetName: sheetResults[0].SheetName, Errors: errors, RowNumber: sheetResults[0].RowNumber, ColumnNumber: sheetResults[0].ColumnNumber,},
 	}
-	return mainData, nil
 }
 
 // validateTable3Headers 验证表3表头
-func (a *App) validateTable3Headers(f *excelize.File, sheets []string) error {
+func (a *App) validateTable3Headers(f *excelize.File, sheets []string) ([][]string, error) {
 	sheetName := sheets[0]
 	rows1, err := f.GetRows(sheetName)
 	if err != nil {
-		return fmt.Errorf("%s没有数据", sheetName)
+		return nil, fmt.Errorf("%s没有数据", sheetName)
+	}
+	if len(rows1) < 2 {
+		return nil, fmt.Errorf("%s表格行数不足2行", sheetName)
 	}
 
 	// 附表3煤炭消费主要信息
-
 	expectedHeadersRow1 := []string{
 		"序号", "项目名称", "项目代码", "建设单位", "主要建设内容", "项目所在省、自治区、直辖市", "项目所在地市", "项目所在区县", "所属行业大类（2位代码）", "所属行业小类", "节能审查批复时间", "拟投产时间", "实际投产时间", "节能审查机关", "审查意见文号", "年综合能源消费量（万吨标准煤，含原料用能和可再生能源）",
 		 "",  "年煤品消费量（万吨，实物量）", "", "", "", "年煤品消费量（万吨标准煤，折标量）", "", "","", "煤炭消费替代情况", "", "","原料用煤情况", "", "状态",
@@ -73,7 +73,7 @@ func (a *App) validateTable3Headers(f *excelize.File, sheets []string) error {
 		
 	err = a.validateSheetHeaders(rows1, sheetName, 0, 0, expectedHeadersRow1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// 第二行 从P2开始
@@ -82,13 +82,13 @@ func (a *App) validateTable3Headers(f *excelize.File, sheets []string) error {
 	}
 	err = a.validateSheetHeaders(rows1, sheetName, 1, 15, expectedHeadersRow2)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return rows1, nil
 }
 
-// validateTable2Data 验证表3数据
-func (a *App) validateTable3Data(mainData []map[string]interface{}) []ValidationError {
+// validateTable3DataInner 验证表3数据-内部函数
+func (a *App) validateTable3DataInner(mainData []map[string]interface{}) []ValidationError {
 	var errors []ValidationError
 
 	for _, row := range mainData {

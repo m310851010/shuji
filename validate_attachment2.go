@@ -12,12 +12,11 @@ var attachment2Names = []string{
 var attachment2FieldMapping = CreateExcelFieldMapping(attachment2Names)
 
 
-// ValidateAttachment2 验证附件2数据	
-func (a *App) validateAttachment2(filePath string) ([]ValidateSheetResult, error) {
-
+// validateAttachment2Format 验证附件2格式（表头、工作表等）
+func (a *App) validateAttachment2Format(filePath string) ([]ParseSheetResult, error) {
 	fileName := filepath.Base(filePath)
 
-	// 第二步: 文件是否可读取
+	// 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("读取文件%s失败: %v", fileName, err)
@@ -27,51 +26,53 @@ func (a *App) validateAttachment2(filePath string) ([]ValidateSheetResult, error
 	// 获取所有工作表
 	sheets := f.GetSheetList()
 	if len(sheets) < 1 {
-		return nil, fmt.Errorf("与数据模板不匹配：文件%s没有足够的工作表", fileName)
+		return nil, fmt.Errorf("文件%s没有足够的工作表", fileName)
 	}
 
-	 err = a.validateAttachment2Headers(f, sheets)
-	 if err != nil {
-		return nil, fmt.Errorf("与数据模板不匹配：文件%s:%s", fileName, err.Error())
-	}
-
-	mainData, err := a.parseAttachment2Excel(f, sheets)
+	// 验证表头
+	rows1, err := a.validateAttachment2Headers(f, sheets)
 	if err != nil {
-		return nil, fmt.Errorf("解析文件%s失败：%s", fileName, err.Error())
+		return nil, fmt.Errorf("文件%s, %s", fileName, err.Error())
 	}
 
-	errors := a.validateAttachment2Data(mainData)	
+	// 解析数据
+	mainData := a.parseTableSheet(rows1, attachment2Names, 3)
+	if len(mainData) == 0 {
+		return nil, fmt.Errorf("文件%s, %s数据为空", fileName, sheets[0])
+	}
 
-	return []ValidateSheetResult{
-		{SheetName: sheets[0], Errors: errors, RowNumber: len(mainData) + 3, ColumnNumber: len(attachment2Names),},
+	return []ParseSheetResult{
+		{SheetName: sheets[0], Data: mainData, RowNumber: len(mainData) + 3, ColumnNumber: len(attachment2Names)},
 	}, nil
 }
 
-// parseAttachment2Excel 解析附件2数据
-func (a *App) parseAttachment2Excel(f *excelize.File, sheets []string) ([]map[string]interface{}, error) {
-	mainData, err := a.parseTableSheet(f, sheets[0], attachment2Names, 3)
-	if err != nil {
-		return nil, fmt.Errorf("与数据模板不匹配")
+// validateAttachment2Data 验证附件2数据
+func (a *App) validateAttachment2Data(sheetResults []ParseSheetResult) []ValidateSheetResult{
+	errors := a.validateAttachment2DataInner(sheetResults[0].Data)
+	return []ValidateSheetResult{
+		{SheetName: sheetResults[0].SheetName, Errors: errors, RowNumber: sheetResults[0].RowNumber, ColumnNumber: sheetResults[0].ColumnNumber,},
 	}
-	return mainData, nil
 }
 
 // validateAttachment2Headers 验证附件2表头
-func (a *App) validateAttachment2Headers(f *excelize.File, sheets []string) error {
+func (a *App) validateAttachment2Headers(f *excelize.File, sheets []string) ([][]string, error) {
 	sheetName := sheets[0]
 	rows1, err := f.GetRows(sheetName)
 	if err != nil {
-		return fmt.Errorf("%s没有数据", sheetName)
+		return nil, fmt.Errorf("%s没有数据", sheetName)
 	}
 
-	// 附表3煤炭消费主要信息
+	if len(rows1) < 3 {
+		return nil, fmt.Errorf("%s表格行数不足3行", sheetName)
+	}
 
+	// 附表2煤炭消费摸底
 	expectedHeadersRow1 := []string{
 		"序号", "年份", "单位所在省", "单位所在地市", "单位所在区县", "分品种煤炭消费摸底", "", "","", "分用途煤炭消费摸底", "","","","","","","","","焦炭消费摸底", "状态",
 	}
 	err = a.validateSheetHeaders(rows1, sheetName, 0, 0, expectedHeadersRow1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	
 	// 第3行 从J3开始
@@ -80,19 +81,23 @@ func (a *App) validateAttachment2Headers(f *excelize.File, sheets []string) erro
 	}
 	err = a.validateSheetHeaders(rows1, sheetName, 2, 5, expectedHeadersRow2)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return rows1, nil
 }
 
 // validateAttachment2Data 验证附件2数据
-func (a *App) validateAttachment2Data(mainData []map[string]interface{}) []ValidationError {
+func (a *App) validateAttachment2DataInner(mainData []map[string]interface{}) []ValidationError {
 	var errors []ValidationError
 
 	for _, row := range mainData {
 		rowNumber := getRowNumber(row)
+		// 年份无法正确识别，部分填写为“2023年”“2024年”，部分填写数字为宽体字符。
+		a.validateStatDate(attachment2FieldMapping, row, rowNumber, &errors)
 		// 所有表格不能为空，若无相关煤炭消费，则填0。
 		a.validateAttachment2EmptyData(row, rowNumber, &errors)
+		// 单位所在省/市/区、单位所在地市、单位所在区县不一致。
+		a.validateAddress(attachment2FieldMapping, row, rowNumber, &errors)
 		// 表格内数字单位错误。
 		a.validateAttachment2UnitData(row, rowNumber, &errors)
 	}

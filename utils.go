@@ -112,6 +112,19 @@ func  parseFloat(value string) float64 {
 	return result
 }
 
+// parseInt 解析整数
+func parseInt(value string) int {
+	if value == "" {
+		return 0
+	}
+	result, err := strconv.Atoi(value)
+	if err != nil {
+		return 0
+	}
+	return result
+}
+
+
 // tryParseFloat 尝试解析浮点数
 func  tryParseFloat(value string) (float64, error) {
 	if value == "" {
@@ -233,18 +246,61 @@ func getRowNumber(data map[string]interface{}) int {
 	return 1
 }
 
-// isNumber 判断字符串是否为数字（包含小数点）
+// isNumber 判断字符串是否为数字（包含小数点），包含负号
 func isNumber(value string) bool {
-    if value == "" {
+	return isNumberNegative(value, true)
+}
+
+// isNumberNegative 判断字符串是否为数字（包含小数点），包含负号
+func isNumberNegative(value string, hasNegative bool) bool {
+    if value == "" || len(value) == 0{
         return false
     }
-    
-    for i := 0; i < len(value); i++ {
+
+	// 处理负号
+    startIndex := 0
+    if hasNegative && value[0] == '-' {
+        // 如果只有负号没有其他字符，不是有效数字
+        if len(value) == 1 {
+            return false
+        }
+        startIndex = 1
+    }
+
+    // 检查是否只有负号
+    if startIndex >= len(value) {
+        return false
+    }
+
+    for i := startIndex; i < len(value); i++ {
         if (value[i] < '0' || value[i] > '9') && value[i] != '.' {
             return false
         }
     }
     return true
+}
+
+// isNumberDecimal 判断字符串是否为数字（包含小数点）, 返回小数点后有几位
+func isNumberDecimal(value string) (bool, int) {
+	if value == "" {
+        return false, 0
+    }
+    
+	decimalCount := 0
+	hasDecimal := false
+    for i := 0; i < len(value); i++ {
+        if (value[i] < '0' || value[i] > '9') && value[i] != '.' {
+            return false, 0
+        }
+		if value[i] == '.' {
+			hasDecimal = true
+			continue
+		}
+		if hasDecimal {
+			decimalCount++
+		}
+    }
+    return true, decimalCount
 }
 
 // isInteger 判断字符串是否为数字
@@ -341,17 +397,50 @@ func toTreeMap(treeNode []TreeNode) map[string]map[string]map[string]bool {
 		result[treeNode.Name] = citiesMap
 
 		// 判断省份是否有城市数据
-		if treeNode.Children != nil && len(treeNode.Children) > 0 {
+		if len(treeNode.Children) > 0 {
 			for _, secondLevel := range treeNode.Children {
 				// 创建城市级别的map
 				districtsMap := make(map[string]bool)
 				citiesMap[secondLevel.Name] = districtsMap
 
 				// 判断城市是否有区县数据
-				if secondLevel.Children != nil && len(secondLevel.Children) > 0 {
+				if len(secondLevel.Children) > 0 {
 					for _, district := range secondLevel.Children {	
 						// 存储区县信息
 						districtsMap[district.Name] = true
+					}
+				}
+			}
+		}
+	}
+
+	return result
+}
+
+// 将 TreeNode 转换为 3级map 结构行业门类映射
+func toTreeMapHangye(treeNode []TreeNode) map[string]map[string]map[string]bool {
+	// 构建3级联动map结构
+	// 结构: map[行业门类名称]map[行业大类名称]map[行业中类名称]bool
+	result := make(map[string]map[string]map[string]bool)
+
+	var name string
+	for _, treeNode := range treeNode {
+		// 创建行业门类的map
+		citiesMap := make(map[string]map[string]bool)
+
+		name = strings.Replace(treeNode.Name, "_", ".", 1)
+		result[name] = citiesMap
+
+		if len(treeNode.Children) > 0 {
+			for _, secondLevel := range treeNode.Children {
+				districtsMap := make(map[string]bool)
+				name = strings.Replace(secondLevel.Name, "_", "", 1)
+				citiesMap[name] = districtsMap
+
+				if len(secondLevel.Children) > 0 {
+					for _, district := range secondLevel.Children {	
+						name = strings.Replace(district.Name, "_", "", 1)
+						districtsMap[name] = true
 					}
 				}
 			}

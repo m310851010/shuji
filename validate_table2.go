@@ -7,7 +7,7 @@ import (
 
 
 var table2Names = []string{
-		"", "unit_name","credit_code","stat_date","trade_a","trade_b","trade_c","province_name","city_name","country_name","coal_type","coal_no","usage_time","design_life","enecrgy_efficienct_bmk","capacity","capacity_unit","use_info","status","annual_coal_consumption","state",
+		"", "unit_name","credit_code","stat_date","trade_a","trade_b","trade_c","province_name","city_name","country_name","coal_type","coal_no","usage_time","design_life","enecrgy_efficienct_bmk","capacity_unit","capacity","use_info","status","annual_coal_consumption","state",
 	}
 var table2FieldMapping = CreateExcelFieldMapping(table2Names)
 
@@ -33,14 +33,14 @@ var table2StatusMap = map[string]bool{
 	"停用": true,
 }
 
+// table2CreditCodeMap 附表2统一社会信用代码映射
+var table2CreditCodeMap = map[string]bool{}
 
-
-// ValidateTable2 验证表2数据
-func (a *App) validateTable2(filePath string) ([]ValidateSheetResult, error) {
-
+// validateTable2Format 验证表2格式（表头、工作表等）
+func (a *App) validateTable2Format(filePath string) ([]ParseSheetResult, error) {
 	fileName := filepath.Base(filePath)
 
-	// 第二步: 文件是否可读取
+	// 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("读取文件%s失败: %v", fileName, err)
@@ -50,57 +50,41 @@ func (a *App) validateTable2(filePath string) ([]ValidateSheetResult, error) {
 	// 获取所有工作表
 	sheets := f.GetSheetList()
 	if len(sheets) < 1 {
-		return nil, fmt.Errorf("与数据模板不匹配：文件%s没有足够的工作表", fileName)
+		return nil, fmt.Errorf("文件%s没有足够的工作表", fileName)
 	}
 
-	 err = a.validateTable2Headers(f, sheets)
-	 if err != nil {
-		return nil, fmt.Errorf("与数据模板不匹配：文件%s:%s", fileName, err.Error())
-	}
-
-	mainData, err := a.parseTable2Excel(f, sheets)
+	// 验证表头
+	rows1, err := a.validateTable2Headers(f, sheets)
 	if err != nil {
-		return nil, fmt.Errorf("解析文件%s失败：%s", fileName, err.Error())
+		return nil, fmt.Errorf("文件%s, %s", fileName, err.Error())
 	}
 
-	errors := a.validateTable2Data(mainData)
+	// 解析数据
+	mainData := a.parseTableSheet(rows1, table2Names, 1, func(row map[string]interface{}) {
+		mapKey := getCreditCodeStatDateKey(row)
+		table2CreditCodeMap[mapKey] = true
+	})
 
-	return []ValidateSheetResult{
-		{SheetName: sheets[0], Errors: errors, RowNumber: len(mainData) + 1, ColumnNumber: len(table2Names),},
+	if len(mainData) == 0 {
+		return nil, fmt.Errorf("文件%s, %s数据为空", fileName, sheets[0])
+	}
+
+	return []ParseSheetResult{
+		{SheetName: sheets[0], Data: mainData, RowNumber: len(mainData) + 1, ColumnNumber: len(table2Names)},
 	}, nil
 }
 
-// parseTable2Excel 解析表2数据
-func (a *App) parseTable2Excel(f *excelize.File, sheets []string) ([]map[string]interface{}, error) {
-	mainData, err := a.parseTableSheet(f, sheets[0], table2Names, 1)
-	if err != nil {
-		return nil, fmt.Errorf("与数据模板不匹配")
-	}
-	return mainData, nil
-}
-
-// validateTable2Headers 验证表2表头
-func (a *App) validateTable2Headers(f *excelize.File, sheets []string) error {
-	sheetName := sheets[0]
-	rows1, err := f.GetRows(sheetName)
-	if err != nil {
-		return fmt.Errorf("%s没有数据", sheetName)
-	}
-
-	// 附表1煤炭消费主要信息
-	expectedHeadersRow := []string{
-		"序号","单位名称","统一社会信用代码","年份","行业门类","行业大类","行业中类","单位所在省","单位所在地市","单位所在区县","类型","编号","累计使用时间","设计年限","能效水平","容量","容量单位","用途","状态","年耗煤量(吨)","状态",
-	}
-
-	err = a.validateSheetHeaders(rows1, sheetName, 0, 0, expectedHeadersRow)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // validateTable2Data 验证表2数据
-func (a *App) validateTable2Data(mainData []map[string]interface{}) []ValidationError {
+func (a *App) validateTable2Data(sheetResults []ParseSheetResult) []ValidateSheetResult{
+	errors := a.validateTable2DataInner(sheetResults[0].Data)
+
+	return []ValidateSheetResult{
+		{SheetName: sheetResults[0].SheetName, Errors: errors, RowNumber: sheetResults[0].RowNumber, ColumnNumber: sheetResults[0].ColumnNumber,},
+	}
+}
+
+// validateTable2DataInner 验证表2数据
+func (a *App) validateTable2DataInner(mainData []map[string]interface{}) []ValidationError {
 	var errors []ValidationError
 
 	for _, row := range mainData {
@@ -123,6 +107,31 @@ func (a *App) validateTable2Data(mainData []map[string]interface{}) []Validation
 
 	return errors
 }
+
+
+// validateTable2Headers 验证表2表头
+func (a *App) validateTable2Headers(f *excelize.File, sheets []string) ([][]string, error) {
+	sheetName := sheets[0]
+	rows1, err := f.GetRows(sheetName)
+	if err != nil {
+		return nil, fmt.Errorf("%s没有数据", sheetName)
+	}
+	if len(rows1) < 2 {
+		return nil, fmt.Errorf("%s表格行数不足2行", sheetName)
+	}
+
+	// 附表1煤炭消费主要信息
+	expectedHeadersRow := []string{
+		"序号","单位名称","统一社会信用代码","年份","行业门类","行业大类","行业中类","单位所在省","单位所在地市","单位所在区县","类型","编号","累计使用时间","设计年限","能效水平","容量单位","容量","用途","状态","年耗煤量(吨)","状态",
+	}
+
+	err = a.validateSheetHeaders(rows1, sheetName, 0, 0, expectedHeadersRow)
+	if err != nil {
+		return nil, err
+	}
+	return rows1, nil
+}
+
 
 
 // validateEnergyDevice 验证其他耗煤单位重点耗煤装置（设备）中类型、能效水平、容量单位、用途、状态未按照下拉菜单选项填写。

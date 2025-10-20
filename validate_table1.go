@@ -80,51 +80,73 @@ var table1CoalProductMap = map[string]bool{
 	"其他": true,
 }
 
-// creditCodeStatDateMapping 企业信用代码+统计日期映射
-var creditCodeStatDateMapping = make(map[string]CreditCacheInfo)
+// table1creditCodeMap 企业信用代码+统计日期映射
+var table1creditCodeMap = make(map[string]CreditCacheInfo)
 
 // getCreditCodeStatDateKey 生成企业信用代码+统计日期的唯一键
 func getCreditCodeStatDateKey(row map[string]interface{}) string {
 	return getStringValue(row["credit_code"]) + getStringValue(row["stat_date"])
 }
 
-// ValidateTable1 验证表1数据
-func (a *App) validateTable1(filePath string) ([]ValidateSheetResult, error) {
-	creditCodeStatDateMapping = make(map[string]CreditCacheInfo)
-
+// validateTable1Format 验证表1格式（表头、工作表等）
+func (a *App) validateTable1Format(filePath string) ([]ParseSheetResult, error) {
 	fileName := filepath.Base(filePath)
 
-	// 第二步: 文件是否可读取
+	// 文件是否可读取
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("读取文件%s失败: %v", fileName, err)
 	}
-
 	defer f.Close()
 	
+	// 检查工作表数量
 	sheets := f.GetSheetList()
 	if len(sheets) < 3 {
-		return nil, fmt.Errorf("与数据模板不匹配：文件%s没有足够的工作表", fileName)
-	}
-	 err = a.validateTable1Headers(f, sheets)
-	 if err != nil {
-		return nil, fmt.Errorf("与数据模板不匹配：文件%s:%s", fileName, err.Error())
+		return nil, fmt.Errorf("文件%s需要3个工作表", fileName)
 	}
 
-	mainData, usageData, equipData, err := a.parseTable1Excel(f, sheets)
+	// 验证表头
+	rows1, rows2, rows3, err := a.validateTable1Headers(f, sheets)
 	if err != nil {
-		return nil, fmt.Errorf("解析文件%s失败：%s", fileName, err.Error())
+		return nil, fmt.Errorf("文件%s, %s", fileName, err.Error())
 	}
 
-	errors := a.validateTable1MainData(mainData)
-	usageErrors := a.validateTable1UsageData(usageData)
-	equipErrors := a.validateTable1EquipData(equipData)
+	// 解析数据
+	mainData, usageData, equipData := a.parseTable1Excel(rows1, rows2, rows3)
+	if len(mainData) == 0 {
+		return nil, fmt.Errorf("文件%s, %s数据为空", fileName, sheets[0])
+	}
+	if len(usageData) == 0 {
+		return nil, fmt.Errorf("文件%s, %s数据为空", fileName, sheets[1])
+	}
+	if len(equipData) == 0 {
+		return nil, fmt.Errorf("文件%s, %s数据为空", fileName, sheets[2])
+	}
+
+	// 验证省份
+	err = validateCurrentProvince(mainData[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return []ParseSheetResult{
+		{SheetName: sheets[0], Data: mainData, RowNumber: len(mainData) + 2, ColumnNumber: len(mainDataNames)},	
+		{SheetName: sheets[1], Data: usageData, RowNumber: len(usageData) + 2, ColumnNumber: len(usageDataNames)},
+		{SheetName: sheets[2], Data: equipData, RowNumber: len(equipData) + 2, ColumnNumber: len(equipDataNames)},
+	}, nil
+}
+
+// validateTable1Data 验证表1数据
+func (a *App) validateTable1Data(sheetResults []ParseSheetResult) []ValidateSheetResult{
+	errors := a.validateTable1MainData(sheetResults[0].Data)
+	usageErrors := a.validateTable1UsageData(sheetResults[1].Data)
+	equipErrors := a.validateTable1EquipData(sheetResults[2].Data)
 
 	return []ValidateSheetResult{
-		{SheetName: sheets[0], Errors: errors, RowNumber: len(mainData) + 2, ColumnNumber: len(mainDataNames),},	
-		{SheetName: sheets[1], Errors: usageErrors, RowNumber: len(usageData) + 2, ColumnNumber: len(usageDataNames),},
-		{SheetName: sheets[2], Errors: equipErrors, RowNumber: len(equipData) + 2, ColumnNumber: len(equipDataNames),},
-	}, nil
+		{SheetName: sheetResults[0].SheetName, Errors: errors, RowNumber: sheetResults[0].RowNumber, ColumnNumber: sheetResults[0].ColumnNumber,},	
+		{SheetName: sheetResults[1].SheetName, Errors: usageErrors, RowNumber: sheetResults[1].RowNumber, ColumnNumber: sheetResults[1].ColumnNumber,},
+		{SheetName: sheetResults[2].SheetName, Errors: equipErrors, RowNumber: sheetResults[2].RowNumber, ColumnNumber: sheetResults[2].ColumnNumber,},
+	}
 }
 
 // ValidateSheetHeaders 验证工作表表头
@@ -139,31 +161,46 @@ func (a *App) validateSheetHeaders(rows [][]string, sheetName string, row int, s
 
 	for i := 0; i < lenHeaders; i++ {
 		if headerCount < i + startCol + 1 {
-			return fmt.Errorf("%s第%d行表头列数与模板不符", sheetName, row + 1)
+			return fmt.Errorf("与数据模板不匹配：%s第%d行表头列数与模板不符", sheetName, row + 1)
 		}
 		if headerRow[i + startCol] != expectedHeaders[i] {
-			return fmt.Errorf("%s第%d行表头列数与模板不符", sheetName, row + 1)
+			return fmt.Errorf("与数据模板不匹配：%s第%d行表头列数与模板不符", sheetName, row + 1)
 		}
 	}
 
 	return nil
 }
 
+// validateCurrentProvince 验证单位所在省是否为当前选择的省份
+func  validateCurrentProvince(row map[string]interface{}) error  {
+	province_name := getStringValue(row["province_name"])
+	if province_name != currentProvince {
+		return fmt.Errorf("上传的excel与选择的省份不一致")
+	}
+	return nil
+}
+
 // ValidateTable1Headers 验证表1工作表表头
-func (a *App) validateTable1Headers(f *excelize.File, sheets []string) error {
+func (a *App) validateTable1Headers(f *excelize.File, sheets []string) ([][]string, [][]string, [][]string, error) {
 	sheetName := sheets[0]
 	rows1, err := f.GetRows(sheetName)
 	if err != nil {
-		return fmt.Errorf("%s没有数据", sheetName)
+		return nil, nil, nil, fmt.Errorf("%s没有数据", sheetName)
+	}
+
+	if len(rows1) < 2 {
+		return nil, nil, nil, fmt.Errorf("%s表格行数不足2行", sheetName)
 	}
 
 	// 附表1煤炭消费主要信息
 	expectedHeadersRow1 := []string{
 		"序号",	"年份",	"单位名称",	"统一社会信用代码",	"行业门类",	"行业大类",	"行业中类",	"单位所在省",	"单位所在地市",	"单位所在区县",	"联系电话", "综合能源消费情况", "", "", "煤炭消费情况","","","","","","", "状态",
 	}
+
+
 	err = a.validateSheetHeaders(rows1, sheetName, 0, 0, expectedHeadersRow1)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 	
 	// 第二行 从L2开始
@@ -172,24 +209,26 @@ func (a *App) validateTable1Headers(f *excelize.File, sheets []string) error {
 	}
 	err = a.validateSheetHeaders(rows1, sheetName, 1, 11, expectedHeadersRow2)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
-
 
 	// 附表1主要用途情况
 	sheetName = sheets[1]
 	rows2, err := f.GetRows(sheetName)
 	if err != nil {
-		return fmt.Errorf("%s没有数据", sheetName)
+		return nil, nil, nil, fmt.Errorf("%s没有数据", sheetName)
 	}
 
+	if len(rows2) < 2 {
+		return nil, nil, nil, fmt.Errorf("%s表格行数不足2行", sheetName)
+	}
 	expectedHeadersUsage1 := []string{
 		"序号",	"年份",	"单位名称",	"统一社会信用代码",	"煤炭消费主要用途情况",	
 	}
 	
 	err = a.validateSheetHeaders(rows2, sheetName, 0, 0, expectedHeadersUsage1)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 
 	expectedHeadersUsage2 := []string{
@@ -199,14 +238,17 @@ func (a *App) validateTable1Headers(f *excelize.File, sheets []string) error {
 
 	err = a.validateSheetHeaders(rows2, sheetName, 1, 4, expectedHeadersUsage2)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 
 	// 附表1重点耗煤装置（设备）情况
 	sheetName = sheets[2]
 	rows3, err := f.GetRows(sheetName)
 	if err != nil {
-		return fmt.Errorf("%s没有数据", sheetName)
+		return nil, nil, nil, fmt.Errorf("%s没有数据", sheetName)
+	}
+	if len(rows3) < 2 {
+		return nil, nil, nil, fmt.Errorf("%s表格行数不足2行", sheetName)
 	}
 	expectedHeadersEquip1 := []string{
 		"序号",	"年份",	"单位名称",	"统一社会信用代码",	"重点耗煤装置（设备)情况",	
@@ -214,7 +256,7 @@ func (a *App) validateTable1Headers(f *excelize.File, sheets []string) error {
 	
 	err = a.validateSheetHeaders(rows3, sheetName, 0, 0, expectedHeadersEquip1)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 
 	expectedHeadersEquip2 := []string{
@@ -222,20 +264,21 @@ func (a *App) validateTable1Headers(f *excelize.File, sheets []string) error {
 	}
 	err = a.validateSheetHeaders(rows3, sheetName, 1, 4, expectedHeadersEquip2)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
-	return nil
+	return rows1, rows2, rows3, nil
 }
 
-// parseTableSheet 通用表格解析函数
-func (a *App) parseTableSheet(f *excelize.File, sheetName string, headerNames []string, startRow int) ([]map[string]interface{}, error) {
-    rows, err := f.GetRows(sheetName)
-    if err != nil {
-        return nil, fmt.Errorf("获取工作表%s数据失败: %v", sheetName, err)
-    }
+// parseTableSheet 通用表格解析函数,callback为回调函数，用于处理每行数据
+func (a *App) parseTableSheet(rows [][]string, headerNames []string, startRow int, callback ...func(map[string]interface{})) ([]map[string]interface{}) {
 
     var result []map[string]interface{}
 	rowCount := len(rows)
+
+	cb := func(map[string]interface{}) {}
+	if len(callback) > 0 {
+		cb = callback[0]
+	}
 	
     // 从startRow开始遍历数据行
     for i := startRow; i < rowCount; i++ {
@@ -243,7 +286,7 @@ func (a *App) parseTableSheet(f *excelize.File, sheetName string, headerNames []
         
         // 检查第一列是否为空，如果为空则结束循环
         if len(row) < 2 {
-            return result, nil
+            return result
         }
 
        // 构建数据行
@@ -263,34 +306,28 @@ func (a *App) parseTableSheet(f *excelize.File, sheetName string, headerNames []
 			}
         }
         
+		// 执行回调函数
+		cb(dataRow)
+
         // 将当前行数据添加到结果中
         result = append(result, dataRow)
     }
 
-    return result, nil
+    return result
 }
 
 // parseTable1Excel 解析附表1Excel文件
-func (a *App) parseTable1Excel(f *excelize.File, sheets []string) ([]map[string]interface{}, []map[string]interface{}, []map[string]interface{}, error){
+func (a *App) parseTable1Excel(rows1 [][]string, rows2 [][]string, rows3 [][]string) ([]map[string]interface{}, []map[string]interface{}, []map[string]interface{}){
 	
 	// 解析主表数据（企业基本信息）
-	mainData, err := a.parseTableSheet(f, sheets[0], mainDataNames, 2)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("与数据模板不匹配")
-	}
+	mainData := a.parseTableSheet(rows1, mainDataNames, 2)
 
 	// 解析用途数据（煤炭消费主要用途情况）
-	usageData, err :=  a.parseTableSheet(f, sheets[1], usageDataNames, 2)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("与数据模板不匹配")
-	}
+	usageData :=  a.parseTableSheet(rows2, usageDataNames, 2)
 
 	// 解析设备数据（重点耗煤装置情况）
-	equipData, err := a.parseTableSheet(f, sheets[2], equipDataNames, 2)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("与数据模板不匹配")
-	}
-	return mainData, usageData, equipData, nil
+	equipData := a.parseTableSheet(rows3, equipDataNames, 2)
+	return mainData, usageData, equipData
 }
 
 // validateEnergyDevice 验证重点耗煤装置（设备）中类型、能效水平、容量单位、耗煤品种未按照下拉菜单选项填写。
@@ -322,7 +359,7 @@ func (a *App) validateEnergyDeviceNumber(fieldMapping map[string]ExcelFieldMappi
 	equip_no := getStringValue(row[equipName]) // 装置（设备）中编号
 	// 检查是否存在多个设备合并到1行中填写的情况
 	if len(strings.Split(equip_no, "#")) > 2 || strings.Contains(equip_no, "/") || strings.Contains(equip_no, "、") {
-		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "应为1个设备编号", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, equipName), RowNumber: rowNumber,})
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "应填1个设备编号", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, equipName), RowNumber: rowNumber,})
 	}
 }
 
@@ -330,14 +367,25 @@ func (a *App) validateEnergyDeviceNumber(fieldMapping map[string]ExcelFieldMappi
 func (a *App) validateEnergyDeviceTime(fieldMapping map[string]ExcelFieldMapping, row map[string]interface{}, rowNumber int, total_runtime string, errors *[]ValidationError) {
 
 	fieldNames := []string{total_runtime, "design_life", }
-
+	integers := []int{}
 	for _, fieldName := range fieldNames {
 		value := getStringValue(row[fieldName])
 		if isEmpty(value) {
 			*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "不能为空", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, fieldName,), RowNumber: rowNumber,})
 		} else if !isInteger(value) {
 			*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "应为正整数", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, fieldName,), RowNumber: rowNumber,})
+		} else {
+			num := parseInt(value)
+			if num < 0 || num > 50 {
+				*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "应在0-50之间", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, fieldName,), RowNumber: rowNumber,})
+			} else {
+				integers = append(integers, num)
+			}
 		}
+	}
+
+	if len(integers) == 2 && integers[0] > integers[1]{
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "累计使用时间应不大于设计年限", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, total_runtime, "design_life"), RowNumber: rowNumber,})
 	}
 }
 
@@ -347,6 +395,10 @@ func (a *App) validateTable1EquipData(equipData []map[string]interface{}) []Vali
 
 	for _, row := range equipData {
 		rowNumber := getRowNumber(row)
+		// 年份无法正确识别，部分填写为“2023年”“2024年”，部分填写数字为宽体字符。
+		a.validateStatDate(equipFieldMapping, row, rowNumber, &errors)
+		// 统一社会信用代码填写错误。
+		a.validateCreditCode(equipFieldMapping, row, rowNumber, &errors)
 		// 重点耗煤装置（设备）中类型、能效水平、容量单位、耗煤品种未按照下拉菜单选项填写。
 		a.validateEnergyDevice(row, rowNumber, &errors)
 		// 重点耗煤装置（设备）中编号存在多个设备合并到1行中填写的情况。
@@ -366,6 +418,8 @@ func (a *App) validateTable1UsageData(usageData []map[string]interface{}) []Vali
 
 	for _, row := range usageData {
 		rowNumber := getRowNumber(row)
+		a.validateStatDate(usageFieldMapping, row, rowNumber, &errors)
+		a.validateCreditCode(usageFieldMapping, row, rowNumber, &errors)
 		// 煤炭消费用主要用途填写存在空缺项。
 		a.validateEnergyPurpose(row, rowNumber, &errors)
 		// 煤炭消费“主要用途”“具体用途”“产出品种品类”不一致。“投入计量单位”是否为“万吨”，“产出品种品类”与“产出计量单位”是否一致。
@@ -387,8 +441,16 @@ func (a *App) validateEnergyPurpose(row map[string]interface{}, rowNumber int, e
 		value := getStringValue(row[fieldName])
 		if isEmpty(value) {
 			*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "不能为空", Flag: 0, Cells: GetCellPosition(usageFieldMapping, rowNumber, fieldName,), RowNumber: rowNumber,})
-		} else if (fieldName == "input_quantity" || fieldName == "output_quantity") && !isNumber(value) {
-			*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "应为数字", Flag: 0, Cells: GetCellPosition(usageFieldMapping, rowNumber, fieldName,), RowNumber: rowNumber,})
+		} 
+		if (fieldName == "input_quantity" || fieldName == "output_quantity") && !isNumber(value) {
+			isNum, decimalCount := isNumberDecimal(value)
+			if !isNum {
+				*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "应为数字", Flag: 0, Cells: GetCellPosition(usageFieldMapping, rowNumber, fieldName,), RowNumber: rowNumber,})
+				continue;
+			}
+			if decimalCount != 2 {
+				*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "应保留2位小数", Flag: 0, Cells: GetCellPosition(usageFieldMapping, rowNumber, fieldName,), RowNumber: rowNumber,})
+			}
 		}
 	}
 }
@@ -403,13 +465,13 @@ func (a *App) validateEnergyPurposeDetail(row map[string]interface{}, rowNumber 
 	output_energy_types := getStringValue(row["output_energy_types"]) // 产出品种品类
 	measurement_unit := getStringValue(row["measurement_unit"]) // 产出计量单位
 
-	if input_unit != "万吨" {
-		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "应为“万吨”", Flag: 0, Cells: GetCellPosition(usageFieldMapping, rowNumber, "input_unit"), RowNumber: rowNumber,})
+	if input_unit != "万吨" && input_unit != "其他" {
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "不在选项中", Flag: 0, Cells: GetCellPosition(usageFieldMapping, rowNumber, "input_unit"), RowNumber: rowNumber,})
 	}
 
 	// 若企业存在原料用煤,在主要用途中列出“原料”
 	mapKey := getCreditCodeStatDateKey(row)
-	creditCodeStatDate, exists := creditCodeStatDateMapping[mapKey]
+	creditCodeStatDate, exists := table1creditCodeMap[mapKey]
 	if exists && creditCodeStatDate.Annual_raw_coal > 0 && main_usage != "原料" {
 		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_DATA_LOGIC_ERROR, Message: "应为“原料”", Flag: 0, Cells: GetCellPosition(usageFieldMapping, rowNumber, "main_usage" ), RowNumber: rowNumber,})
 		return;	
@@ -457,13 +519,16 @@ func (a *App) validateTable1MainData(mainData []map[string]interface{}) []Valida
 	for _, row := range mainData {
 		rowNumber := getRowNumber(row)
 		mapKey := getCreditCodeStatDateKey(row)
-		creditCodeStatDateMapping[mapKey] = CreditCacheInfo{
+		table1creditCodeMap[mapKey] = CreditCacheInfo{
 			Annual_raw_coal: parseFloat(getStringValue(row["annual_raw_coal"])),
 		}
+
 		// 年份无法正确识别，部分填写为“2023年”“2024年”，部分填写数字为宽体字符。
 		a.validateStatDate(mainFieldMapping, row, rowNumber, &errors)
 		// 统一社会信用代码填写错误。
 		a.validateCreditCode(mainFieldMapping, row, rowNumber, &errors)
+		// 一个企业填写了多张表格，即既填写了规模以上企业煤炭消费信息表，也填写了其他耗煤单位重点耗煤装置（设备）煤炭消耗信息表。
+		a.validateCreditCodeExists(mapKey, rowNumber, &errors)
 		// 行业门类、行业大类、行业中类不一致。
 		a.validateTrade(mainFieldMapping, row, rowNumber, &errors)
 		// 单位所在省/市/区、单位所在地市、单位所在区县不一致。
@@ -477,7 +542,7 @@ func (a *App) validateTable1MainData(mainData []map[string]interface{}) []Valida
 		// 煤炭消费情况填写存在空缺项，或填写内容不是数字。
 		a.validateEnergyConsumption(row, rowNumber, &errors)
 		// 煤炭消费情况单位填写错误。
-		a.validateEnergyUnitData(row, rowNumber, &errors)
+		a.validateEnergyUnitDataMainData(row, rowNumber, &errors)
 		// 除煤炭洗选及煤制品加工行业外，耗煤总量（实物量）与原煤消费量、洗精煤消费量、其他煤炭消费量（实物量）加和不相等。
 		a.validateEnergyConsumptionTotal(row, rowNumber, &errors)
 	}
@@ -485,19 +550,16 @@ func (a *App) validateTable1MainData(mainData []map[string]interface{}) []Valida
 	return errors
 }
 
-// validateEnergyUnitData  煤炭消费情况单位填写错误。
-func (a *App) validateEnergyUnitData( row map[string]interface{}, rowNumber int, errors *[]ValidationError) {
-	// 综合能耗当量值（万吨标准煤，含原料用能）、年综合能耗等价值（万吨标准煤，含原料用能）、年原料用能消费量（万吨标准煤）
+// validateEnergyUnitDataMainData 煤炭消费情况单位填写错误。
+func (a *App) validateEnergyUnitDataMainData(row map[string]interface{}, rowNumber int, errors *[]ValidationError) {
+	// 煤炭消费情况, 耗煤总量(实物量，万吨)	耗煤总量(标准量，万吨标准煤)	原料用煤(实物量，万吨)	原煤消费(实物量，万吨)	洗精煤消费(实物量，万吨)	其他煤炭消费(实物量，万吨)	焦炭消费(实物量，万吨)
 	fieldNames := []string{
 		"annual_energy_equivalent_value", "annual_energy_equivalent_cost", "annual_raw_material_energy",
-	}
-	a.validateEnergyUnit(mainFieldMapping, row, rowNumber, 0, fieldNames, errors)
-	// 煤炭消费情况, 耗煤总量(实物量，万吨)	耗煤总量(标准量，万吨标准煤)	原料用煤(实物量，万吨)	原煤消费(实物量，万吨)	洗精煤消费(实物量，万吨)	其他煤炭消费(实物量，万吨)	焦炭消费(实物量，万吨)
-	fieldNames = []string{
 		"annual_total_coal_consumption", "annual_total_coal_products", "annual_raw_coal", "annual_raw_coal_consumption", "annual_clean_coal_consumption", "annual_other_coal_consumption", "annual_coke_consumption",
 	}
-	a.validateEnergyUnit(usageFieldMapping, row, rowNumber, 1, fieldNames, errors)
+	a.validateEnergyUnit(mainFieldMapping, row, rowNumber, 1, fieldNames, errors)
 }
+
 
 // validateEnergyUnit 验证数据与单位是否匹配
 func (a *App) validateEnergyUnit(fieldMapping map[string]ExcelFieldMapping, row map[string]interface{}, rowNumber int, flag int, fieldNames []string, errors *[]ValidationError) {
@@ -543,7 +605,8 @@ func (a *App) validateEnergyConsumption(row map[string]interface{}, rowNumber in
 		value := getStringValue(row[fieldName])
 		if isEmpty(value) {
 			*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "不能为空,如不存在，请填写“0.00”", Flag: 0, Cells: GetCellPosition(mainFieldMapping, rowNumber, fieldName,), RowNumber: rowNumber,})
-		} else if !isNumber(value) {
+		}
+		 if !isNumber(value) {
 			*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "应为数字", Flag: 0, Cells: GetCellPosition(mainFieldMapping, rowNumber, fieldName,), RowNumber: rowNumber,})
 		}
 	}
@@ -553,17 +616,11 @@ func (a *App) validateEnergyConsumption(row map[string]interface{}, rowNumber in
 func (a *App) validateEnergyUse(row map[string]interface{}, rowNumber int, errors *[]ValidationError) {
 	// 年综合能耗当量值、年综合能耗等价值、年原料用能消费量校验
 	annualEnergyEquivalentValue := parseFloat(getStringValue(row["annual_energy_equivalent_value"]))
-	annualEnergyEquivalentCost := parseFloat(getStringValue(row["annual_energy_equivalent_cost"]))
 	annualRawMaterialEnergy := parseFloat(getStringValue(row["annual_raw_material_energy"]))
 
 	// 年原料用能消费量≦年综合能耗当量值
 	if isIntegerGreaterThan(annualRawMaterialEnergy, annualEnergyEquivalentValue) {
 		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_DATA_LOGIC_ERROR, Message: "年原料用能消费量不能大于年综合能耗当量值", Flag: 1, Cells: GetCellPosition(mainFieldMapping, rowNumber, "annual_raw_material_energy", "annual_energy_equivalent_value"), RowNumber: rowNumber,})
-	}
-
-	// 年原料用能消费量≦年综合能耗等价值
-	if isIntegerGreaterThan(annualRawMaterialEnergy, annualEnergyEquivalentCost) {
-		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_DATA_LOGIC_ERROR, Message: "年原料用能消费量不能大于年综合能耗等价值", Flag: 1, Cells: GetCellPosition(mainFieldMapping, rowNumber, "annual_raw_material_energy", "annual_energy_equivalent_cost"), RowNumber: rowNumber,})
 	}
 }
 
@@ -589,15 +646,15 @@ func (a *App) validateAddress(fieldMapping map[string]ExcelFieldMapping, row map
 
 	areaMapping, _ := a.GetChinaAreaMap()
 		if _, exists := areaMapping[province_name]; !exists {
-		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "不在中国省份选项中", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, "province_name"), RowNumber: rowNumber,})	
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "省份不在选项中", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, "province_name"), RowNumber: rowNumber,})	
 		return;	
 	}
 	if _, exists := areaMapping[province_name][city_name]; !exists {
-		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "单位所在省/市/区不一致", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, "city_name"), RowNumber: rowNumber,})	
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "市/县不在选项中", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, "city_name"), RowNumber: rowNumber,})	
 		return;	
 	}
 	if _, exists := areaMapping[province_name][city_name][country_name]; !exists {
-		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "单位所在地市不一致", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, "country_name"), RowNumber: rowNumber,})	
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_OPTION_ERROR, Message: "区县不在选项中", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, "country_name"), RowNumber: rowNumber,})	
 		return;	
 	}
 }
@@ -623,6 +680,13 @@ func (a *App)validateCreditCode(fieldMapping map[string]ExcelFieldMapping, row m
 	// 统一社会信用代码请填写18位字符，并确保该单元格为非科学计数法格式，如果发现类似错误，请下载最新版本表格填写。
 	if len(credit_code) != 18 {
 		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_TEXT_FORMAT_ERROR, Message: "应为18位字符", Flag: 0, Cells: GetCellPosition(fieldMapping, rowNumber, "credit_code"), RowNumber: rowNumber,})
+	}
+}
+
+// validateCreditCodeExists 验证统一社会信用代码是否在表2中存在
+func (a *App) validateCreditCodeExists(creditCodeKey string, rowNumber int,errors *[]ValidationError) {
+	if _, exists := table2CreditCodeMap[creditCodeKey]; exists {
+		*errors = append(*errors, ValidationError{ Type: ERROR_TYPE_DATA_LOGIC_ERROR, Message: "同时填写了其他耗煤单位重点耗煤装置（设备）煤炭消耗信息表", Flag: 0, Cells: GetCellPosition(mainFieldMapping, rowNumber, "credit_code"), RowNumber: rowNumber,})
 	}
 }
 

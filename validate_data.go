@@ -10,12 +10,23 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// 当前选择的省份
+var currentProvince string
+
 // ValidateData 验证数据
 func (a *App) ValidateData(province string, filePaths []string) QueryResult {
+	currentProvince = province
 	if len(filePaths) != 4 {
 		return QueryResult{Ok: false, Message: "请上传4个文件"}
 	}
 
+	
+
+	// 清理统一社会信用代码映射
+	defer a.clearCreditCodeMap()
+
+	// 清理统一社会信用代码映射，防止数据污染
+	a.clearCreditCodeMap()
 	// 分类并校验文件
 	validationTasks, err := a.classifyAndValidate(filePaths)
 	if err != nil {
@@ -54,44 +65,51 @@ func (a *App) ValidateData(province string, filePaths []string) QueryResult {
 	}
 }
 
+// clearCreditCodeMap 清理统一社会信用代码映射
+func (a *App) clearCreditCodeMap() {
+	table1creditCodeMap = make(map[string]CreditCacheInfo)
+	table2CreditCodeMap = make(map[string]bool)
+}
+
+
 // ValidationTask 校验任务
 type ValidationTask struct {
-	Prefix    string                 // 文件前缀（如"表1"）
-	Validate  func(string) ([]ValidateSheetResult, error) // 校验函数
-	CachePath string                 // 缓存文件路径
-	Results   []ValidateSheetResult  // 校验结果
+	Prefix              string                                                    // 文件前缀（如"表1"）
+	ValidateSheetFormat func(string) ([]ParseSheetResult, error)                  // 校验格式和表头函数
+	ValidateSheetData   func(sheetResults []ParseSheetResult) []ValidateSheetResult // 校验数据函数
+	CachePath           string                                                    // 缓存文件路径
+	ParseResults        []ParseSheetResult                                        // 解析结果（格式验证阶段）
+	Results             []ValidateSheetResult                                     // 校验结果（数据验证阶段）
 }
+
 
 // classifyAndValidate 分类文件并执行校验
 func (a *App) classifyAndValidate(filePaths []string) ([]*ValidationTask, error) {
 	// 定义校验任务
 	tasks := []*ValidationTask{
-		{Prefix: "表1", Validate: a.validateTable1},
-		{Prefix: "表2", Validate: a.validateTable2},
-		{Prefix: "表3", Validate: a.validateTable3},
-		{Prefix: "附件2", Validate: a.validateAttachment2},
+		{Prefix: "表1", ValidateSheetFormat: a.validateTable1Format, ValidateSheetData: a.validateTable1Data},
+		{Prefix: "表2", ValidateSheetFormat: a.validateTable2Format, ValidateSheetData: a.validateTable2Data},
+		{Prefix: "表3", ValidateSheetFormat: a.validateTable3Format, ValidateSheetData: a.validateTable3Data},
+		{Prefix: "附件2", ValidateSheetFormat: a.validateAttachment2Format, ValidateSheetData: a.validateAttachment2Data},
 	}
 
-	// 为每个文件匹配对应的任务
+	// 检查文件数量必须是4个
+	if len(filePaths) != 4 {
+		return tasks, fmt.Errorf("必须上传4个文件，当前上传了%d个文件", len(filePaths))
+	}
+
+	// 第一步：验证文件名并分类文件
+	fileMapping := make(map[string]string) // prefix -> filePath
 	for _, filePath := range filePaths {
 		fileName := filepath.Base(filePath)
 		matched := false
 		
 		for _, task := range tasks {
 			if strings.HasPrefix(fileName, task.Prefix) {
-				// 复制到缓存
-				cachePath, err := CopyCacheFile(filePath, "")
-				if err != nil {
-					return tasks, err
+				if _, exists := fileMapping[task.Prefix]; exists {
+					return tasks, fmt.Errorf("存在多个%s文件", task.Prefix)
 				}
-				task.CachePath = cachePath
-
-				// 执行校验
-				results, err := task.Validate(cachePath)
-				if err != nil {
-					return tasks, err
-				}
-				task.Results = results
+				fileMapping[task.Prefix] = filePath
 				matched = true
 				break
 			}
@@ -102,11 +120,38 @@ func (a *App) classifyAndValidate(filePaths []string) ([]*ValidationTask, error)
 		}
 	}
 
-	// 检查是否所有任务都已完成
+	// 第二步：检查是否所有必需的文件都存在
 	for _, task := range tasks {
-		if task.CachePath == "" {
+		if _, exists := fileMapping[task.Prefix]; !exists {
 			return tasks, fmt.Errorf("缺少%s文件", task.Prefix)
 		}
+	}
+
+	// 第三步：复制所有文件到缓存
+	for _, task := range tasks {
+		filePath := fileMapping[task.Prefix]
+		cachePath, err := CopyCacheFile(filePath, "")
+		if err != nil {
+			return tasks, err
+		}
+		task.CachePath = cachePath
+	}
+
+	// 第四步：验证所有文件格式（包括表头、工作表等，表1的省份验证也在此步骤）
+	for i, task := range tasks {
+		parseResults, err := task.ValidateSheetFormat(task.CachePath)
+		if err != nil {
+			// 格式验证失败（包括表1省份不一致），清理所有缓存文件并返回
+			cleanupTasks(tasks)
+			return tasks, err
+		}
+		tasks[i].ParseResults = parseResults
+	}
+
+	// 第五步：格式验证全部通过，开始验证数据
+	for i, task := range tasks {
+		validateResults := task.ValidateSheetData(task.ParseResults)
+		tasks[i].Results = validateResults
 	}
 
 	return tasks, nil
@@ -246,6 +291,8 @@ func markErrorCells(f *excelize.File, sheetResult ValidateSheetResult, blueStyle
 			Cell:   cell,
 			Author: "系统校验",
 			Paragraph: []excelize.RichTextRun{{Text: messages}},
+			Width:  400, 
+			Height: 200, 
 		}); err != nil {
 			return err
 		}

@@ -23,7 +23,7 @@ const (
 	// 中国区域信息文件路径
 	CHINA_AREA_FILE_PATH = FRONTEND_FILE_DIR_NAME + "China.json"
 	// 行业门类映射文件路径
-	TRADE_MAPPING_FILE_PATH = FRONTEND_FILE_DIR_NAME + "TradeMapping.json"
+	TRADE_MAPPING_FILE_PATH = FRONTEND_FILE_DIR_NAME + "hangye.json"
 )
 
 // 验证错误类型
