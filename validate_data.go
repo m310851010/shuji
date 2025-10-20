@@ -61,7 +61,7 @@ func (a *App) ValidateData(province string, filePaths []string) QueryResult {
 	return QueryResult{
 		Ok:      true,
 		Data:    zipPath,
-		Message: "校验完成，发现错误，请下载报告查看",
+		Message: "校验完成，发现错误，详细错误信息请查看生成的错误报告。",
 	}
 }
 
@@ -164,6 +164,10 @@ func (a *App) generateErrorReport(tasks []*ValidationTask) (string, error) {
 	for _, task := range tasks {
 		if hasSheetErrors(task.Results) {
 			if err := a.markErrorsInExcel(task.CachePath, task.Results); err != nil {
+				// 文件名长度超出限制
+				if err == excelize.ErrMaxFilePathLength {
+					return "", fmt.Errorf("文件存放的路径过长，建议将文件放在磁盘一级目录再操作。")
+				}
 				return "", fmt.Errorf("标记错误失败: %v", err)
 			}
 			errorFiles = append(errorFiles, task.CachePath)
